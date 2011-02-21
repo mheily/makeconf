@@ -15,7 +15,9 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
 
-INCLUDEDIR="/usr/include/makeconf"
+if [ "$INCLUDEDIR" = "" ] ; then
+    INCLUDEDIR="/usr/include/makeconf"
+fi
 
 err() {
     echo "ERROR: $*"
@@ -34,4 +36,16 @@ then
     chmod 755 ./configure
 else
     err "$src does not exist"
+fi
+
+if [ ! -f Makefile ] 
+then
+    echo "include config.mk
+    " > Makefile
+fi
+
+if [ ! -f config.inc ] 
+then
+    cp $INCLUDEDIR/config.inc.template config.inc \
+        || err "unable to create config.inc"
 fi
