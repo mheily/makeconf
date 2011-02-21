@@ -174,12 +174,17 @@ check_install() {
 check_target() {
     printf "checking operating system type.. "
     default_target=`uname -s | $tr '[:upper:]' '[:lower:]'`
-    if [ "$default_target" = "sunos" ] ; then
-       default_target="solaris"
-    fi
-    if [ "$default_target" = "gnu/kfreebsd" ] ; then
-       default_target="freebsd"
-    fi
+    case "$default_target" in
+    sunos)
+            default_target="solaris"
+            ;;
+    "gnu/kfreebsd")
+            default_target="freebsd"
+            ;;
+    "mingw*")
+            default_target="windows"
+            ;;
+    esac
     finalize target "$default_target"
     echo "$target"
 }
