@@ -25,7 +25,7 @@ makeconf: makeconf.sh
 
 install: makeconf
 	$(INSTALL) -d -m 755 $(INCLUDEDIR)/$(PROGRAM)
-	$(INSTALL) -m 644 configure $(INCLUDEDIR)/$(PROGRAM)
+	$(INSTALL) -m 644 configure config.inc.template $(INCLUDEDIR)/$(PROGRAM)
 	$(INSTALL) -d -m 755 $(BINDIR)
 	$(INSTALL) -m 755 makeconf $(BINDIR)/makeconf
 
@@ -53,7 +53,12 @@ dist-upload: $(DISTFILE)
 
 clean:
 	rm -f makeconf
-	rm -rf pkg
+	rm -rf pkg testing
+
+check:
+	rm -rf testing
+	mkdir testing
+	cd testing && INCLUDEDIR=.. ../makeconf.sh && ./configure && make
 
 distclean: clean
 	rm -f *.tar.gz config.mk config.h $(PROGRAM).pc $(PROGRAM).la rpm.spec
