@@ -18,11 +18,16 @@ include config.mk
 
 .PHONY :: install uninstall check dist dist-upload publish-www clean merge distclean fresh-build rpm edit cscope
 
-all:
+all: makeconf
 
-install: 
+makeconf: makeconf.sh
+	cat makeconf.sh | sed "s|^INCLUDEDIR=.*|INCLUDEDIR=\"$(INCLUDEDIR)/$(PROGRAM)\"|" > makeconf
+
+install: makeconf
 	$(INSTALL) -d -m 755 $(INCLUDEDIR)/$(PROGRAM)
 	$(INSTALL) -m 644 configure $(INCLUDEDIR)/$(PROGRAM)
+	$(INSTALL) -d -m 755 $(BINDIR)
+	$(INSTALL) -m 755 makeconf $(BINDIR)/makeconf
 
 $(DISTFILE): $(SOURCES) $(HEADERS)
 	mkdir $(PROGRAM)-$(VERSION)
@@ -47,11 +52,8 @@ dist-upload: $(DISTFILE)
 	scp $(DISTFILE) $(DIST)
 
 clean:
-	rm -f tags *.a *.so *.so.* *.so.*.*
-	find src -name '*.o' -exec rm {} \;
+	rm -f makeconf
 	rm -rf pkg
-	cd test && make clean || true
-	if [ -d www ] ; then cd www && make clean ; fi
 
 distclean: clean
 	rm -f *.tar.gz config.mk config.h $(PROGRAM).pc $(PROGRAM).la rpm.spec

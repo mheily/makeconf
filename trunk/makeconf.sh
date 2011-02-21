@@ -17,12 +17,21 @@
 
 INCLUDEDIR="/usr/include/makeconf"
 
+err() {
+    echo "ERROR: $*"
+    exit 1
+}
+
 src="$INCLUDEDIR/configure"
+dst="./configure"
+if [ -f "$dst" ]
+then
+    err "$dst already exists"
+fi
 if [ -f "$src" ]
 then
     cp $src .
     chmod 755 ./configure
 else
-    echo "ERROR: $src does not exist"
-    exit 1
+    err "$src does not exist"
 fi

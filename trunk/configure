@@ -15,7 +15,7 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
 
-makeconf_version="$Revision:$"
+makeconf_version="$Revision$"
 
 c_exports="program version target cflags"
 
