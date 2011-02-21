@@ -21,19 +21,8 @@ include config.mk
 all:
 
 install: 
-	$(INSTALL) -d -m 755 $(INCLUDEDIR)/kqueue/sys
-	$(INSTALL) -m 644 include/sys/event.h $(INCLUDEDIR)/kqueue/sys/event.h
-	$(INSTALL) -d -m 755 $(LIBDIR) 
-	$(INSTALL) -m 644 $(PROGRAM).so.$(ABI_VERSION) $(LIBDIR)
-	$(INSTALL) -m 644 $(PROGRAM).so.$(ABI_MAJOR) $(LIBDIR)
-	$(LN) -sf $(PROGRAM).so.$(ABI_VERSION) $(LIBDIR)/$(PROGRAM).so.$(ABI_MAJOR)
-	$(LN) -sf $(PROGRAM).so.$(ABI_VERSION) $(LIBDIR)/$(PROGRAM).so
-	$(INSTALL) -m 644 $(PROGRAM).la $(LIBDIR)
-	$(INSTALL) -d -m 755 $(LIBDIR)/pkgconfig
-	$(INSTALL) -m 644 libkqueue.pc $(LIBDIR)/pkgconfig
-	$(INSTALL) -d -m 755 $(MANDIR)/man2
-	$(INSTALL) -m 644 kqueue.2 $(MANDIR)/man2/kqueue.2
-	$(INSTALL) -m 644 kqueue.2 $(MANDIR)/man2/kevent.2
+	$(INSTALL) -d -m 755 $(INCLUDEDIR)/$(PROGRAM)
+	$(INSTALL) -m 644 configure $(INCLUDEDIR)/$(PROGRAM)
 
 $(DISTFILE): $(SOURCES) $(HEADERS)
 	mkdir $(PROGRAM)-$(VERSION)
@@ -46,6 +35,10 @@ $(DISTFILE): $(SOURCES) $(HEADERS)
 	tar zcf $(PROGRAM)-$(VERSION).tar.gz $(PROGRAM)-$(VERSION)
 	rm -rf $(PROGRAM)-$(VERSION)
 
+# Dump a list of all variables
+dump:
+	@echo "$(PREFIX) $(LIBDIR) $(BINDIR) $(SBINDIR) $(INCLUDEDIR)"
+                  
 dist:
 	rm -f $(DISTFILE)
 	make $(DISTFILE)
