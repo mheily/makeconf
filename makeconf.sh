@@ -28,7 +28,8 @@ src="$INCLUDEDIR/configure"
 dst="./configure"
 if [ -f "$dst" ]
 then
-    err "$dst already exists"
+# TODO: compare version strings
+#    err "$dst already exists"
 fi
 if [ -f "$src" ]
 then
