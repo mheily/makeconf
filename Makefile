@@ -21,7 +21,7 @@ include config.mk
 all: makeconf
 
 makeconf: makeconf.sh
-	cat makeconf.sh | sed "s|^INCLUDEDIR=.*|INCLUDEDIR=\"$(INCLUDEDIR)/$(PROGRAM)\"|" > makeconf
+	cat makeconf.sh | sed "s|^    INCLUDEDIR=.*|    INCLUDEDIR=\"$(INCLUDEDIR)/$(PROGRAM)\"|" > makeconf
 
 install: makeconf
 	$(INSTALL) -d -m 755 $(INCLUDEDIR)/$(PROGRAM)
