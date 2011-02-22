@@ -26,11 +26,11 @@ err() {
 
 src="$INCLUDEDIR/configure"
 dst="./configure"
-if [ -f "$dst" ]
-then
+#if [ -f "$dst" ]
+#then
 # TODO: compare version strings
 #    err "$dst already exists"
-fi
+#fi
 if [ -f "$src" ]
 then
     cp $src .
