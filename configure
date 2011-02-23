@@ -346,7 +346,9 @@ objs="`echo \"$sources\" | sed 's/\.c/\.o/g'`"
 
 subst_vars "$program.pc"
 subst_vars "$program.la"
-subst_vars "rpm.spec"
+if [ "$target" = "linux" ] ; then
+  subst_vars "rpm.spec"
+fi
 
 if [ "$sources" != "" ] ; then
     echo "Creating config.h"
