@@ -24,6 +24,8 @@ err() {
     exit 1
 }
 
+sources=`find ./ -name '*.c'`
+
 src="$INCLUDEDIR/configure"
 dst="./configure"
 #if [ -f "$dst" ]
@@ -47,6 +49,8 @@ fi
 
 if [ ! -f config.inc ] 
 then
-    cp $INCLUDEDIR/config.inc.template config.inc \
+  sed -e "
+       s,@@SOURCES@@,$sources,g;
+       " < $INCLUDEDIR/config.inc.template > config.inc \
         || err "unable to create config.inc"
 fi
