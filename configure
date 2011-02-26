@@ -116,8 +116,8 @@ check_binary() {
 
    for x in $*
    do
-       path=`which $x 2>/dev/null`
-       if [ $? = 0 ] ; then
+       path=`which $x 2>/dev/null | sed 's/^no .*//'`
+       if [ "$path" != "" ] ; then
            eval "$id=\"$path\""
            return
        fi
@@ -199,7 +199,7 @@ check_target() {
 check_compiler() {
     printf "checking for a C compiler.. "
     if [ "$cc" = "" ] ; then
-        check_binary default_cc "$cc" cc gcc clang
+        check_binary default_cc cc gcc clang
         finalize cc "$default_cc"
         test -x "$cc" || err "Unable to locate a C compiler"
         echo "$cc"
