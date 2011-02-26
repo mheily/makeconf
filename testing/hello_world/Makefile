@@ -1,7 +1,7 @@
 include config.mk
 
 hello: main.c
-	$(CC) -o hello $(SOURCES)	
+	$(CC) $(CFLAGS) $(LDFLAGS) -o hello $(SOURCES) $(LDADD)
     
 clean:
 	rm hello

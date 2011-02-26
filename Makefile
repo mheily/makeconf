@@ -56,9 +56,7 @@ clean:
 	rm -rf pkg testing
 
 check:
-	rm -rf testing
-	mkdir testing
-	cd testing && INCLUDEDIR=.. ../makeconf.sh && ./configure && make
+	cd testing && make
 
 distclean: clean
 	rm -f *.tar.gz config.mk config.h $(PROGRAM).pc $(PROGRAM).la rpm.spec
