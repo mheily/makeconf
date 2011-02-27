@@ -24,7 +24,7 @@ make_exports="program version target api distfile \
               cflags ldflags ldadd libdepends \
               sources objs deps mans headers extra_dist subdirs \
               abi_major abi_minor abi_version \
-              cc cpp ld ln ar install diff"
+              cc cpp ln ar install diff"
 
 required_headers=
 optional_headers=
@@ -84,7 +84,6 @@ process_env() {
     test -n "$CPP" && cpp="$CPP"
     test -n "$CPPFLAGS" && cppflags="$CPPFLAGS"
     test -n "$CFLAGS" && cflags="$CFLAGS"
-    test -n "$LD" && ld="$LD"
     test -n "$LN" && ld="$LN"
     test -n "$LDFLAGS" && ldflags="$LDFLAGS"
     test -n "$AR" && ar="$AR"
@@ -208,38 +207,16 @@ check_compiler() {
     fi
 }
 
-check_linker() {
-    printf "checking for a suitable linker.. "
-
-    # Workaround for "hidden symbol <foo> is referenced by DSO" linker error
-    # seen when compiling libdispatch.
-    # Appears to be a problem with GCC 4.0 and binutils
-    #
-    default_ld="$cc"
-    ldflags="-o $program.so.$abi_major.$abi_minor $ldflags"
-
-    # FIXME: port to solaris
-    if [ "$target" = "linux" ] ; then
-    ldflags="$ldflags -Wl,-export-dynamic -Wl,-soname,$program.so.$abi_major"
-    fi 
-
-    if [ "$target" = "solaris" ] ; then
-    ldflags="$ldflags"
-    fi
-
-    finalize ld "$default_ld"
-    echo "$ld"
-}
-
 check_archiver() {
     printf "checking for a suitable archiver.. "
-    if [ "`uname -s`" = "SunOS" -a "`uname -v | grep Nexenta`" = "" ] ; then
-       default_ar="/usr/sfw/bin/gar"
+    if [ "$ar" = "" ] ; then
+        check_binary default_ar ar gar
+        finalize ar "$default_ar"
+        test -x "$ar" || err "Unable to locate an archiver"
+        echo "$ar"
     else
-       default_ar="/usr/bin/ar"
+        echo "$ar (set by the AR environment variable)"
     fi
-    finalize ar "$default_ar"
-    echo "$ar"
 }
 
 err() {
@@ -312,16 +289,16 @@ process_env
 
 check_target
 check_compiler
-check_linker
 check_archiver
 check_install
 check_diff
 
 finalize program    "$program"
 finalize version    "$version"
-finalize abi_major  "$abi_major"
-finalize abi_minor  "$abi_minor"
-finalize abi_version "$abi_major.$abi_minor"
+# FIXME: make per-target
+#finalize abi_major  "$abi_major"
+#finalize abi_minor  "$abi_minor"
+#finalize abi_version "$abi_major.$abi_minor"
 finalize prefix     "/usr/local"
 finalize bindir     "\\\$(PREFIX)/bin"
 finalize sbindir    "\\\$(PREFIX)/sbin"
@@ -361,3 +338,25 @@ fi
 
 echo "Creating config.mk"
 export_to_make "$make_exports"
+
+cleanfiles=""
+    echo "$x " 
+for x in $targets
+do
+    target=`echo $x | sed 's/:.*//'`
+    sources=`echo $x | sed 's/^.*://' | tr ',' ' '`
+    cleanfiles="$cleanfiles $target"
+    if [ "`echo "$target" | egrep '\\.so\$'`" = "$target" ] ; then
+      #FIXME:
+      #abi_major=???
+      #abi_minor=???
+      #cflags="-o $program.so.$abi_major.$abi_minor $ldflags"
+
+      printf "\n$target: $sources \$(${target}_DEPENDS)\n\t\$(CC) -shared \$(CFLAGS) -Wl,-export-dynamic -Wl,-soname,$target \$(${target}_CFLAGS) \$(LDFLAGS) \$(${target}_LDFLAGS) -o $target $sources\n" >> config.mk
+    else
+      printf "\n$target: $sources \$(${target}_DEPENDS)\n\t\$(CC) \$(CFLAGS) \$(${target}_CFLAGS) \$(LDFLAGS) \$(${target}_LDFLAGS) -o $target $sources \$(LDADD) \$(${target}_LDADD)\n" >> config.mk
+    fi
+done
+
+printf "\nall: $cleanfiles\n" >> config.mk
+printf "\nclean:\n\trm -f $cleanfiles\n" >> config.mk

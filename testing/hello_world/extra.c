@@ -16,11 +16,8 @@
 
 #include <stdio.h>
 
-void where_am_i(void);
-
-int 
-main(int argc, char **argv)
+void 
+where_am_i(void)
 {
-    printf("Hello world!\n");
-    where_am_i();
+    printf("I'm in an different translation unit!\n");
 }

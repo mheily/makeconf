@@ -16,11 +16,8 @@
 
 #include <stdio.h>
 
-void where_am_i(void);
-
-int 
-main(int argc, char **argv)
+void __attribute__ ((constructor))
+so_hello(void)
 {
-    printf("Hello world!\n");
-    where_am_i();
+    printf("I'm inside a shared library!\n");
 }
