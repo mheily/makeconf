@@ -1,0 +1,7 @@
+$project{'makeconf'} = {
+        version => '0.1',
+};
+
+check_header('stdlib.h');
+check_header(qw(stdio.h string.h does-not-exist.h));
+1;
