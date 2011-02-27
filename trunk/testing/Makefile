@@ -9,5 +9,5 @@ all: clean
 clean:
 	for x in $(SUBDIRS) ; \
 	do \
-	cd $$x ; make clean ; rm -f configure ; \
+	cd $$x ; make clean || true ; rm -f configure ; \
 	done
