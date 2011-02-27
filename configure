@@ -65,15 +65,37 @@ finalize() {
   eval "if [ \"\$$1\" = \"\" ] ; then $1=\"$2\" ; fi"
 }
 
+# Print the linker relocation path options using the
+# appropriate syntax
+#
+print_rpath() {
+    rpath=$1
+    
+    test -n "$rpath" || return
+
+    if [ `uname` = "SunOS" ] ; then
+        echo "-L $rpath -R $rpath"
+    else
+        echo "-L $rpath -Wl,-rpath,$rpath"
+    fi
+}
+
 process_argv() {
     for arg in $*
     do
+        id=`echo "$arg" | sed 's/=.*//; s/^--//;'`
+        val=`echo "$arg" | sed 's/^.*=//'`
+
         if [ "$arg" = "--makeconf-version" ] ; then
             echo $makeconf_version | sed 's/[^0-9.]//g'
             exit 0
         fi
-        id=`echo "$arg" | sed 's/=.*//; s/^--//;'`
-        val=`echo "$arg" | sed 's/^.*=//'`
+
+        if [ "$id" = "generate-rpath" ] ; then
+            print_rpath $val
+            exit 0
+        fi
+
         if [ "$val" = "" ] ; then val=1 ; fi
         eval "$id=\"$val\"" 
     done
@@ -272,6 +294,9 @@ test -f /usr/xpg4/bin/tr && tr="/usr/xpg4/bin/tr"
 
 . ./config.inc
 
+process_argv "$*"
+process_env
+
 # Initialize the output files
 #
 for output_file in config.mk
@@ -283,9 +308,6 @@ if [ "$sources" != "" ] ; then
    rm -f config.h
    echo "/* AUTOMATICALLY GENERATED -- DO NOT EDIT */" > config.h
 fi
-
-process_argv "$*"
-process_env
 
 check_target
 check_compiler
@@ -343,18 +365,29 @@ cleanfiles=""
     echo "$x " 
 for x in $targets
 do
-    target=`echo $x | sed 's/:.*//'`
+    dest=`echo $x | sed 's/:.*//'`
     sources=`echo $x | sed 's/^.*://' | tr ',' ' '`
-    cleanfiles="$cleanfiles $target"
-    if [ "`echo "$target" | egrep '\\.so\$'`" = "$target" ] ; then
+    cleanfiles="$cleanfiles $dest"
+
+    if [ "$target" = "solaris" ] ; then
+         extra_ldflags="-m64 -R /usr/sfw/lib/amd64"
+    fi
+
+    if [ "`echo "$dest" | egrep '\\.so\$'`" = "$dest" ] ; then
       #FIXME:
       #abi_major=???
       #abi_minor=???
       #cflags="-o $program.so.$abi_major.$abi_minor $ldflags"
 
-      printf "\n$target: $sources \$(${target}_DEPENDS)\n\t\$(CC) -shared \$(CFLAGS) -Wl,-export-dynamic -Wl,-soname,$target \$(${target}_CFLAGS) \$(LDFLAGS) \$(${target}_LDFLAGS) -o $target $sources\n" >> config.mk
+      if [ "$target" != "solaris" ] ; then
+         extra_ldflags="$extra_ldflags -Wl,-export-dynamic -Wl,-soname,$target"
+      fi
+
+      printf "\n$dest: $sources \$(${dest}_DEPENDS)\n\t\$(CC) -shared \$(CFLAGS) \$(${dest}_CFLAGS) $extra_ldflags \$(LDFLAGS) \$(${dest}_LDFLAGS) -o $dest $sources\n" >> config.mk
     else
-      printf "\n$target: $sources \$(${target}_DEPENDS)\n\t\$(CC) \$(CFLAGS) \$(${target}_CFLAGS) \$(LDFLAGS) \$(${target}_LDFLAGS) -o $target $sources \$(LDADD) \$(${target}_LDADD)\n" >> config.mk
+       rpath_flags='`./configure --generate-rpath=$('$dest'_RPATH) ; ./configure --generate-rpath="$(RPATH)"`'
+
+      printf "\n$dest: $sources \$(${dest}_DEPENDS)\n\t\$(CC) \$(CFLAGS) \$(${dest}_CFLAGS) \$(LDFLAGS) $extra_ldflags $rpath_flags \$(${dest}_LDFLAGS) -o $dest $sources \$(LDADD) \$(${dest}_LDADD)\n" >> config.mk
     fi
 done
 

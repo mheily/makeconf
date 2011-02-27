@@ -1,5 +1,5 @@
 hello_DEPENDS=libhello.so
-hello_LDFLAGS=-L. -Wl,-rpath,.
+hello_RPATH=.
 hello_LDADD=-lhello
 
 include config.mk
