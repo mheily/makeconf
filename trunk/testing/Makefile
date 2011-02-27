@@ -1,14 +1,13 @@
 SUBDIRS=hello_world
-EXTRA=configure config.inc
 
 all: clean
 	for x in $(SUBDIRS) ; \
 	do \
-	cd $$x ; INCLUDEDIR=../.. ../../makeconf.sh ; ./configure && make ; \
+	cd $$x ; INCLUDEDIR=../.. ../../makeconf.sh ; ./configure && make && cat config.mk && make clean all check; \
 	done
 
 clean:
 	for x in $(SUBDIRS) ; \
 	do \
-	cd $$x ; make clean ; rm -f $(EXTRA) ; \
+	cd $$x ; make clean ; rm -f configure ; \
 	done

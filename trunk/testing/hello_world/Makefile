@@ -1,7 +1,9 @@
+hello_DEPENDS=libhello.so
+hello_LDFLAGS=-L. -Wl,-rpath,.
+hello_LDADD=-lhello
+
 include config.mk
 
-hello: main.c
-	$(CC) $(CFLAGS) $(LDFLAGS) -o hello $(SOURCES) $(LDADD)
-    
-clean:
-	rm hello
+check: hello
+#LD_LIBRARY_PATH=. ./hello
+	./hello
