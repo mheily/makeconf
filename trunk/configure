@@ -69,15 +69,18 @@ finalize() {
 # appropriate syntax
 #
 print_rpath() {
-    rpath=$1
-    
-    test -n "$rpath" || return
-
-    if [ `uname` = "SunOS" ] ; then
-        echo "-L $rpath -R $rpath"
-    else
-        echo "-L $rpath -Wl,-rpath,$rpath"
-    fi
+    res=""
+    for rpath in $*
+    do
+        rpath=`echo $rpath | sed 's/--generate-rpath=//'`
+        if [ "$rpath" = "" ] ; then continue ; fi
+        if [ `uname` = "SunOS" ] ; then
+            res="$res -L $rpath -R $rpath"
+        else
+            res="$res -L $rpath -Wl,-rpath,$rpath"
+        fi
+    done
+    echo $res
 }
 
 process_argv() {
@@ -92,7 +95,7 @@ process_argv() {
         fi
 
         if [ "$id" = "generate-rpath" ] ; then
-            print_rpath $val
+            print_rpath $*
             exit 0
         fi
 
@@ -385,7 +388,7 @@ do
 
       printf "\n$dest: $sources \$(${dest}_DEPENDS)\n\t\$(CC) -shared \$(CFLAGS) \$(${dest}_CFLAGS) $extra_ldflags \$(LDFLAGS) \$(${dest}_LDFLAGS) -o $dest $sources\n" >> config.mk
     else
-       rpath_flags='`./configure --generate-rpath=$('$dest'_RPATH) ; ./configure --generate-rpath="$(RPATH)"`'
+       rpath_flags='`./configure --generate-rpath="$('$dest'_RPATH) $(RPATH)"`'
 
       printf "\n$dest: $sources \$(${dest}_DEPENDS)\n\t\$(CC) \$(CFLAGS) \$(${dest}_CFLAGS) \$(LDFLAGS) $extra_ldflags $rpath_flags \$(${dest}_LDFLAGS) -o $dest $sources \$(LDADD) \$(${dest}_LDADD)\n" >> config.mk
     fi
