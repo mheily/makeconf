@@ -27,6 +27,8 @@ use Getopt::Long;
 my $version = '$Revision: 23 $';
 $version =~ s/[^\d]//g;
 
+my $verbose = 1;
+
 # Project table
 #
 my %project;
@@ -153,6 +155,36 @@ subst_vars() {
 }
 =cut
 
+sub compile {
+    my $code = shift;
+
+    my ($fh, $filename) = tempfile('mcXXXXXXXXXX', 
+            SUFFIX => '.c',
+            UNLINK => 1,
+            );
+    print $fh $code or die $!;
+    close($fh) or die $!;
+
+    my $cmd = "$sym{cc} $sym{cflags} $filename";
+    if ($verbose > 1) {
+        print "\ncompiling with '$cmd`:\n" . 
+              ('-' x 72) . "\n" . 
+              $code . "\n" .
+              ('-' x 72) . "\n"; 
+    } else {
+        $cmd .= " >/dev/null 2>&1";
+    }
+    system $cmd;
+    if ($? == -1) {
+        die "failed to execute: $!\n";
+    } elsif ($? & 127) {
+        die "child died with signal %d, %s coredump\n",
+            ($? & 127),  ($? & 128) ? 'with' : 'without';
+    } else {
+        return ($? >> 8);
+    }
+}
+
 sub print_usage {
     die 'TODO -- usage';
     exit(0);
@@ -182,6 +214,7 @@ sub parse_argv {
     GetOptions(\%opt,
         'help|h',
         'version|V',
+        'verbose|v',
         'prefix=s',
         'bindir=s',
         'sbindir=s',
@@ -208,6 +241,10 @@ sub parse_argv {
     foreach my $key (keys %opt) {
         $sym{$key} = $opt{$key};
     }
+
+    # Process options that modify global settings
+    #
+    $verbose++ if $opt{verbose};
 }
 
 sub which {
@@ -296,32 +333,57 @@ sub check_header {
     my $result = 1;
     foreach my $header (@_) {
         print "checking for $header... ";
-        my ($fh, $filename) = tempfile('mcXXXXXXXXXX', 
-                SUFFIX => '.c',
-                UNLINK => 1,
-                );
-        print $fh "#include <$header>\nint main() {}\n" or die $!;
-        close($fh) or die $!;
-        system "$sym{cc} $sym{cflags} $filename 2>/dev/null"; #FIXME: log it
-        if ($? == -1) {
-            die "failed to execute: $!\n";
-        }
-        elsif ($? & 127) {
-            die "child died with signal %d, %s coredump\n",
-                   ($? & 127),  ($? & 128) ? 'with' : 'without';
-        }
-        else {
-            if ($? >> 8) {
-                print "no\n";
-                $sym{header}->{$header} = 0;
-                $result = 0;
-            } else {
-                print "yes\n";
-                $sym{header}->{$header} = 1;
-            }
+        my $code = "#include <$header>\nint main() {}\n";
+        if (compile($code) != 0) {
+            print "no\n";
+            $sym{header}->{$header} = 0;
+            $result = 0;
+        } else {
+            print "yes\n";
+            $sym{header}->{$header} = 1;
         }
     }
     return $result;
+}
+
+sub check_symbol {
+    my ($header,$symbol) = @_;
+    my $code;
+    my $found = 0;
+
+    # Check that the header is available
+    #
+    check_header($header) unless exists $sym{header}->{$header};
+    if ($sym{header}->{$header} == 0) {
+        print "checking $header for $symbol... no ($header is missing)\n";
+        return 0; 
+    }
+
+    print "checking $header for $symbol... ";
+
+    # See if the symbol is a macro
+    #
+    $code = "
+        #include <$header>
+        #if !defined($symbol)
+        #error no
+        #endif
+        int main() {}\n";
+    if (compile($code) == 0) {
+        $found = 1;
+    }
+
+    # See if the symbol is an actual symbol
+    #
+    $code = "#include <$header>\nint main() { void *p; p = &$symbol; }\n";
+    if (not $found and compile($code) == 0) {
+        $found = 1;
+    }
+
+out:
+    print $found ? "yes" : "no", "\n";
+    $sym{macro}->{$symbol} = $found;
+    return $found;
 }
 
 #######################################################################
