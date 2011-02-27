@@ -53,7 +53,7 @@ dist-upload: $(DISTFILE)
 
 clean:
 	rm -f makeconf
-	rm -rf pkg testing
+	rm -rf pkg
 
 check:
 	cd testing && make

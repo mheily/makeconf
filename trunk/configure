@@ -380,7 +380,7 @@ do
       #cflags="-o $program.so.$abi_major.$abi_minor $ldflags"
 
       if [ "$target" != "solaris" ] ; then
-         extra_ldflags="$extra_ldflags -Wl,-export-dynamic -Wl,-soname,$target"
+         extra_ldflags="$extra_ldflags -Wl,-export-dynamic -Wl,-soname,$dest"
       fi
 
       printf "\n$dest: $sources \$(${dest}_DEPENDS)\n\t\$(CC) -shared \$(CFLAGS) \$(${dest}_CFLAGS) $extra_ldflags \$(LDFLAGS) \$(${dest}_LDFLAGS) -o $dest $sources\n" >> config.mk
