@@ -126,7 +126,9 @@ sub compile {
         die "child died with signal %d, %s coredump\n",
             ($? & 127),  ($? & 128) ? 'with' : 'without';
     } else {
-        return ($? >> 8);
+        my $retval = $? >> 8;
+        print "exit status = $retval\n" if $verbose > 1;
+        return ($retval == 0 ? 1 : 0);
     }
 }
 
@@ -248,9 +250,9 @@ sub check_compiler {
     # Check what features the compiler supports
     #
     $sym{cc_features} = +{};
-    print "checking if the compiler supports the -combined option.. ";
-    my $code = "#include <stdlib.h>\nint main() {}\n";
-    $sym{cc_features}->{combined} = yesno(compile($code, cflags => '-combined'));
+    print "checking if the compiler supports the -combine option.. ";
+    my $code = "int main() {}\n";
+    $sym{cc_features}->{combine} = yesno(compile($code, cflags => '-combine'));
 }
 
 sub check_archiver {
@@ -339,7 +341,8 @@ sub generate_make_target {
     #
     my @cflags = ('$(CFLAGS)', @{$proj->{cflags}}, @{$rec->{cflags}});
     unshift @cflags, '-shared', '-fpic' if $type eq 'library';
-    unshift @cflags, '-combined' if $sym{cc_features}->{combined};
+    unshift @cflags, '-combine', '-fwhole-program'
+        if $sym{cc_features}->{combine}; #TODO: make this optional
 
     # Generate the linker flags
     #
@@ -402,14 +405,8 @@ sub check_header {
     foreach my $header (@_) {
         print "checking for $header... ";
         my $code = "#include <$header>\nint main() {}\n";
-        if (compile($code) != 0) {
-            print "no\n";
-            $sym{header}->{$header} = 0;
-            $result = 0;
-        } else {
-            print "yes\n";
-            $sym{header}->{$header} = 1;
-        }
+        $sym{header}->{$header} = yesno(compile($code));
+        $result = 0 unless $sym{header}->{$header};
     }
     return $result;
 }
@@ -437,20 +434,19 @@ sub check_symbol {
         #error no
         #endif
         int main() {}\n";
-    if (compile($code) == 0) {
+    if (compile($code)) {
         $found = 1;
     }
 
     # See if the symbol is an actual symbol
     #
     $code = "#include <$header>\nint main() { void *p; p = &$symbol; }\n";
-    if (not $found and compile($code) == 0) {
+    if (not $found and compile($code)) {
         $found = 1;
     }
 
 out:
-    print $found ? "yes" : "no", "\n";
-    $sym{macro}->{$symbol} = $found;
+    $sym{macro}->{$symbol} = yesno($found);
     return $found;
 }
 
