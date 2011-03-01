@@ -99,6 +99,9 @@ subst_vars() {
 
 sub compile {
     my $code = shift;
+    my %opt = @_;
+    $opt{cflags} ||= $sym{cflags};
+    $opt{cc} ||= $sym{cc};
 
     my ($fh, $filename) = tempfile('mcXXXXXXXXXX', 
             SUFFIX => '.c',
@@ -107,7 +110,7 @@ sub compile {
     print $fh $code or die $!;
     close($fh) or die $!;
 
-    my $cmd = "$sym{cc} $sym{cflags} $filename";
+    my $cmd = "$opt{cc} $opt{cflags} $filename";
     if ($verbose > 1) {
         print "\ncompiling with '$cmd`:\n" . 
               ('-' x 72) . "\n" . 
@@ -158,11 +161,21 @@ sub parse_conffile {
         #
         $proj->{cflags} = '' unless exists $proj->{cflags};
         $proj->{ldflags} = '' unless exists $proj->{ldflags};
+        $proj->{targets} = +{} unless exists $proj->{targets};
 
         # Convert certain keys from scalar to list format.
         #
         $proj->{cflags} = [ parse_line(' ', 0, $proj->{cflags}) ];
         $proj->{ldflags} = [ parse_line(' ', 0, $proj->{ldflags}) ];
+
+        # Normalize each target definition
+        #
+        foreach my $t (values %{ $proj->{targets} }) {
+            $t->{cflags} = '' unless exists $t->{cflags};
+            $t->{cflags} = [ parse_line(' ', 0, $t->{cflags}) ];
+            $t->{ldflags} = '' unless exists $t->{ldflags};
+            $t->{ldflags} = [ parse_line(' ', 0, $t->{ldflags}) ];
+        }
     }
 }
 
@@ -231,6 +244,13 @@ sub check_target {
 sub check_compiler {
     print "checking for a C compiler.. $sym{cc}\n";
     die 'not found' unless $sym{cc};
+
+    # Check what features the compiler supports
+    #
+    $sym{cc_features} = +{};
+    print "checking if the compiler supports the -combined option.. ";
+    my $code = "#include <stdlib.h>\nint main() {}\n";
+    $sym{cc_features}->{combined} = yesno(compile($code, cflags => '-combined'));
 }
 
 sub check_archiver {
@@ -241,10 +261,13 @@ sub check_archiver {
 
 sub check_install {
     print "checking for a BSD-compatible install.. ";
-    $sym{install} = $ENV{INSTALL} || which(qw(install)) || die 'not found';
-    if ($sym{target} eq 'solaris' and $sym{install} eq '/usr/bin/install') {
-        $sym{install}='/usr/ucb/install';
+    $sym{install} = $ENV{INSTALL} || which(qw(install));
+    if ($sym{target} eq 'solaris') {
+        if (not $sym{install} or $sym{install} eq '/usr/bin/install') {
+            $sym{install}='/usr/ucb/install';
+        }
     }
+    die "not found" unless $sym{install};
     print "$sym{install}\n";
 }
 
@@ -277,10 +300,10 @@ sub convert_ldflags {
     
     foreach my $x (@token) {
         if ($sym{target} eq 'solaris') {
-            if ($x =~ /^-Wl,-rpath,(.*?)/) {
-                $x = "-R $1";
-            } elsif ($x =~ /-Wl,-soname,(.+)/) {
-                $x = "-h $1";
+            if ($x =~ /^-Wl,-rpath,/) {
+                $x = "-R $'";
+            } elsif ($x =~ /-Wl,-soname,/) {
+                $x = "-h $'";
             } elsif ($x =~ /-Wl,-export-dynamic/) {
                 undef $x;
             }
@@ -314,16 +337,13 @@ sub generate_make_target {
 
     # Generate the compiler flags
     #
-    my @cflags = ('$(CFLAGS)');
-    push @cflags, @{$proj->{cflags}} if exists $proj->{cflags};
-    push @cflags, $rec->{cflags} if exists $rec->{cflags};
+    my @cflags = ('$(CFLAGS)', @{$proj->{cflags}}, @{$rec->{cflags}});
     unshift @cflags, '-shared', '-fpic' if $type eq 'library';
+    unshift @cflags, '-combined' if $sym{cc_features}->{combined};
 
     # Generate the linker flags
     #
-    my @ldflags = ('$(LDFLAGS)');
-    push @ldflags, @{$proj->{ldflags}} if exists $proj->{ldflags};
-    push @ldflags, $rec->{ldflags} if exists $rec->{ldflags};
+    my @ldflags = ('$(LDFLAGS)', @{$proj->{ldflags}}, @{$rec->{ldflags}});
     unshift @ldflags, '-Wl,-export-dynamic', '-Wl,-soname,' . $output
         if $type eq 'library';
     (@ldflags) = convert_ldflags(@ldflags);
@@ -338,12 +358,8 @@ sub generate_make_target {
 
     return  "\n" .
             "$output: " . join(' ', @depends) . "\n" .
-            "\t\$(CC)" .
-            " -o $output" .
-            " " . join(' ', @cflags) .
-            " " . join(' ', @ldflags) .
-            " " . join(' ', @{ $rec->{sources} }) .
-            " " . join(' ', @libs) .
+            "\t\$(CC) -o $output " .
+            join(' ', @cflags, @ldflags, @{ $rec->{sources} }, @libs) .
             "\n";
 }
 
@@ -436,6 +452,17 @@ out:
     print $found ? "yes" : "no", "\n";
     $sym{macro}->{$symbol} = $found;
     return $found;
+}
+
+sub yesno {
+    my $x = shift;
+    if (defined $x and $x ne '' and $x ne '0') {
+        print "yes\n";
+        return 1;
+    } else {
+        print "no\n";
+        return 0;
+    }
 }
 
 #######################################################################
