@@ -40,7 +40,7 @@ my %sym = (
         version => '0.1',
         cflags => $ENV{CFLAGS} || '',
         ldflags => $ENV{LDFLAGS} || '',
-        ldadd => $ENV{LDADD} || '',
+        libs => $ENV{LIBS} || '',
         prefix => '/usr/local',
         bindir => '$(PREFIX)/bin',
         sbindir => '$(PREFIX)/sbin',
@@ -55,13 +55,6 @@ my %sym = (
         header => +{},
         );
 
-# Functions to validate and normalize elements of the symbol table
-#
-my %validate = (
-        cflags => sub { $_ }, # TODO translate to non-GCC flags
-        ldflags => sub { $_ }, # TODO translate to non-GNU ldflags
-);
-
 # Symbols to be exported to config.h
 #
 my @c_exports = (qw(project version target api cflags));
@@ -70,63 +63,12 @@ my @c_exports = (qw(project version target api cflags));
 #
 my @make_exports= (qw(project version target api distfile 
               prefix bindir sbindir libdir includedir mandir 
-              cflags ldflags ldadd
+              cflags ldflags libs
               cc ln ar install));
 #FIXME: abi_major abi_minor abi_version diff mans headers extra_dist subdirs 
 
 =pod
-required_headers=
-optional_headers=
-
-# Print the linker relocation path options using the
-# appropriate syntax
-#
-print_rpath() {
-    res=""
-    for rpath in $*
-    do
-        rpath=`echo $rpath | sed 's/--generate-rpath=//'`
-        if [ "$rpath" = "" ] ; then continue ; fi
-        if [ `uname` = "SunOS" ] ; then
-            res="$res -L $rpath -R $rpath"
-        else
-            res="$res -L $rpath -Wl,-rpath,$rpath"
-        fi
-    done
-    echo $res
-}
-
-check_symbol() {
-    header=$1
-    symbol=$2
-
-    uc_symbol=`echo "HAVE_$symbol" | $tr '[:lower:]' '[:upper:]' | sed 's,[./],_,g'`
-    lc_symbol=`echo "have_$symbol" | $tr '[:upper:]' '[:lower:]' | sed 's,[./],_,g'`
-
-    if [ -f "$header" ] ; then
-        path="$header"
-    elif [ -f "/usr/include/$header" ] ; then
-        path="/usr/include/$header"
-    else
-        echo "*** ERROR: Cannot find <$header>"
-        exit 1
-    fi
-     
-    printf "checking $header for $symbol.. "    
-    if [ "`grep $symbol $path`" != "" ] ; then
-     eval "$lc_symbol=yes"
-     echo "#define $uc_symbol 1" >> config.h
-     echo "yes"
-     return 0
-    else
-     eval "$lc_symbol=no"
-     echo "no"
-     echo "#undef $uc_symbol" >> config.h
-     return 1
-    fi
-}
-
-
+TODO:
 subst_vars() {
   outfile=$1
 
@@ -247,6 +189,8 @@ sub parse_argv {
     $verbose++ if $opt{verbose};
 }
 
+# Search the $PATH for the location of an executable
+#
 sub which {
     foreach my $program (@_) {
         foreach my $prefix (split /:/, $ENV{PATH}) {
@@ -262,6 +206,11 @@ sub check_project {
         my $x = basename(getcwd);
         $x =~ s/-[0-9].*$//;        # remove version number
         $sym{project} = $x;
+    }
+
+    # Generate default values for missing elements
+    while (my ($id, $proj) = each %project) {
+# TODO:
     }
 }
 
@@ -317,6 +266,74 @@ sub export_to_c {
     close($fd) or die;
 }
     
+# Translate linker options from GCC syntax to the local linker syntax
+#
+sub convert_ldflags {
+    my (@token) = @_;
+    my @res;
+    
+    foreach my $x (@token) {
+        if ($sym{target} eq 'solaris') {
+            if ($x =~ /^-Wl,-rpath,(.*?)/) {
+                $x = "-R $1";
+            } elsif ($x =~ /-Wl,-soname,(.+)/) {
+                $x = "-h $1";
+            } elsif ($x =~ /-Wl,-export-dynamic/) {
+                undef $x;
+            }
+        }
+        push @res, $x if defined $x;
+    }
+
+    # Workaround: Solaris 10 gcc links with 32-bit libraries in /usr/sfw/lib
+    #             but we should be 64-bit instead.
+    #
+    if ($sym{target} eq 'solaris') {
+        push @res, '-m64', '-R /usr/sfw/lib/amd64';
+    }
+
+    return (@res);
+}
+
+sub generate_make_target {
+    my ($type,$output,$proj,$rec) = @_;
+
+    # Generate the dependency list
+    #
+    my (@depends) = @{ $rec->{sources} };
+    push @depends, @{ $rec->{depends} } if exists $rec->{depends};
+
+    # Generate the compiler flags
+    #
+    my @cflags = ('$(CFLAGS)');
+    push @cflags, @{$proj->{cflags}} if exists $proj->{cflags};
+    push @cflags, @{$rec->{cflags}} if exists $rec->{cflags};
+    unshift @cflags, '-shared', '-fpic' if $output eq 'library';
+
+    # Generate the linker flags
+    #
+    my @ldflags = ('$(LDFLAGS)');
+    push @ldflags, $proj->{ldflags} if exists $proj->{ldflags};
+    push @ldflags, $rec->{ldflags} if exists $rec->{ldflags};
+    (@ldflags) = convert_ldflags(@ldflags);
+
+    # Generate the additional library list
+    #
+    my (@libs) = ('$(LIBS)');
+    push @libs, $proj->{libs} if exists $proj->{libs};
+    push @libs, @{ $rec->{libs} } if exists $rec->{libs};
+
+    return  "\n" .
+            "$output: " . join(' ', @depends) . "\n" .
+            "\t\$(CC)" .
+            " -o $output" .
+            " " . join(' ', @cflags) .
+            " " . join(' ', @ldflags) .
+            " " . join(' ', @{ $rec->{sources} }) .
+            " " . join(' ', @libs) .
+            "\n";
+}
+
 sub export_to_make {
     print "Creating config.mk\n";
     $sym{prefix} = '$(DESTDIR)' . $sym{prefix};
@@ -326,6 +343,30 @@ sub export_to_make {
                     uc($_) . '=' . $sym{$_} . "\n";
               } @make_exports;
     print $fd "# AUTOMATICALLY GENERATED -- DO NOT EDIT\n", @def or die;
+
+    # Generate the 'all' target
+    #
+    my (@all);
+    foreach my $p (values %project) {
+        $p->{binary} ||= +{};
+        $p->{library} ||= +{};
+        push @all, keys %{$p->{binary}};
+        push @all, keys %{$p->{library}};
+    } 
+    print $fd "\nall: " . join(' ', @all) . "\n";
+
+    # Generate the 'clean' target
+    #
+    print $fd "\nclean:\n\trm -f " . join(' ', @all) . "\n";
+
+    # Generate all binary targets
+    #
+    foreach my $p (values %project) {
+        while (my ($key,$rec) = each %{$p->{binary}}) {
+            print $fd generate_make_target('binary', $key, $p, $rec);
+        }
+    } # each project
+
     close($fd) or die;
 }
 
@@ -412,38 +453,3 @@ export_to_make();
 
 #warn Dumper(\%sym);
 #warn Dumper(\%project);
-
-=pod
-cleanfiles=""
-    echo "$x " 
-for x in $targets
-do
-    dest=`echo $x | sed 's/:.*//'`
-    sources=`echo $x | sed 's/^.*://' | tr ',' ' '`
-    cleanfiles="$cleanfiles $dest"
-
-    if [ "$target" = "solaris" ] ; then
-         extra_ldflags="-m64 -R /usr/sfw/lib/amd64"
-    fi
-
-    if [ "`echo "$dest" | egrep '\\.so\$'`" = "$dest" ] ; then
-      #FIXME:
-      #abi_major=???
-      #abi_minor=???
-      #cflags="-o $program.so.$abi_major.$abi_minor $ldflags"
-
-      if [ "$target" != "solaris" ] ; then
-         extra_ldflags="$extra_ldflags -Wl,-export-dynamic -Wl,-soname,$dest"
-      fi
-
-      printf "\n$dest: $sources \$(${dest}_DEPENDS)\n\t\$(CC) -shared \$(CFLAGS) \$(${dest}_CFLAGS) $extra_ldflags \$(LDFLAGS) \$(${dest}_LDFLAGS) -o $dest $sources\n" >> config.mk
-    else
-       rpath_flags='`./configure --generate-rpath="$('$dest'_RPATH) $(RPATH)"`'
-
-      printf "\n$dest: $sources \$(${dest}_DEPENDS)\n\t\$(CC) \$(CFLAGS) \$(${dest}_CFLAGS) \$(LDFLAGS) $extra_ldflags $rpath_flags \$(${dest}_LDFLAGS) -o $dest $sources \$(LDADD) \$(${dest}_LDADD)\n" >> config.mk
-    fi
-done
-
-printf "\nall: $cleanfiles\n" >> config.mk
-printf "\nclean:\n\trm -f $cleanfiles\n" >> config.mk
-=cut

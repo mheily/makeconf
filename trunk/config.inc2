@@ -1,5 +1,11 @@
 $project{'makeconf'} = {
         version => '0.1',
+        ldflags => '-Wl,-rpath,/opt/foo',
+        binary => {
+            'foo' => {
+                sources => ['main.c'],
+            },
+        },
 };
 
 check_header('stdlib.h');
