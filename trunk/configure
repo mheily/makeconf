@@ -250,9 +250,10 @@ sub check_compiler {
     # Check what features the compiler supports
     #
     $sym{cc_features} = +{};
-    print "checking if the compiler supports the -combine option.. ";
-    my $code = "int main() {}\n";
-    $sym{cc_features}->{combine} = yesno(compile($code, cflags => '-combine'));
+    # FIXME: breaks on SunOS
+    #print "checking if the compiler supports the -combine option.. ";
+    #my $code = "int main() {}\n";
+    #$sym{cc_features}->{combine} = yesno(compile($code, cflags => '-combine'));
 }
 
 sub check_archiver {
@@ -341,8 +342,9 @@ sub generate_make_target {
     #
     my @cflags = ('$(CFLAGS)', @{$proj->{cflags}}, @{$rec->{cflags}});
     unshift @cflags, '-shared', '-fpic' if $type eq 'library';
-    unshift @cflags, '-combine', '-fwhole-program'
-        if $sym{cc_features}->{combine}; #TODO: make this optional
+    #TODO: make this optional
+    #unshift @cflags, '-combine', '-fwhole-program'
+    #    if $sym{cc_features}->{combine};
 
     # Generate the linker flags
     #
