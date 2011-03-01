@@ -138,7 +138,7 @@ sub print_version {
 }
 
 sub parse_conffile {
-    my $infile = 'config.inc2';
+    my $infile = 'config.inc';
     if (-e $infile) {
         open (my $fd, "<$infile") or die "$infile: $!";
         my @lines = <$fd> or die $!;
