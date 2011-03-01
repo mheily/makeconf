@@ -23,6 +23,7 @@ use Cwd;
 use File::Basename;
 use File::Temp qw(tempfile);
 use Getopt::Long;
+use Text::ParseWords;
 
 my $version = '$Revision: 23 $';
 $version =~ s/[^\d]//g;
@@ -36,7 +37,6 @@ my %project;
 # Symbol table
 #
 my %sym = (
-        project => undef,
         version => '0.1',
         cflags => $ENV{CFLAGS} || '',
         ldflags => $ENV{LDFLAGS} || '',
@@ -57,11 +57,11 @@ my %sym = (
 
 # Symbols to be exported to config.h
 #
-my @c_exports = (qw(project version target api cflags));
+my @c_exports = (qw(version target api cflags));
 
 # Symbols to be exported to config.mk
 #
-my @make_exports= (qw(project version target api distfile 
+my @make_exports= (qw(version target api distfile 
               prefix bindir sbindir libdir includedir mandir 
               cflags ldflags libs
               cc ln ar install));
@@ -139,14 +139,30 @@ sub print_version {
 
 sub parse_conffile {
     my $infile = 'config.inc';
-    if (-e $infile) {
-        open (my $fd, "<$infile") or die "$infile: $!";
-        my @lines = <$fd> or die $!;
-        close($fd) or die $!;
-        eval join('',@lines);
-        die $@ if $@;
-    } else {
+
+    if (not -e $infile) {
         die "$infile: file not found";
+    }
+
+    open (my $fd, "<$infile") or die "$infile: $!";
+    my @lines = <$fd> or die $!;
+    close($fd) or die $!;
+    eval join('',@lines);
+    die $@ if $@;
+
+    # Normalize each project definition
+    #
+    while (my ($id, $proj) = each %project) {
+
+        # Generate default values for missing elements.
+        #
+        $proj->{cflags} = '' unless exists $proj->{cflags};
+        $proj->{ldflags} = '' unless exists $proj->{ldflags};
+
+        # Convert certain keys from scalar to list format.
+        #
+        $proj->{cflags} = [ parse_line(' ', 0, $proj->{cflags}) ];
+        $proj->{ldflags} = [ parse_line(' ', 0, $proj->{ldflags}) ];
     }
 }
 
@@ -199,19 +215,6 @@ sub which {
         }
     }
     return '';
-}
-
-sub check_project {
-    unless ($sym{project}) {
-        my $x = basename(getcwd);
-        $x =~ s/-[0-9].*$//;        # remove version number
-        $sym{project} = $x;
-    }
-
-    # Generate default values for missing elements
-    while (my ($id, $proj) = each %project) {
-# TODO:
-    }
 }
 
 sub check_target {
@@ -296,7 +299,13 @@ sub convert_ldflags {
 }
 
 sub generate_make_target {
-    my ($type,$output,$proj,$rec) = @_;
+    my ($output,$proj,$rec) = @_;
+
+    # Determine the target type
+    # 
+    my $type = 'binary';
+    $type = 'library' if $output =~ /\.so(\.[0-9]+)?(\.[0-9]+)?$/;
+    $type = 'library' if $output =~ /\.dll$/;
 
     # Generate the dependency list
     #
@@ -307,21 +316,25 @@ sub generate_make_target {
     #
     my @cflags = ('$(CFLAGS)');
     push @cflags, @{$proj->{cflags}} if exists $proj->{cflags};
-    push @cflags, @{$rec->{cflags}} if exists $rec->{cflags};
-    unshift @cflags, '-shared', '-fpic' if $output eq 'library';
+    push @cflags, $rec->{cflags} if exists $rec->{cflags};
+    unshift @cflags, '-shared', '-fpic' if $type eq 'library';
 
     # Generate the linker flags
     #
     my @ldflags = ('$(LDFLAGS)');
-    push @ldflags, $proj->{ldflags} if exists $proj->{ldflags};
+    push @ldflags, @{$proj->{ldflags}} if exists $proj->{ldflags};
     push @ldflags, $rec->{ldflags} if exists $rec->{ldflags};
+    unshift @ldflags, '-Wl,-export-dynamic', '-Wl,-soname,' . $output
+        if $type eq 'library';
     (@ldflags) = convert_ldflags(@ldflags);
 
     # Generate the additional library list
     #
     my (@libs) = ('$(LIBS)');
     push @libs, $proj->{libs} if exists $proj->{libs};
-    push @libs, @{ $rec->{libs} } if exists $rec->{libs};
+    if (exists $rec->{libs}) {
+        push @libs, ref($rec->{libs}) ? @{ $rec->{libs} } : $rec->{libs};
+    }
 
     return  "\n" .
             "$output: " . join(' ', @depends) . "\n" .
@@ -348,10 +361,8 @@ sub export_to_make {
     #
     my (@all);
     foreach my $p (values %project) {
-        $p->{binary} ||= +{};
-        $p->{library} ||= +{};
-        push @all, keys %{$p->{binary}};
-        push @all, keys %{$p->{library}};
+        $p->{targets} ||= +{};
+        push @all, keys %{$p->{targets}};
     } 
     print $fd "\nall: " . join(' ', @all) . "\n";
 
@@ -359,11 +370,11 @@ sub export_to_make {
     #
     print $fd "\nclean:\n\trm -f " . join(' ', @all) . "\n";
 
-    # Generate all binary targets
+    # Generate all user-defined targets
     #
     foreach my $p (values %project) {
-        while (my ($key,$rec) = each %{$p->{binary}}) {
-            print $fd generate_make_target('binary', $key, $p, $rec);
+        while (my ($key,$rec) = each %{$p->{targets}}) {
+            print $fd generate_make_target($key, $p, $rec);
         }
     } # each project
 
@@ -434,7 +445,6 @@ out:
 #######################################################################
 
 parse_argv();
-check_project();
 check_target();
 check_compiler();
 check_archiver();
@@ -442,6 +452,7 @@ check_install();
 
 parse_conffile();
 
+# TODO:
 #subst_vars "$program.pc"
 #subst_vars "$program.la"
 #if [ "$target" = "linux" ] ; then
