@@ -1,6 +1,7 @@
 $project{'hello_world'} = {
         version => '0.1',
         cflags => "-Wall -Werror -g -O2 -std=c99 -D_XOPEN_SOURCE=600",
+        tests   => [ 'hello' ],
         targets => {
             'libhello.so' => {
                 sources => [ 'library.c' ],
