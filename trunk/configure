@@ -164,6 +164,7 @@ sub parse_conffile {
         $proj->{cflags} = '' unless exists $proj->{cflags};
         $proj->{ldflags} = '' unless exists $proj->{ldflags};
         $proj->{targets} = +{} unless exists $proj->{targets};
+        $proj->{tests} = [] unless exists $proj->{tests};
 
         # Convert certain keys from scalar to list format.
         #
@@ -390,6 +391,17 @@ sub export_to_make {
     # Generate the 'clean' target
     #
     print $fd "\nclean:\n\trm -f " . join(' ', @all) . "\n";
+
+    # Generate the 'check' target
+    #
+    my (@tests);
+    foreach my $p (values %project) {
+        push @tests, @{ $p->{tests} };
+    }
+    if (@tests) {
+        print $fd "\ncheck: all " . join(' ', @tests) . "\n\t./" .
+                join("\n\t./", (@tests)) . "\n";
+    }
 
     # Generate all user-defined targets
     #
