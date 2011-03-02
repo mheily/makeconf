@@ -110,7 +110,7 @@ sub compile {
     print $fh $code or die $!;
     close($fh) or die $!;
 
-    my $cmd = "$opt{cc} $opt{cflags} $filename";
+    my $cmd = "$opt{cc} -o /dev/null $opt{cflags} $filename";
     if ($verbose > 1) {
         print "\ncompiling with '$cmd`:\n" . 
               ('-' x 72) . "\n" . 
