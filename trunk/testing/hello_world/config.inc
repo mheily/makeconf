@@ -9,7 +9,7 @@ $project{'hello_world'} = {
             'hello' => {
                 depends => ['libhello.so'],
                 sources => [qw(main.c extra.c)],
-                ldflags => "-L . -Wl,-rpath,.",
+                ldflags => "-L . -rpath .",
                 libs => "-lhello",
             },
         },

@@ -18,6 +18,7 @@
 use strict;
 use warnings;
 
+use Carp;
 use Data::Dumper;
 use Cwd;
 use File::Basename;
@@ -96,6 +97,15 @@ subst_vars() {
   chmod 400 $outfile
 }
 =cut
+
+sub dbg {
+    my $s = shift;
+
+    if ($verbose > 1) {
+        $s = Dumper($s) if ref($s);
+        print $s, "\n";
+    }
+}
 
 sub compile {
     my $code = shift;
@@ -302,16 +312,35 @@ sub convert_ldflags {
     my (@token) = @_;
     my @res;
     
-    foreach my $x (@token) {
-        if ($sym{target} eq 'solaris') {
-            if ($x =~ /^-Wl,-rpath,/) {
-                $x = "-R $'";
-            } elsif ($x =~ /-Wl,-soname,/) {
-                $x = "-h $'";
-            } elsif ($x =~ /-Wl,-export-dynamic/) {
-                undef $x;
+    dbg(\@token);
+    while (@token) {
+        my $x = shift @token;
+        if ($x eq '-rpath') {
+            my $y = shift @token;
+            if ($sym{target} eq 'solaris') {
+                $x = "-R $y";
+            } else {
+                $x = "-Wl,-rpath,$y";
             }
+        } elsif ($x eq '-soname') {
+            my $y = shift @token;
+            if ($sym{target} eq 'solaris') {
+                $x = "-h $y";
+            } else {
+                $x = "-Wl,-rpath,$y";
+            }
+        } elsif ($x eq '-export-dynamic') {
+            if ($sym{target} eq 'solaris') {
+                undex $x;  # WORKAROUND
+            } else {
+                $x = "-Wl,-export-dynamic";
+            }
+        } elsif ($x =~ /^-L.*/) {
+            # NOOP
+        } elsif ($x =~ /^-/) {
+            confess "Unrecognized linker option '$x'";
         }
+
         push @res, $x if defined $x;
     }
 
@@ -350,7 +379,7 @@ sub generate_make_target {
     # Generate the linker flags
     #
     my @ldflags = ('$(LDFLAGS)', @{$proj->{ldflags}}, @{$rec->{ldflags}});
-    unshift @ldflags, '-Wl,-export-dynamic', '-Wl,-soname,' . $output
+    unshift @ldflags, '-export-dynamic', '-soname', $output
         if $type eq 'library';
     (@ldflags) = convert_ldflags(@ldflags);
 
