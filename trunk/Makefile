@@ -23,41 +23,12 @@ all: makeconf
 makeconf: makeconf.sh
 	cat makeconf.sh | sed "s|^    INCLUDEDIR=.*|    INCLUDEDIR=\"$(INCLUDEDIR)/$(PROGRAM)\"|" > makeconf
 
-install: makeconf
-	$(INSTALL) -d -m 755 $(INCLUDEDIR)/$(PROGRAM)
-	$(INSTALL) -m 644 configure config.inc.template $(INCLUDEDIR)/$(PROGRAM)
-	$(INSTALL) -d -m 755 $(BINDIR)
-	$(INSTALL) -m 755 makeconf $(BINDIR)/makeconf
 
-$(DISTFILE): $(SOURCES) $(HEADERS)
-	mkdir $(PROGRAM)-$(VERSION)
-	cp  Makefile ChangeLog configure config.inc      \
-        $(MANS) $(EXTRA_DIST)   \
-        $(PROGRAM)-$(VERSION)
-	cp -R $(SUBDIRS) $(PROGRAM)-$(VERSION)
-	rm -rf `find $(PROGRAM)-$(VERSION) -type d -name .svn -o -name .libs`
-	cd $(PROGRAM)-$(VERSION) && ./configure && cd test && ./configure && cd .. && make distclean
-	tar zcf $(PROGRAM)-$(VERSION).tar.gz $(PROGRAM)-$(VERSION)
-	rm -rf $(PROGRAM)-$(VERSION)
 
 # Dump a list of all variables
 dump:
 	@echo "$(PREFIX) $(LIBDIR) $(BINDIR) $(SBINDIR) $(INCLUDEDIR)"
                   
-dist:
-	rm -f $(DISTFILE)
-	make $(DISTFILE)
-
-dist-upload: $(DISTFILE)
-	scp $(DISTFILE) $(DIST)
-
-clean:
-	rm -f makeconf
-	rm -rf pkg
-
-check:
-	cd testing && make
-
 distclean: clean
 	rm -f *.tar.gz config.mk config.h $(PROGRAM).pc $(PROGRAM).la rpm.spec
 	rm -rf $(PROGRAM)-$(VERSION) 2>/dev/null || true

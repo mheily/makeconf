@@ -48,6 +48,7 @@ my %sym = (
         libdir => '$(PREFIX)/lib',
         includedir => '$(PREFIX)/include',
         mandir => '$(PREFIX)/share/man',
+        tar => $ENV{TAR} || which(qw(tar)),
         ar => $ENV{AR} || which(qw(ar gar)),
         cc => $ENV{CC} || which(qw(cc gcc clang)),
         ln => $ENV{LN} || which('ln'),
@@ -65,7 +66,7 @@ my @c_exports = (qw(version target api cflags));
 my @make_exports= (qw(version target api distfile 
               prefix bindir sbindir libdir includedir mandir 
               cflags ldflags libs
-              cc ln ar install));
+              cc ln ar tar install));
 #FIXME: abi_major abi_minor abi_version diff mans headers extra_dist subdirs 
 
 =pod
@@ -169,12 +170,16 @@ sub parse_conffile {
     #
     while (my ($id, $proj) = each %project) {
 
+        # FIXME: support nested projects in subdirectories
+        $proj->{_basedir} = '';
+
         # Generate default values for missing elements.
         #
         $proj->{cflags} = '' unless exists $proj->{cflags};
         $proj->{ldflags} = '' unless exists $proj->{ldflags};
         $proj->{targets} = +{} unless exists $proj->{targets};
         $proj->{tests} = [] unless exists $proj->{tests};
+        $proj->{extra_dist} = [] unless exists $proj->{extra_dist};
 
         # Convert certain keys from scalar to list format.
         #
@@ -432,7 +437,6 @@ sub export_to_make {
     }
 
     # Generate the 'install' target
-    # TODO: Make this a function
     my (@install_rules);
     foreach my $p (values %project) {
         while (my ($dst,$tokens) = each %{$p->{install}}) {
@@ -454,6 +458,39 @@ sub export_to_make {
         print $fd "\ninstall: ", join(" ", @all), "\n", 
               join("\n", @install_rules), "\n";
     }
+
+    # Generate the 'dist' target
+    #
+    print $fd "\ndist:\n";
+    while (my ($name, $p) = each %project) {
+        my @dist;
+        my $prepend = $name . '-' . $p->{version};
+        push @dist, map { $p->{_basedir} . $_ } 
+           ('configure', 'Makefile', 'config.inc', @{ $p->{extra_dist} });
+        foreach my $t (values %{$p->{targets}}) {
+            next unless exists $t->{sources};
+            push @dist, map { $p->{_basedir} . $_ } @{ $t->{sources} }; 
+        }
+
+# XXX-FIXME GNU TAR REQUIRED
+        print $fd "\t\$(TAR) --transform 's,^,$prepend/,S' " .
+                    " -c -z -f $prepend.tgz" .
+                    " " . join(' ', @dist) .
+                    "\n";
+    }
+
+=pod
+	mkdir $(PROGRAM)-$(VERSION)
+	cp  Makefile ChangeLog configure config.inc      \
+        $(MANS) $(EXTRA_DIST)   \
+        $(PROGRAM)-$(VERSION)
+	cp -R $(SUBDIRS) $(PROGRAM)-$(VERSION)
+	rm -rf `find $(PROGRAM)-$(VERSION) -type d -name .svn -o -name .libs`
+	cd $(PROGRAM)-$(VERSION) && ./configure && cd test && ./configure && cd .. && make distclean
+	tar zcf $(PROGRAM)-$(VERSION).tar.gz $(PROGRAM)-$(VERSION)
+	rm -rf $(PROGRAM)-$(VERSION)
+=cut
+
 
     # Generate all user-defined targets
     #
