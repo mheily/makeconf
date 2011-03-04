@@ -400,7 +400,6 @@ sub generate_make_target {
 
 sub export_to_make {
     print "Creating config.mk\n";
-    $sym{prefix} = '$(DESTDIR)' . $sym{prefix};
     open (my $fd, ">config.mk") or die "open of config.mk: $!";
     my @def = map {
                     die "missing symbol: $_" unless exists $sym{$_};
@@ -430,6 +429,30 @@ sub export_to_make {
     if (@tests) {
         print $fd "\ncheck: all " . join(' ', @tests) . "\n\t./" .
                 join("\n\t./", (@tests)) . "\n";
+    }
+
+    # Generate the 'install' target
+    # TODO: Make this a function
+    my (@install_rules);
+    foreach my $p (values %project) {
+        while (my ($dst,$tokens) = each %{$p->{install}}) {
+            my (@flags, @src);
+            foreach my $tok (@{ $tokens }) {
+                if ($tok =~ /^-[a-z]/) {
+                    push @flags, $tok;
+                } else {
+                    push @src, $tok;
+                }
+            }
+            push @install_rules, "\t\$(INSTALL) " .
+                    join(' ', @flags) . " " .
+                    join(' ', @src) . " " .
+                    "\$(DESTDIR)$dst";
+        }
+    }
+    if (@install_rules) {
+        print $fd "\ninstall: ", join(" ", @all), "\n", 
+              join("\n", @install_rules), "\n";
     }
 
     # Generate all user-defined targets
