@@ -438,8 +438,10 @@ sub export_to_make {
 
     # Generate the 'install' target
     my (@install_rules);
+    my (@install_dirs);
     foreach my $p (values %project) {
         while (my ($dst,$tokens) = each %{$p->{install}}) {
+            push @install_dirs, $dst;
             my (@flags, @src);
             foreach my $tok (@{ $tokens }) {
                 if ($tok =~ /^-[a-z]/) {
@@ -456,6 +458,9 @@ sub export_to_make {
     }
     if (@install_rules) {
         print $fd "\ninstall: ", join(" ", @all), "\n", 
+              join("\n", map { 
+                      "\t\$(INSTALL) -d \$(DESTDIR)" . $_ 
+                      } @install_dirs), "\n",
               join("\n", @install_rules), "\n";
     }
 
