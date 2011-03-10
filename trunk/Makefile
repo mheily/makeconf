@@ -29,10 +29,6 @@ makeconf: makeconf.sh
 dump:
 	@echo "$(PREFIX) $(LIBDIR) $(BINDIR) $(SBINDIR) $(INCLUDEDIR)"
                   
-distclean: clean
-	rm -f *.tar.gz config.mk config.h $(PROGRAM).pc $(PROGRAM).la rpm.spec
-	rm -rf $(PROGRAM)-$(VERSION) 2>/dev/null || true
-
 fresh-build:
 	rm -rf /tmp/$(PROGRAM)-testbuild 
 	svn co svn://mark.heily.com/libkqueue/trunk /tmp/$(PROGRAM)-testbuild 
