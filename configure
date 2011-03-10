@@ -26,6 +26,8 @@ use File::Temp qw(tempfile);
 use Getopt::Long;
 use Text::ParseWords;
 
+use subs qw(run);
+
 my $version = '$Revision: 23 $';
 $version =~ s/[^\d]//g;
 
@@ -38,7 +40,9 @@ my %project;
 # Symbol table
 #
 my %sym = (
+        project => scalar(basename cwd),
         version => '0.1',
+        mailto => 'Undefined Email <null@nowhere.local>',
         cflags => $ENV{CFLAGS} || '',
         ldflags => $ENV{LDFLAGS} || '',
         libs => $ENV{LIBS} || '',
@@ -210,6 +214,7 @@ sub parse_argv {
         'libdir=s',
         'includedir=s',
         'mandir=s',
+        'mc-make-package',
         ) or exit(1);
 
     # Process options that trigger an action
@@ -217,6 +222,7 @@ sub parse_argv {
     my %dispatch = (
             help => \&print_usage,
             version => \&print_version,
+            "mc-make-package" => \&make_package,
 # FIXME:if [ "$id" = "generate-rpath" ] ; then
             );
     foreach (keys %dispatch) {
@@ -425,6 +431,14 @@ sub export_to_make {
     #
     print $fd "\nclean:\n\trm -f " . join(' ', @all) . "\n";
 
+    # Generate the 'distclean' target
+    #
+    print $fd join("\n",
+            "distclean: clean",
+            "\trm -f *.tar.gz config.mk config.h *.pc *.la rpm.spec",
+            ), "\n";
+
+
     # Generate the 'check' target
     #
     my (@tests);
@@ -437,6 +451,7 @@ sub export_to_make {
     }
 
     # Generate the 'install' target
+    #
     my (@install_rules);
     my (@install_dirs);
     foreach my $p (values %project) {
@@ -463,6 +478,10 @@ sub export_to_make {
                       } @install_dirs), "\n",
               join("\n", @install_rules), "\n";
     }
+
+    # Generate the 'package' target
+    #
+    print $fd "\npackage:\n\t./configure --mc-make-package\n";
 
     # Generate the 'dist' target
     #
@@ -558,6 +577,57 @@ out:
     return $found;
 }
 
+
+sub make_package {
+
+    # Debian
+    if (-x '/usr/bin/dpkg') {
+        system "rm -rf debian/";
+        mkdir "debian"                              or die;
+        mkdir "debian/source"                       or die;
+        writefile("debian/source/format", "3.0 (quilt)\n");
+        writefile("debian/compat", "7\n");
+        writefile("debian/changelog", "$sym{project} ($sym{version}-1) unstable; urgency=low\n\n  * Automatically generated ChangeLog entry\n\n -- $sym{mailto}  Mon, 05 Apr 2010 23:00:34 -0400\n");
+        writefile("debian/control", "Source: $sym{project}
+Priority: extra
+Maintainer: $sym{mailto}
+Build-Depends: debhelper (>= 7.0.50~)
+Standards-Version: 3.8.4
+Section: libs
+
+Package: $sym{project}
+Section: libdevel
+Architecture: any
+Depends: \${misc:Depends}
+Description: TODO short description
+ TODO long description
+");
+        writefile("debian/copyright", "TODO");
+        writefile("debian/$sym{project}.install", "*\n") if 0; #FIXME: list each file
+        writefile("debian/rules", join("\n",
+                    "#!/usr/bin/make -f",
+                    "",
+                    "override_dh_auto_configure:",
+                    "\t./configure --prefix=/usr",
+                    "",
+                    "\%:",
+                    "\tdh \$@") . "\n");
+        my $tardir = "$sym{project}-$sym{version}";
+        mkdir "debian/$tardir" or die;
+        system "pwd; cp -pR * debian/$tardir";
+        run "cd debian ; tar zcf ../../$sym{project}_$sym{version}.orig.tar.gz $tardir";
+        run("rm -rf debian/$tardir");
+        run("dpkg-buildpackage -uc -us");
+        run "rm ../$sym{project}_$sym{version}*.changes";
+        run "rm ../$sym{project}_$sym{version}*.debian.tar.gz";
+        run "rm ../$sym{project}_$sym{version}*.orig.tar.gz";
+        run "rm ../$sym{project}_$sym{version}*.dsc";
+        run "mv ../$sym{project}_$sym{version}*.deb .";
+    } else {
+        die "Unable to determine the native package format";
+    }
+}
+
 sub yesno {
     my $x = shift;
     if (defined $x and $x ne '' and $x ne '0') {
@@ -567,6 +637,19 @@ sub yesno {
         print "no\n";
         return 0;
     }
+}
+
+sub writefile {
+    my ($path, $string) = @_;
+    open (my $fd, ">$path") or die "open of $path: $!";
+    print $fd $string or die $!;
+    close($fd) or die $!;
+}
+
+sub run {
+    my ($command) = @_;
+    system $command;
+    die "command failed: '$command'" if $?;
 }
 
 #######################################################################
