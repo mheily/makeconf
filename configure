@@ -15,6 +15,339 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
 
+package makeconf::macros;
+
+use strict;
+use warnings;
+
+sub new {
+    my $class = shift;
+    my $initial = shift || +{};
+    my $self = {
+        macros => $initial,
+    };
+    return bless($self, $class);
+}
+
+sub define {
+    my $self = shift;
+    my $key = shift || die;
+    my $val = shift;
+
+    die "multiple definition of macro '$key'" 
+        if exists $self->{macros}->{$key};
+    $self->{macros}->{$key} = $val;
+}
+
+sub expand {
+    my $self = shift;
+    my $s = shift;
+
+    while ($s =~ /\$\{?([A-Za-z0-9_]+)\}?/) {
+        my $key = $1;
+        die "undefined macro '$key'" unless exists $self->{macros}->{$key};
+        $s =~ s/\$\{?$key\}?/$self->{macros}->{$key}/g or die;
+    }
+
+    return $s;
+}
+
+sub expand_each {
+    my $self = shift;
+    for my $x (@{ $_[0] }) {
+        $x = $self->expand($x);
+    }
+}
+
+sub expand_keys {
+    my $self = shift;
+    my $h = shift;
+
+    foreach my $key (keys %{ $h }) {
+        if ($key =~ /\$/) {
+            $h->{$self->expand($key)} = $h->{$key};
+            delete $h->{$key};
+        }
+    }
+}
+
+sub finalize {
+    my $self = shift;
+
+    my %tmp = %{ $self->{macros} };
+    my %fin;
+    while (keys %tmp) {
+        my $progress = 0;
+        foreach my $key (keys %tmp) {
+            my $val = $tmp{$key};
+            if ($val =~ /\$\{?([A-Za-z0-9]+)\}?/) {
+                my $id = $1;
+                die "Macro '$key' is self-referential, which is not allowed" 
+                    if $id eq $key;
+                if (exists($fin{$id})) {
+                    $tmp{$key} =~ s/\$\{?$id\}?/$fin{$id}/g;
+                    $progress++;
+                } elsif (not exists($tmp{$id})) {
+                    die "Macro '$key' refers to nonexistent macro '$id'";
+                }
+            } else {
+                $fin{$key} = $val;
+                delete $tmp{$key};
+                $progress++;
+            }
+        }
+        die 'Infinite macro expansion detected' unless $progress;
+    }
+    $self->{macros} = \%fin;
+}
+
+1;
+
+package makeconf::target;
+
+use Text::ParseWords;
+
+use strict;
+use warnings;
+
+sub new {
+    my $class = shift;
+    my %x = @_;
+    my $self = {
+        sources => [],
+        cflags => '',
+        ldflags => '',
+        ldadd => '',
+    };
+    foreach (keys %{$self}) {
+        $self->{$_} = $x{$_} if exists $x{$_};
+    }
+
+    # Normalize certain values
+    foreach (qw(cflags ldflags ldadd)) {
+        $self->{$_} = [ parse_line(' ', 0, $self->{$_}) ];
+    }
+
+    return bless($self, $class);
+}
+
+1;
+
+package makeconf::project;
+
+use Text::ParseWords;
+use Data::Dumper;
+
+use strict;
+use warnings;
+
+# Project table
+#
+my %project;
+
+sub projects { return values %project }
+
+sub new {
+    my $class = shift;
+    my %x = @_;
+    my $self = +{
+        id => undef,
+        version => undef,
+        _basedir => '', # FIXME: support nested projects in subdirectories
+        macros => +{
+            'prefix' => '/usr',
+            'bindir' => '$prefix/bin',
+            'sbindir' => '$prefix/sbin',
+            'includedir' => '$prefix/include',
+            'pkgincludedir' => '$includedir/$project',
+        },
+        targets => +{},
+        tests => [],
+        scripts => [],
+        data => [],
+        install => [],
+        extra_dist => [],
+    };
+    my $err = 0;
+
+    foreach my $key (keys %{$self}) {
+        if (exists $x{$key}) {
+            $self->{$key} = $x{$key};
+            delete $x{$key};
+        }
+    }
+    foreach my $key (keys %x) {
+        print "*ERROR* Unrecognized project attribute: $key\n";
+        $err++;
+    }
+    foreach my $key (keys %{$self}) {
+        unless (defined ($self->{$key})) {
+            print "*ERROR* Undefined project attribute: $key\n";
+            $err++;
+        }
+    }
+    die 'Too many errors' if $err;
+
+    die 'Project id is required' unless defined $self->{id};
+    die 'Duplicate project id' if exists $project{$self->{id}};
+    $self->{macros}->{project} = $self->{id};
+
+    my $i = makeconf::installer->new();
+    foreach (@{$self->{install}}) {
+        $i->parse($_);
+    }
+    $self->{install} = $i;
+
+    bless($self, $class);
+    $project{$self->{id}} = $self;
+    return $self;
+}
+
+# Expand all macros wherever they appear within a variable
+sub finalize {
+    my $self = shift;
+
+    # First, the macro table itself must be finalized
+    #
+    my $m = makeconf::macros->new($self->{macros});
+    $m->finalize();
+
+    $self->{install}->finalize($m);
+}
+
+1;
+
+package makeconf::installer;
+
+use Text::ParseWords;
+use Data::Dumper;
+
+use strict;
+use warnings;
+
+sub new {
+    my $class = shift;
+    my %x = @_;
+    my $self = { 
+        orig => [],       # The original install(1)-compatible commands
+        mkdir => [],       # Directories to create
+        cp => {},         # Files to copy; keys='destination', vals=>'sources'
+        mode => {},      # keys='Paths to chmod', vals='mode'
+        owner => {},      # keys='Paths to chown', vals='owner'
+        group => {},      # keys='Paths to chgrp', vals='group:
+    };
+
+    return bless($self, $class);
+}
+
+# Parse an install(1) compatible command line
+# e.g. 'install -d -m 755 -o root -g wheel /var/foo'
+#
+sub parse {
+    my $self = shift;
+    my $line = shift || die;
+    my (@tok) = parse_line(' ', 0, $line);
+    my $isdir = 0;
+    my $owner = undef;
+    my $group = undef;
+    my $mode = undef;
+    my @src;
+    my $dst;
+
+    warn Dumper(\@tok);
+    push @{$self->{orig}}, $line;
+    while (@tok) {
+        my $x = shift @tok;
+        if ($x eq '-d' or $x eq '--directory') {
+            $isdir = 1;
+        } elsif ($x eq '-m' or $x eq '--mode') {
+            $mode = shift @tok;
+        } elsif ($x eq '-g' or $x eq '--group') {
+            $group = shift @tok;
+        } elsif ($x eq '-o' or $x eq '--owner') {
+            $owner = shift @tok;
+        } elsif ($x =~ /^-/) {
+            die 'Unrecognized install(1) option "$x"';
+        } else {
+            push @src, $x;
+        }
+    }
+    $dst = pop @src;
+
+    if ($isdir) {
+        push @{ $self->{mkdir} }, $dst;
+        $self->{owner}->{$dst} = $owner if defined $owner;
+        $self->{group}->{$dst} = $group if defined $group;
+        $self->{mode}->{$dst} = $mode if defined $mode;
+    } else {
+        foreach (@src) {
+            $self->{cp}->{$dst} ||= [];
+            push @{$self->{cp}->{$dst}}, $_;
+            $self->{owner}->{$_} = $owner if defined $owner;
+            $self->{group}->{$_} = $group if defined $group;
+            $self->{mode}->{$_} = $mode if defined $mode;
+        }
+    }
+}
+
+sub finalize {
+    my ($self, $mc) = @_;
+
+    $mc->expand_each($self->{orig});
+    $mc->expand_each($self->{mkdir});
+    $mc->expand_each($self->{mkdir});
+    $mc->expand_keys($self->{owner});
+    $mc->expand_keys($self->{group});
+    $mc->expand_keys($self->{mode});
+    $mc->expand_keys($self->{cp});
+}
+
+# Generate the 'install' Makefile target
+#
+sub makefile_rules {
+    my $self = shift;
+    my @res;
+
+  warn Dumper($self);
+#    foreach (@{$self->{orig}}) {
+#        push @res, "\t" . '$(INSTALL) ' . $_;
+#    }
+
+    # Create directories
+    foreach (@{$self->{mkdir}}) {
+        my $mode = $self->{mode}->{$_};
+        my $owner = $self->{owner}->{$_};
+        my $group = $self->{group}->{$_};
+        my $flags = ' ';
+        $flags .= "-m $mode " if defined $mode;
+        $flags .= "-o $owner " if defined $owner;
+        $flags .= "-g $group " if defined $group;
+        push @res, "\t" . '$(INSTALL) -d' . $flags . '$(DESTDIR)' . $_;
+    }
+
+    # Copy files
+    foreach (keys %{$self->{cp}}) {
+        my $mode = $self->{mode}->{$_};
+        my $owner = $self->{owner}->{$_};
+        my $group = $self->{group}->{$_};
+        my $flags = ' ';
+        $flags .= "-m $mode " if defined $mode;
+        $flags .= "-o $owner " if defined $owner;
+        $flags .= "-g $group " if defined $group;
+        push @res, "\t" . '$(INSTALL) ' . $flags . join(' ', @{$self->{cp}->{$_}}) . ' $(DESTDIR)' . $_;
+    }
+
+    # TODO: support platforms without GNU make
+
+    return (@res);
+}
+
+sub dump { die Dumper($_[0]); }
+
+1;
+
+package main;
+
 use strict;
 use warnings;
 
@@ -32,10 +365,6 @@ my $version = '$Revision: 23 $';
 $version =~ s/[^\d]//g;
 
 my $verbose = 1;
-
-# Project table
-#
-my %project;
 
 # Symbol table
 #
@@ -176,41 +505,6 @@ sub parse_conffile {
     close($fd) or die $!;
     eval join('',@lines);
     die $@ if $@;
-
-    # Normalize each project definition
-    #
-    while (my ($id, $proj) = each %project) {
-
-        # FIXME: support nested projects in subdirectories
-        $proj->{_basedir} = '';
-
-        # Generate default values for missing elements.
-        #
-        $proj->{cflags} = '' unless exists $proj->{cflags};
-        $proj->{ldflags} = '' unless exists $proj->{ldflags};
-        $proj->{ldadd} = '' unless exists $proj->{ldadd};
-        $proj->{targets} = +{} unless exists $proj->{targets};
-        $proj->{tests} = [] unless exists $proj->{tests};
-        $proj->{scripts} = [] unless exists $proj->{scripts};
-        $proj->{data} = [] unless exists $proj->{data};
-        $proj->{extra_dist} = [] unless exists $proj->{extra_dist};
-
-        # Convert certain keys from scalar to list format.
-        #
-        $proj->{cflags} = [ parse_line(' ', 0, $proj->{cflags}) ];
-        $proj->{ldflags} = [ parse_line(' ', 0, $proj->{ldflags}) ];
-
-        # Normalize each target definition
-        #
-        foreach my $t (values %{ $proj->{targets} }) {
-            $t->{cflags} = '' unless exists $t->{cflags};
-            $t->{cflags} = [ parse_line(' ', 0, $t->{cflags}) ];
-            $t->{ldflags} = '' unless exists $t->{ldflags};
-            $t->{ldflags} = [ parse_line(' ', 0, $t->{ldflags}) ];
-            $t->{ldadd} = '' unless exists $t->{ldadd};
-            $t->{ldadd} = [ parse_line(' ', 0, $t->{ldadd}) ];
-        }
-    }
 }
 
 sub parse_argv {
@@ -436,7 +730,7 @@ sub export_to_make {
     # Generate the 'all' target
     #
     my (@all);
-    foreach my $p (values %project) {
+    foreach my $p (makeconf::project::projects()) {
         $p->{targets} ||= +{};
         push @all, keys %{$p->{targets}};
     } 
@@ -456,7 +750,7 @@ sub export_to_make {
     # Generate the 'check' target
     #
     my (@tests);
-    foreach my $p (values %project) {
+    foreach my $p (makeconf::project::projects()) {
         push @tests, @{ $p->{tests} };
     }
     if (@tests) {
@@ -466,31 +760,9 @@ sub export_to_make {
 
     # Generate the 'install' target
     #
-    my (@install_rules);
-    my (@install_dirs);
-    foreach my $p (values %project) {
-        while (my ($dst,$tokens) = each %{$p->{install}}) {
-            push @install_dirs, $dst;
-            my (@flags, @src);
-            foreach my $tok (@{ $tokens }) {
-                if ($tok =~ /^-[a-z]/) {
-                    push @flags, $tok;
-                } else {
-                    push @src, $tok;
-                }
-            }
-            push @install_rules, "\t\$(INSTALL) " .
-                    (@flags ? join(' ', @flags) . ' ' : '').
-                    join(' ', @src) . " " .
-                    "\$(DESTDIR)$dst";
-        }
-    }
-    if (@install_rules) {
-        print $fd "\ninstall: ", join(" ", @all), "\n", 
-              join("\n", map { 
-                      "\t\$(INSTALL) -d \$(DESTDIR)" . $_ 
-                      } @install_dirs), "\n",
-              join("\n", @install_rules), "\n";
+    print $fd "\ninstall: ", join(" ", @all), "\n";
+    foreach my $p (makeconf::project::projects()) {
+        print $fd join("\n", $p->{install}->makefile_rules()), "\n";
     }
 
     # Generate the 'package' target
@@ -500,7 +772,8 @@ sub export_to_make {
     # Generate the 'dist' target
     #
     print $fd "\ndist:\n";
-    while (my ($name, $p) = each %project) {
+    foreach my $p (makeconf::project::projects()) {
+        my $name = $p->{id}; # ????
         my @dist;
         my $prepend = $name . '-' . $p->{version};
         push @dist, map { $p->{_basedir} . $_ } 
@@ -538,7 +811,7 @@ sub export_to_make {
 
     # Generate all user-defined targets
     #
-    foreach my $p (values %project) {
+    foreach my $p (makeconf::project::projects()) {
         while (my ($key,$rec) = each %{$p->{targets}}) {
             print $fd generate_make_target($key, $p, $rec);
         }
@@ -692,6 +965,11 @@ parse_conffile();
 #if [ "$target" = "linux" ] ; then
 #  subst_vars "rpm.spec"
 #fi
+
+# Finalize everything
+foreach my $p (makeconf::project::projects()) {
+    $p->finalize();
+}
 
 export_to_c();
 export_to_make();
