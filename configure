@@ -112,6 +112,13 @@ sub dbg {
     }
 }
 
+# Given an array, return the unique values while preserving the original order
+#
+sub uniq {
+    my %seen = ();
+    return (grep { ! $seen{$_} ++ } @_);
+}
+
 sub compile {
     my $code = shift;
     my %opt = @_;
@@ -181,8 +188,11 @@ sub parse_conffile {
         #
         $proj->{cflags} = '' unless exists $proj->{cflags};
         $proj->{ldflags} = '' unless exists $proj->{ldflags};
+        $proj->{ldadd} = '' unless exists $proj->{ldadd};
         $proj->{targets} = +{} unless exists $proj->{targets};
         $proj->{tests} = [] unless exists $proj->{tests};
+        $proj->{scripts} = [] unless exists $proj->{scripts};
+        $proj->{data} = [] unless exists $proj->{data};
         $proj->{extra_dist} = [] unless exists $proj->{extra_dist};
 
         # Convert certain keys from scalar to list format.
@@ -197,6 +207,8 @@ sub parse_conffile {
             $t->{cflags} = [ parse_line(' ', 0, $t->{cflags}) ];
             $t->{ldflags} = '' unless exists $t->{ldflags};
             $t->{ldflags} = [ parse_line(' ', 0, $t->{ldflags}) ];
+            $t->{ldadd} = '' unless exists $t->{ldadd};
+            $t->{ldadd} = [ parse_line(' ', 0, $t->{ldadd}) ];
         }
     }
 }
@@ -368,6 +380,9 @@ sub convert_ldflags {
 sub generate_make_target {
     my ($output,$proj,$rec) = @_;
 
+    # A target without sources is probably a script
+    return unless exists $rec->{sources};
+
     # Determine the target type
     # 
     my $type = 'binary';
@@ -433,11 +448,10 @@ sub export_to_make {
 
     # Generate the 'distclean' target
     #
-    print $fd join("\n",
+    print $fd "\n", join("\n",
             "distclean: clean",
             "\trm -f *.tar.gz config.mk config.h *.pc *.la rpm.spec",
             ), "\n";
-
 
     # Generate the 'check' target
     #
@@ -495,11 +509,17 @@ sub export_to_make {
             next unless exists $t->{sources};
             push @dist, map { $p->{_basedir} . $_ } @{ $t->{sources} }; 
         }
+        push @dist, map { $p->{_basedir} . $_ } keys %{$p->{scripts}};
+        while (@{ $p->{data} }) {
+            my $target = shift @{ $p->{data} };
+            my $files = shift @{ $p->{data} };
+            push @dist, map { $p->{_basedir} . $_ } @{$files};
+        }
 
 # XXX-FIXME GNU TAR REQUIRED
         print $fd "\t\$(TAR) --transform 's,^,$prepend/,S' " .
                     " -c -z -f $prepend.tgz" .
-                    " " . join(' ', @dist) .
+                    " " . join(' ', uniq(@dist)) .
                     "\n";
     }
 
