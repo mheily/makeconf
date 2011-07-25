@@ -15,6 +15,517 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
 
+# Parse the configuration file
+
+package makeconf::config;
+
+use Carp;
+use File::Temp qw(tempfile);
+use Getopt::Long;
+use YAML ();
+use Data::Dumper;
+
+use strict;
+use warnings;
+
+my $version = '$Revision: 23 $';
+$version =~ s/[^\d]//g;
+
+# ------------------------- Public methods ------------------- #
+
+sub new {
+    my $class = shift;
+    my $path = shift || die;
+    my $self = {
+        verbose => 0,
+        conffile => $path,
+
+        # Compilation options and helper program paths
+        cc => $ENV{CC} || which(qw(cc gcc clang)),
+        cflags => $ENV{CFLAGS} || '',
+        ldflags => $ENV{LDFLAGS} || '',
+        ldadd => $ENV{LDADD} || '',
+        tar => $ENV{TAR} || which(qw(tar)),
+        ar => $ENV{AR} || which(qw(ar gar)),
+        ln => $ENV{LN} || which('ln'),
+        install => $ENV{INSTALL} || which(qw(install)),
+
+        # Installation paths
+        prefix => '/usr/local',
+        bindir => '$(PREFIX)/bin',
+        sbindir => '$(PREFIX)/sbin',
+        libdir => '$(PREFIX)/lib', # XXX-FIXME - add lib64 for Fedora
+        includedir => '$(PREFIX)/include',
+        mandir => '$(PREFIX)/share/man',
+
+        # Private variables
+        symbol => +{},
+        header => +{},
+        ast => undef,
+    };
+    bless($self, $class);
+
+    if (not -e $path) {
+        die "$path: file not found";
+    }
+
+    $self->{ast} = YAML::LoadFile('config.yaml'),
+    $self->{ast}->{headers} ||= [];
+#    warn Dumper($self);
+    makeconf::project->new(%{ $self->{ast} });
+
+    $self->parse_argv();
+    $self->check_target();
+    $self->check_compiler();
+    $self->check_archiver();
+    $self->check_install();
+    $self->check_header(@{ $self->{ast}->{check_header} });
+    foreach (sort keys %{ $self->{ast}->{check_symbol} }) {
+        $self->check_symbol($_, $self->{ast}->{check_symbol}->{$_});
+    }
+
+    # Kludge: pull things out of the AST for use by export_to_c()
+    $self->{version} = $self->{ast}->{version};
+    $self->{project} = $self->{ast}->{project};
+
+    # Finalize all strings by expanding macros
+    foreach my $p (makeconf::project::projects()) {
+        $p->finalize();
+    }
+
+    return $self;
+}
+
+sub get {
+    my $self = shift;
+    my $key = shift || die;
+    die "configuration key '$key' does not exist" 
+        unless exists $self->{ast}->{$key};
+    return $self->{ast}->{$key};
+}
+
+sub export_to_c {
+    my $self = shift;
+    my @c_exports = (qw(version target api cflags));
+
+    print "Creating config.h\n";
+    open (my $fd, ">config.h") or die "open of config.h: $!";
+    my @cpp_define = map { 
+                    die "missing symbol: $_" unless exists $self->{$_};
+                    die "undefined symbol: $_" unless defined $self->{$_};
+                    '#define ' . uc($_) . ' ' . $self->{$_} . "\n";
+                    } @c_exports;
+    print $fd "/* AUTOMATICALLY GENERATED -- DO NOT EDIT */\n", @cpp_define or die;
+    foreach my $key (keys %{$self->{header}}) {
+        my $header = uc $key;
+        $header =~ tr/[.\/\-]/_/;
+        if ($self->{header}->{$key}) {
+            print $fd "#define HAVE_$header 1\n";
+        } else {
+            print $fd "#undef  HAVE_$header\n";
+        }
+    }
+    close($fd) or die;
+}
+    
+
+sub make_libraries {
+    my $self = shift;
+    my $mf = shift || die;
+
+    while (my ($key, $ent) = each %{ $self->{ast}->{libraries} }) {
+        my $ofile = $key . '.so.' . $ent->{abi_major} . '.' . $ent->{abi_minor};
+        $mf->add_target($ofile, $ent->{sources}, [
+                join(' ', '$(CC)', '-o $@', $ent->{cflags}, '-shared',
+                '-fPIC', '-fwhole-program',
+                '$(LDFLAGS)', @{$ent->{sources}}, '$(LDADD)')]);
+        $mf->add_dependency('all', $ofile);
+        $mf->add_rule('clean', "rm -f $ofile");
+        $mf->add_deliverable($ofile, '$(LIBDIR)');
+        
+        # Create symlinks from libfoo.so.0.0 to libfoo.so.0 and libfoo.so
+        # This allows multiple versions of a library to be installed 
+        # without clobbering each other
+        #
+        # TODO: verify 'test -e' is portable
+        foreach ("$key.so.$ent->{abi_major}", "$key.so") {
+            $mf->add_rule('install', "\$(LN) -sf $ofile \$(DESTDIR)\$(LIBDIR)/$_");
+            $mf->add_rule('uninstall', "rm \$(DESTDIR)\$(LIBDIR)/$_");
+        }
+
+        $mf->add_distributable($ent->{sources});
+
+        # Install headers
+        $ent->{headers} ||= [];
+        foreach (@{ $ent->{headers} }) {
+            $mf->add_deliverable($_, '$(INCLUDEDIR)');
+        }
+        $mf->add_distributable($ent->{headers});
+    }
+}
+
+sub make_dist {
+    my $self = shift;
+    my $mf = shift || die;
+    my $distname = $self->{project} . '-' . $self->{version};
+
+    $mf->prepend_rule('dist', [
+            "rm -f $distname.tar.gz",
+            "rm -rf $distname",
+            "mkdir $distname",
+            "\$(INSTALL) -m 755 configure $distname",
+            "\$(INSTALL) -m 644 config.yaml $distname",
+            ]);
+
+    # Automatically include the required GNU files, if they exist
+    my @inc;
+    foreach (qw(INSTALL NEWS README AUTHORS ChangeLog COPYING)) {
+        push @inc, $_ if -f $_;
+    }
+    $mf->add_rule('dist', "\$(INSTALL) -m 644 ".join(' ', @inc). " $distname") if @inc;
+
+    # Add the commands to generate the tarball
+    $mf->add_rule('dist', [
+            "tar cf $distname.tar $distname",
+            "gzip $distname.tar",
+            "rm -rf $distname",
+            ]);
+}
+
+sub export_to_make {
+    my $self = shift;
+
+    # Symbols to be exported to config.mk
+    #
+    my @make_exports= (qw(version target api  
+              prefix bindir sbindir libdir includedir mandir 
+              cflags ldflags ldadd
+              cc ln ar tar install));
+    #FIXME: abi_major abi_minor abi_version diff mans headers extra_dist subdirs 
+
+    my $mf = makeconf::makefile->new(distdir => $self->{project} . '-' . $self->{version});
+
+    foreach (@make_exports) {
+        die "missing symbol: $_" unless exists $self->{$_};
+        $mf->define_variable(uc($_), '=', $self->{$_});
+    }
+    $mf->add_target('all', [], []);
+    $mf->add_target('clean', [], []);
+    $mf->add_target('dist', ['all'], []);
+    $mf->add_target('distclean', ['clean'], ['rm -f Makefile config.h']);
+    $mf->add_target('check', ['all'], []);
+    $mf->add_target('install', ['all'], []);
+    $mf->add_target('uninstall', [], []);
+    $mf->add_target('package', ['all'], []);
+
+    $self->make_libraries($mf);
+#TODO: $self->make_binaries($mf);
+#TODO: $self->make_install($mf);
+#TODO: $self->make_tests($mf);
+    $self->make_dist($mf);
+#TODO: $self->make_package($mf);
+#TODO: $self->make_custom($mf);  #custom user-defined targets
+
+    print "writing Makefile\n";
+    open (my $fd, ">Makefile") or die "open of Makefile: $!";
+    print $fd $mf->render or die;
+    close($fd) or die;
+    return;
+
+     #-----------deadwood below -----------
+
+
+    # Generate the 'install' target
+    #
+#print $fd "\ninstall: ", join(" ", @all), "\n";
+#    foreach my $p (makeconf::project::projects()) {
+#        print $fd join("\n", $p->{install}->makefile_rules()), "\n";
+#    }
+
+    # Generate the 'package' target
+    #
+    print $fd "\npackage:\n\t./configure --mc-make-package\n";
+
+    # Generate the 'dist' target
+    #
+    print $fd "\ndist:\n";
+    foreach my $p (makeconf::project::projects()) {
+        my $name = $p->{project}; # ????
+        my @dist;
+        my $prepend = $name . '-' . $p->{version};
+        push @dist, map { $p->{_basedir} . $_ } 
+           ('configure', 'Makefile', 'config.inc', @{ $p->{extra_dist} });
+        foreach my $t (values %{$p->{targets}}) {
+            next unless exists $t->{sources};
+            push @dist, map { $p->{_basedir} . $_ } @{ $t->{sources} }; 
+        }
+#FIXME: support a 'scripts' option?
+#push @dist, map { $p->{_basedir} . $_ } keys %{$p->{scripts}};
+        while (@{ $p->{data} }) {
+            my $target = shift @{ $p->{data} };
+            my $files = shift @{ $p->{data} };
+            push @dist, map { $p->{_basedir} . $_ } @{$files};
+        }
+
+# XXX-FIXME GNU TAR REQUIRED
+        print $fd "\t\$(TAR) --transform 's,^,$prepend/,S' " .
+                    " -c -z -f $prepend.tgz" .
+                    " " . join(' ', uniq(@dist)) .
+                    "\n";
+    }
+
+=pod
+	mkdir $(PROGRAM)-$(VERSION)
+	cp  Makefile ChangeLog configure config.inc      \
+        $(MANS) $(EXTRA_DIST)   \
+        $(PROGRAM)-$(VERSION)
+	cp -R $(SUBDIRS) $(PROGRAM)-$(VERSION)
+	rm -rf `find $(PROGRAM)-$(VERSION) -type d -name .svn -o -name .libs`
+	cd $(PROGRAM)-$(VERSION) && ./configure && cd test && ./configure && cd .. && make distclean
+	tar zcf $(PROGRAM)-$(VERSION).tar.gz $(PROGRAM)-$(VERSION)
+	rm -rf $(PROGRAM)-$(VERSION)
+=cut
+
+
+    # Generate all user-defined targets
+    #
+    foreach my $p (makeconf::project::projects()) {
+        while (my ($key,$rec) = each %{$p->{targets}}) {
+            print $fd generate_make_target($key, $p, $rec);
+        }
+    } # each project
+
+    close($fd) or die;
+}
+
+# ------------------------- Private methods ------------------- #
+
+sub parse_argv {
+    my $self = shift;
+    my %opt;
+
+    GetOptions(\%opt,
+        'help|h',
+        'version|V',
+        'verbose|v',
+        'prefix=s',
+        'bindir=s',
+        'sbindir=s',
+        'libdir=s',
+        'includedir=s',
+        'mandir=s',
+        'mc-make-package',
+        ) or exit(1);
+
+    # Process options that trigger an action
+    #
+    my %dispatch = (
+            help => \&print_usage,
+            version => \&print_version,
+            "mc-make-package" => \&make_package,
+# FIXME:if [ "$id" = "generate-rpath" ] ; then
+            );
+    foreach (keys %dispatch) {
+        next unless exists $opt{$_};
+        $dispatch{$_}($opt{$_}) if exists $opt{$_};
+        delete $opt{$_};
+    }
+    
+    # FIXME-Process options that modify the symbol table
+    #
+#foreach my $key (keys %opt) {
+#        $sym{$key} = $opt{$key};
+#    }
+
+    # Process options that modify global settings
+    #
+    $self->{verbose}++ if $opt{verbose};
+}
+
+sub check_target {
+    my $self = shift;
+
+    print "checking operating system type.. ";
+    $self->{target} = $^O;
+    $self->{api} = 'posix';
+    if ($^O eq 'MSWin32') {
+        $self->{target} = 'windows';
+        $self->{api} = 'windows';
+    }
+    print "$self->{target}\n";
+}
+
+sub check_compiler {
+    my $self = shift;
+
+    print "checking for a C compiler.. $self->{cc}\n";
+    die 'not found' unless $self->{cc};
+
+    # Check what features the compiler supports
+    #
+    $self->{cc_features} = +{};
+    # FIXME: breaks on SunOS
+    #print "checking if the compiler supports the -combine option.. ";
+    #my $code = "int main() {}\n";
+    #$sym{cc_features}->{combine} = yesno(compile($code, cflags => '-combine'));
+}
+
+sub check_archiver {
+    my $self = shift;
+
+    print "checking for a suitable archiver.. ";
+    die 'not found' unless $self->{ar};
+
+    print "$self->{ar}\n";
+}
+
+sub check_install {
+    my $self = shift;
+
+    print "checking for a BSD-compatible install.. ";
+    # workaround for solaris:
+    if (-x '/usr/ucb/install') {
+            $self->{install}='/usr/ucb/install';
+    }
+    die "not found" unless $self->{install};
+
+    print "$self->{install}\n";
+}
+
+sub check_header {
+    my $self = shift;
+    foreach my $header (@_) {
+        print "checking for $header... ";
+        my $code = "#include <$header>\nint main() {}\n";
+        $self->{header}->{$header} = yesno($self->compile($code));
+    }
+}
+
+sub check_symbol {
+    my $self = shift;
+    my $header = shift || die;
+    my (@symbols);
+
+    die unless @_;
+    if (ref($_[0]) eq 'ARRAY') {
+        (@symbols) = @{ $_[0] };
+    } else { 
+        (@symbols) = @_;
+    }
+
+    # Check that the header is available
+    #
+    $self->check_header($header) unless exists $self->{header}->{$header};
+
+    $self->{symbol}->{$header} ||= +{};
+    foreach my $symbol (@symbols) {
+        print "checking $header for $symbol... ";
+
+        if ($self->{header}->{$header} == 0) {
+            print "no ($header is missing)\n";
+            $self->{symbol}->{$header}->{$symbol} = 0;
+            next; 
+        }
+
+        my $found = 0;
+
+        # See if the symbol is a macro
+        #
+        my $code = "
+            #include <$header>
+            #if !defined($symbol)
+            #error no
+            #endif
+            int main() {}\n";
+        if ($self->compile($code)) {
+            $found = 1;
+        }
+
+        # See if the symbol is an actual symbol
+        #
+        $code = "#include <$header>\nint main() { void *p; p = &$symbol; }\n";
+        if (not $found and $self->compile($code)) {
+            $found = 1;
+        }
+        $self->{symbol}->{$header}->{$symbol} = yesno($found);
+    }
+}
+
+sub compile {
+    my $self = shift;
+    my $code = shift || die;
+    my %opt = @_;
+    $opt{cflags} ||= $self->{cflags};
+    $opt{cc} ||= $self->{cc};
+
+    my ($fh, $filename) = tempfile('mcXXXXXXXXXX', 
+            SUFFIX => '.c',
+            UNLINK => 1,
+            );
+    print $fh $code or die $!;
+    close($fh) or die $!;
+
+    my $cmd = "$opt{cc} -o /dev/null $opt{cflags} $filename";
+    if ($self->{verbose} > 1) {
+        print "\ncompiling with '$cmd`:\n" . 
+              ('-' x 72) . "\n" . 
+              $code . "\n" .
+              ('-' x 72) . "\n"; 
+    } else {
+        $cmd .= " >/dev/null 2>&1";
+    }
+    system $cmd;
+    if ($? == -1) {
+        die "failed to execute: $!\n";
+    } elsif ($? & 127) {
+        die "child died with signal %d, %s coredump\n",
+            ($? & 127),  ($? & 128) ? 'with' : 'without';
+    } else {
+        my $retval = $? >> 8;
+        print "exit status = $retval\n" if $self->{verbose} > 1;
+        return ($retval == 0 ? 1 : 0);
+    }
+}
+
+sub dump {
+    confess Dumper($_[0]);
+}
+
+#----------------------- Class functions -----------------------#
+
+
+# Given an array, return the unique values while preserving the original order
+#
+sub uniq {
+    my %seen = ();
+    return (grep { ! $seen{$_} ++ } @_);
+}
+
+sub yesno {
+    my $x = shift;
+    if (defined $x and $x ne '' and $x ne '0') {
+        print "yes\n";
+        return 1;
+    } else {
+        print "no\n";
+        return 0;
+    }
+}
+
+# Search the $PATH for the location of an executable
+#
+sub which {
+    foreach my $program (@_) {
+        foreach my $prefix (split /:/, $ENV{PATH}) {
+            my $path = "$prefix/$program";
+            return $path if -x $path;
+        }
+    }
+    return '';
+}
+
+1;
+
 package makeconf::macros;
 
 use strict;
@@ -131,6 +642,16 @@ sub new {
     return bless($self, $class);
 }
 
+sub print_usage {
+    die 'TODO -- usage';
+    exit(0);
+}
+
+sub print_version {
+    print "makeconf r$version\n";
+    exit(0);
+}
+
 1;
 
 package makeconf::project;
@@ -151,7 +672,7 @@ sub new {
     my $class = shift;
     my %x = @_;
     my $self = +{
-        id => undef,
+        project => undef,
         version => undef,
         _basedir => '', # FIXME: support nested projects in subdirectories
         macros => +{
@@ -161,12 +682,23 @@ sub new {
             'includedir' => '$prefix/include',
             'pkgincludedir' => '$includedir/$project',
         },
+
+        'package' => +{},       # information to build a RPM package manifest
+
+        # Files to be installed in /usr/include
+        headers => [],
+
+        # Files to be installed in /usr/lib
+        libraries => [],
+
         targets => +{},
         tests => [],
         scripts => [],
         data => [],
         install => [],
         extra_dist => [],
+        check_header => [],
+        check_symbol => +{},
     };
     my $err = 0;
 
@@ -188,10 +720,11 @@ sub new {
     }
     die 'Too many errors' if $err;
 
-    die 'Project id is required' unless defined $self->{id};
-    die 'Duplicate project id' if exists $project{$self->{id}};
-    $self->{macros}->{project} = $self->{id};
+    die 'Project is required' unless defined $self->{project};
+    die 'Duplicate project id' if exists $project{$self->{project}};
+    $self->{macros}->{project} = $self->{project};
 
+    # Generate the 'make install' targets
     my $i = makeconf::installer->new();
     foreach (@{$self->{install}}) {
         $i->parse($_);
@@ -199,7 +732,7 @@ sub new {
     $self->{install} = $i;
 
     bless($self, $class);
-    $project{$self->{id}} = $self;
+    $project{$self->{project}} = $self;
     return $self;
 }
 
@@ -254,7 +787,7 @@ sub parse {
     my @src;
     my $dst;
 
-    warn Dumper(\@tok);
+    #warn Dumper(\@tok);
     push @{$self->{orig}}, $line;
     while (@tok) {
         my $x = shift @tok;
@@ -308,7 +841,7 @@ sub makefile_rules {
     my $self = shift;
     my @res;
 
-  warn Dumper($self);
+    #warn Dumper($self);
 #    foreach (@{$self->{orig}}) {
 #        push @res, "\t" . '$(INSTALL) ' . $_;
 #    }
@@ -346,6 +879,134 @@ sub dump { die Dumper($_[0]); }
 
 1;
 
+# An object whose AST is used to generate a Makefile
+
+package makeconf::makefile;
+
+use Carp;
+use Data::Dumper;
+use File::Basename;
+
+use strict;
+use warnings;
+
+sub new {
+    my $class = shift;
+    my $self = {
+        vars => +{},     # variable definitions (e.g., 'A=b')
+        targets => +{}, # targets and associated rules
+        @_,
+    };
+    bless($self, $class);
+
+    return $self;
+}
+
+sub define_variable {
+    my ($self, $lval, $op, $rval) = @_;
+    $self->{vars}->{$lval} = [ $op, $rval ];
+}
+
+sub add_target {
+    my ($self, $objs, $deps, $rules) = @_;
+    confess if ref($objs) or ref($deps) ne 'ARRAY' or ref($rules) ne 'ARRAY';
+    $self->{targets}->{$objs} = [ $deps, $rules ];
+}
+
+sub add_dependency {
+    my ($self, $obj, $dep) = @_;
+    my $ent = $self->{targets}->{$obj} || die "target $obj does not exist";
+    push @{ $ent->[0] }, $dep;
+}
+
+sub add_rule {
+    my ($self, $obj, $dep) = @_;
+    my $ent = $self->{targets}->{$obj} || die "target $obj does not exist";
+    if (ref($dep) eq 'ARRAY') {
+        push @{ $ent->[1] }, @{ $dep };
+    } else {
+        push @{ $ent->[1] }, $dep;
+    }
+}
+
+sub prepend_rule {
+    my ($self, $obj, $dep) = @_;
+    my $ent = $self->{targets}->{$obj} || die "target $obj does not exist";
+    if (ref($dep) eq 'ARRAY') {
+        unshift @{ $ent->[1] }, @{ $dep };
+    } else {
+        unshift @{ $ent->[1] }, $dep;
+    }
+}
+
+# Add an installable file
+sub add_deliverable {
+    my ($self, $src, $dst) = @_;
+    $self->add_rule('install', '$(INSTALL) -m 644 ' . $src . ' $(DESTDIR)' . $dst);
+    $self->add_rule('uninstall', 'rm $(DESTDIR)' . $dst . '/' . basename($src));
+}
+
+# Add a file to the tarball generated by 'make dist'
+sub add_distributable {
+    my ($self, $src) = @_;
+    my $mode = -x $src ? '755' : '644';
+    die 'undefined distdir' unless exists $self->{distdir};
+    $src = join(' ', @{ $src }) if ref($src) eq 'ARRAY';
+    return unless $src;
+
+    $self->add_rule('dist', "\$(INSTALL) -m $mode $src $self->{distdir}");
+}
+
+sub render {
+    my $self = shift;
+    my $s = '';
+
+    # Define variables
+    #
+    foreach my $lval (sort keys %{ $self->{vars} }) {
+        $s .= $lval . join('', @{$self->{vars}->{$lval}}) . "\n";
+    }
+
+    # Set the default target to be 'all'
+    $s .= "\ndefault: all\n";
+
+    # Define targets and rules
+    #
+    foreach my $objs (sort keys %{ $self->{targets} }) {
+        $s .= "\n" . $self->render_target($objs);
+    }
+
+    return $s;
+}
+
+# ---------- Private methods ------------------
+
+# todo: move to a utility class
+# DEADWOOD - NOT used yet
+sub writefile {
+    my ($path, $string) = @_;
+    open (my $fd, ">$path") or die "open of $path: $!";
+    print $fd $string or die $!;
+    close($fd) or die $!;
+}
+
+sub render_target {
+    my ($self,$objs) = @_;
+    my $s = '';
+    my $ent = $self->{targets}->{$objs};
+    $s .= $objs . ':';
+    foreach (@{$ent->[0]}) {
+        $s .= " $_";
+    }
+    $s .= "\n";
+    foreach (@{$ent->[1]}) {
+        $s .= "\t$_\n";
+    }
+    return $s;
+}
+
+1;
+
 package main;
 
 use strict;
@@ -355,14 +1016,10 @@ use Carp;
 use Data::Dumper;
 use Cwd;
 use File::Basename;
-use File::Temp qw(tempfile);
-use Getopt::Long;
 use Text::ParseWords;
 
 use subs qw(run);
 
-my $version = '$Revision: 23 $';
-$version =~ s/[^\d]//g;
 
 my $verbose = 1;
 
@@ -372,35 +1029,8 @@ my %sym = (
         project => scalar(basename cwd),
         version => '0.1',
         mailto => 'Undefined Email <null@nowhere.local>',
-        cflags => $ENV{CFLAGS} || '',
-        ldflags => $ENV{LDFLAGS} || '',
-        libs => $ENV{LIBS} || '',
-        prefix => '/usr/local',
-        bindir => '$(PREFIX)/bin',
-        sbindir => '$(PREFIX)/sbin',
-        libdir => '$(PREFIX)/lib', # XXX-FIXME - add lib64 for Fedora
-        includedir => '$(PREFIX)/include',
-        mandir => '$(PREFIX)/share/man',
-        tar => $ENV{TAR} || which(qw(tar)),
-        ar => $ENV{AR} || which(qw(ar gar)),
-        cc => $ENV{CC} || which(qw(cc gcc clang)),
-        ln => $ENV{LN} || which('ln'),
-        distfile => 'FIXME',
-#FIXME:finalize distfile   "$program-$version.tar.gz" 
         header => +{},
         );
-
-# Symbols to be exported to config.h
-#
-my @c_exports = (qw(version target api cflags));
-
-# Symbols to be exported to config.mk
-#
-my @make_exports= (qw(version target api distfile 
-              prefix bindir sbindir libdir includedir mandir 
-              cflags ldflags libs
-              cc ln ar tar install));
-#FIXME: abi_major abi_minor abi_version diff mans headers extra_dist subdirs 
 
 =pod
 TODO:
@@ -441,188 +1071,6 @@ sub dbg {
     }
 }
 
-# Given an array, return the unique values while preserving the original order
-#
-sub uniq {
-    my %seen = ();
-    return (grep { ! $seen{$_} ++ } @_);
-}
-
-sub compile {
-    my $code = shift;
-    my %opt = @_;
-    $opt{cflags} ||= $sym{cflags};
-    $opt{cc} ||= $sym{cc};
-
-    my ($fh, $filename) = tempfile('mcXXXXXXXXXX', 
-            SUFFIX => '.c',
-            UNLINK => 1,
-            );
-    print $fh $code or die $!;
-    close($fh) or die $!;
-
-    my $cmd = "$opt{cc} -o /dev/null $opt{cflags} $filename";
-    if ($verbose > 1) {
-        print "\ncompiling with '$cmd`:\n" . 
-              ('-' x 72) . "\n" . 
-              $code . "\n" .
-              ('-' x 72) . "\n"; 
-    } else {
-        $cmd .= " >/dev/null 2>&1";
-    }
-    system $cmd;
-    if ($? == -1) {
-        die "failed to execute: $!\n";
-    } elsif ($? & 127) {
-        die "child died with signal %d, %s coredump\n",
-            ($? & 127),  ($? & 128) ? 'with' : 'without';
-    } else {
-        my $retval = $? >> 8;
-        print "exit status = $retval\n" if $verbose > 1;
-        return ($retval == 0 ? 1 : 0);
-    }
-}
-
-sub print_usage {
-    die 'TODO -- usage';
-    exit(0);
-}
-
-sub print_version {
-    print "makeconf r$version\n";
-    exit(0);
-}
-
-sub parse_conffile {
-    my $infile = 'config.inc';
-
-    if (not -e $infile) {
-        die "$infile: file not found";
-    }
-
-    open (my $fd, "<$infile") or die "$infile: $!";
-    my @lines = <$fd> or die $!;
-    close($fd) or die $!;
-    eval join('',@lines);
-    die $@ if $@;
-}
-
-sub parse_argv {
-    my %opt;
-
-    GetOptions(\%opt,
-        'help|h',
-        'version|V',
-        'verbose|v',
-        'prefix=s',
-        'bindir=s',
-        'sbindir=s',
-        'libdir=s',
-        'includedir=s',
-        'mandir=s',
-        'mc-make-package',
-        ) or exit(1);
-
-    # Process options that trigger an action
-    #
-    my %dispatch = (
-            help => \&print_usage,
-            version => \&print_version,
-            "mc-make-package" => \&make_package,
-# FIXME:if [ "$id" = "generate-rpath" ] ; then
-            );
-    foreach (keys %dispatch) {
-        next unless exists $opt{$_};
-        $dispatch{$_}($opt{$_}) if exists $opt{$_};
-        delete $opt{$_};
-    }
-    
-    # Process options that modify the symbol table
-    #
-    foreach my $key (keys %opt) {
-        $sym{$key} = $opt{$key};
-    }
-
-    # Process options that modify global settings
-    #
-    $verbose++ if $opt{verbose};
-}
-
-# Search the $PATH for the location of an executable
-#
-sub which {
-    foreach my $program (@_) {
-        foreach my $prefix (split /:/, $ENV{PATH}) {
-            my $path = "$prefix/$program";
-            return $path if -x $path;
-        }
-    }
-    return '';
-}
-
-sub check_target {
-    print "checking operating system type.. ";
-    $sym{target} = $^O;
-    $sym{api} = 'posix';
-    if ($^O eq 'MSWin32') {
-        $sym{target} = 'windows';
-        $sym{api} = 'windows';
-    }
-    print "$sym{target}\n";
-}
-
-sub check_compiler {
-    print "checking for a C compiler.. $sym{cc}\n";
-    die 'not found' unless $sym{cc};
-
-    # Check what features the compiler supports
-    #
-    $sym{cc_features} = +{};
-    # FIXME: breaks on SunOS
-    #print "checking if the compiler supports the -combine option.. ";
-    #my $code = "int main() {}\n";
-    #$sym{cc_features}->{combine} = yesno(compile($code, cflags => '-combine'));
-}
-
-sub check_archiver {
-    print "checking for a suitable archiver.. ";
-    $sym{ar} = $ENV{AR} || which(qw(ar gar)) || die 'not found';
-    print "$sym{ar}\n";
-}
-
-sub check_install {
-    print "checking for a BSD-compatible install.. ";
-    $sym{install} = $ENV{INSTALL} || which(qw(install));
-    if ($sym{target} eq 'solaris') {
-        if (not $sym{install} or $sym{install} eq '/usr/bin/install') {
-            $sym{install}='/usr/ucb/install';
-        }
-    }
-    die "not found" unless $sym{install};
-    print "$sym{install}\n";
-}
-
-sub export_to_c {
-    print "Creating config.h\n";
-    open (my $fd, ">config.h") or die "open of config.h: $!";
-    my @cpp_define = map { 
-                    die "missing symbol: $_" unless exists $sym{$_};
-                    die "undefined symbol: $_" unless defined $sym{$_};
-                    '#define ' . uc($_) . ' ' . $sym{$_} . "\n";
-                    } @c_exports;
-    print $fd "# AUTOMATICALLY GENERATED -- DO NOT EDIT\n", @cpp_define or die;
-    foreach my $key (keys %{$sym{header}}) {
-        my $header = uc $key;
-        $header =~ tr/[.\/\-]/_/;
-        if ($sym{header}->{$key}) {
-            print $fd "#define HAVE_$header 1\n";
-        } else {
-            print $fd "#undef  HAVE_$header\n";
-        }
-    }
-    close($fd) or die;
-}
-    
 # Translate linker options from GCC syntax to the local linker syntax
 #
 sub convert_ldflags {
@@ -704,7 +1152,7 @@ sub generate_make_target {
     (@ldflags) = convert_ldflags(@ldflags);
 
     # Generate the additional library list
-    #
+    # FIXME-changed to ldadd, this is broken
     my (@libs) = ('$(LIBS)');
     push @libs, $proj->{libs} if exists $proj->{libs};
     if (exists $rec->{libs}) {
@@ -716,158 +1164,6 @@ sub generate_make_target {
             "\t\$(CC) -o $output " .
             join(' ', @cflags, @ldflags, @{ $rec->{sources} }, @libs) .
             "\n";
-}
-
-sub export_to_make {
-    print "Creating config.mk\n";
-    open (my $fd, ">config.mk") or die "open of config.mk: $!";
-    my @def = map {
-                    die "missing symbol: $_" unless exists $sym{$_};
-                    uc($_) . '=' . $sym{$_} . "\n";
-              } @make_exports;
-    print $fd "# AUTOMATICALLY GENERATED -- DO NOT EDIT\n", @def or die;
-
-    # Generate the 'all' target
-    #
-    my (@all);
-    foreach my $p (makeconf::project::projects()) {
-        $p->{targets} ||= +{};
-        push @all, keys %{$p->{targets}};
-    } 
-    print $fd "\nall: " . join(' ', @all) . "\n";
-
-    # Generate the 'clean' target
-    #
-    print $fd "\nclean:\n\trm -f " . join(' ', @all) . "\n";
-
-    # Generate the 'distclean' target
-    #
-    print $fd "\n", join("\n",
-            "distclean: clean",
-            "\trm -f *.tar.gz config.mk config.h *.pc *.la rpm.spec",
-            ), "\n";
-
-    # Generate the 'check' target
-    #
-    my (@tests);
-    foreach my $p (makeconf::project::projects()) {
-        push @tests, @{ $p->{tests} };
-    }
-    if (@tests) {
-        print $fd "\ncheck: all " . join(' ', @tests) . "\n\t./" .
-                join("\n\t./", (@tests)) . "\n";
-    }
-
-    # Generate the 'install' target
-    #
-    print $fd "\ninstall: ", join(" ", @all), "\n";
-    foreach my $p (makeconf::project::projects()) {
-        print $fd join("\n", $p->{install}->makefile_rules()), "\n";
-    }
-
-    # Generate the 'package' target
-    #
-    print $fd "\npackage:\n\t./configure --mc-make-package\n";
-
-    # Generate the 'dist' target
-    #
-    print $fd "\ndist:\n";
-    foreach my $p (makeconf::project::projects()) {
-        my $name = $p->{id}; # ????
-        my @dist;
-        my $prepend = $name . '-' . $p->{version};
-        push @dist, map { $p->{_basedir} . $_ } 
-           ('configure', 'Makefile', 'config.inc', @{ $p->{extra_dist} });
-        foreach my $t (values %{$p->{targets}}) {
-            next unless exists $t->{sources};
-            push @dist, map { $p->{_basedir} . $_ } @{ $t->{sources} }; 
-        }
-        push @dist, map { $p->{_basedir} . $_ } keys %{$p->{scripts}};
-        while (@{ $p->{data} }) {
-            my $target = shift @{ $p->{data} };
-            my $files = shift @{ $p->{data} };
-            push @dist, map { $p->{_basedir} . $_ } @{$files};
-        }
-
-# XXX-FIXME GNU TAR REQUIRED
-        print $fd "\t\$(TAR) --transform 's,^,$prepend/,S' " .
-                    " -c -z -f $prepend.tgz" .
-                    " " . join(' ', uniq(@dist)) .
-                    "\n";
-    }
-
-=pod
-	mkdir $(PROGRAM)-$(VERSION)
-	cp  Makefile ChangeLog configure config.inc      \
-        $(MANS) $(EXTRA_DIST)   \
-        $(PROGRAM)-$(VERSION)
-	cp -R $(SUBDIRS) $(PROGRAM)-$(VERSION)
-	rm -rf `find $(PROGRAM)-$(VERSION) -type d -name .svn -o -name .libs`
-	cd $(PROGRAM)-$(VERSION) && ./configure && cd test && ./configure && cd .. && make distclean
-	tar zcf $(PROGRAM)-$(VERSION).tar.gz $(PROGRAM)-$(VERSION)
-	rm -rf $(PROGRAM)-$(VERSION)
-=cut
-
-
-    # Generate all user-defined targets
-    #
-    foreach my $p (makeconf::project::projects()) {
-        while (my ($key,$rec) = each %{$p->{targets}}) {
-            print $fd generate_make_target($key, $p, $rec);
-        }
-    } # each project
-
-    close($fd) or die;
-}
-
-sub check_header {
-    my $result = 1;
-    foreach my $header (@_) {
-        print "checking for $header... ";
-        my $code = "#include <$header>\nint main() {}\n";
-        $sym{header}->{$header} = yesno(compile($code));
-        $result = 0 unless $sym{header}->{$header};
-    }
-    return $result;
-}
-
-sub check_symbol {
-    my ($header,$symbol) = @_;
-    my $code;
-    my $found = 0;
-
-    # Check that the header is available
-    #
-    check_header($header) unless exists $sym{header}->{$header};
-    if ($sym{header}->{$header} == 0) {
-        print "checking $header for $symbol... no ($header is missing)\n";
-        return 0; 
-    }
-
-    print "checking $header for $symbol... ";
-
-    # See if the symbol is a macro
-    #
-    $code = "
-        #include <$header>
-        #if !defined($symbol)
-        #error no
-        #endif
-        int main() {}\n";
-    if (compile($code)) {
-        $found = 1;
-    }
-
-    # See if the symbol is an actual symbol
-    #
-    $code = "#include <$header>\nint main() { void *p; p = &$symbol; }\n";
-    if (not $found and compile($code)) {
-        $found = 1;
-    }
-
-out:
-    $sym{macro}->{$symbol} = yesno($found);
-    return $found;
 }
 
 
@@ -921,17 +1217,6 @@ Description: TODO short description
     }
 }
 
-sub yesno {
-    my $x = shift;
-    if (defined $x and $x ne '' and $x ne '0') {
-        print "yes\n";
-        return 1;
-    } else {
-        print "no\n";
-        return 0;
-    }
-}
-
 sub writefile {
     my ($path, $string) = @_;
     open (my $fd, ">$path") or die "open of $path: $!";
@@ -951,13 +1236,8 @@ sub run {
 #
 #######################################################################
 
-parse_argv();
-check_target();
-check_compiler();
-check_archiver();
-check_install();
-
-parse_conffile();
+my $cfg = makeconf::config->new('config.yaml');
+#$cfg->dump;
 
 # TODO:
 #subst_vars "$program.pc"
@@ -966,13 +1246,5 @@ parse_conffile();
 #  subst_vars "rpm.spec"
 #fi
 
-# Finalize everything
-foreach my $p (makeconf::project::projects()) {
-    $p->finalize();
-}
-
-export_to_c();
-export_to_make();
-
-#warn Dumper(\%sym);
-#warn Dumper(\%project);
+$cfg->export_to_c();
+$cfg->export_to_make();
