@@ -133,13 +133,13 @@ sub make_static_library {
 
     my $afile = $key . '.a';
     $mf->add_target($afile, $ent->{sources}, 
-            [ join(' ', '$(CC)', '-o $@', $ent->{cflags}, 
-                '-fPIC', '-fwhole-program',
+            [ join(' ', '$(CC)', '-o $@', $ent->{cflags}, '-static',
+                '-fwhole-program',
                 '$(LDFLAGS)', @{$ent->{sources}}, '$(LDADD)')]);
     $mf->add_dependency('all', $afile);
     $mf->add_rule('clean', "rm -f $afile");
 #TODO: add a configuration flag to make this installable
-#$mf->add_deliverable($sofile, '$(LIBDIR)');
+#$mf->add_deliverable($afile, '$(LIBDIR)');
 }
 
 sub make_shared_library {
