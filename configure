@@ -211,6 +211,8 @@ sub make_pkgconfig {
         print $fd "$key: $val\n";
     }
     close $fd or die;
+
+    $mf->add_rule('clean', "rm -f $ofn");
 }
 
 sub make_libraries {
