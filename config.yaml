@@ -1,4 +1,4 @@
-id: makeconf
+project: makeconf
 version: 0.1
 extra_dist:
     - testing/Makefile
@@ -19,3 +19,16 @@ check_header:
 
 check_symbol: 
     'unistd.h': ['STDIN_FILENO', 'STDOUT_FILENO']
+
+# Not really used, just for testing pkgconfig
+#
+pkgconfig:
+#    name: '$project'
+    description: 'Description field'
+#    version: '$version'
+#    url: '$url'
+    requires: ''
+    conflicts: ''
+    libs: ''
+    libs.private: ''
+    cflags: '-Wall -Werror'
