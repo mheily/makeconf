@@ -132,10 +132,18 @@ sub make_static_library {
     my ($self,$mf,$key,$ent) = @_;
 
     my $afile = $key . '.a';
-    $mf->add_target($afile, $ent->{sources}, 
-            [ join(' ', '$(CC)', '-o $@', $ent->{cflags}, '-static',
-                '-fwhole-program',
-                '$(LDFLAGS)', @{$ent->{sources}}, '$(LDADD)')]);
+
+    my (@rules,@objs);
+    foreach my $src (@{ $ent->{sources} }) {
+        my $obj = $src;
+        $obj =~ s/\.c$/.o/;
+        push @objs, $obj;
+        push @rules, join(' ', '$(CC)', '-c', "-o $obj", $ent->{cflags},
+                '$(LDFLAGS)', $src);
+    }
+    push @rules, "ar rcs $afile " . join(' ', @objs);
+
+    $mf->add_target($afile, $ent->{sources}, \@rules);
     $mf->add_dependency('all', $afile);
     $mf->add_rule('clean', "rm -f $afile");
 #TODO: add a configuration flag to make this installable
@@ -149,7 +157,7 @@ sub make_shared_library {
     $mf->add_target($sofile, $ent->{sources}, [
             join(' ', '$(CC)', '-o $@', $ent->{cflags}, '-shared',
                 '-fPIC', '-fwhole-program',
-                '$(LDFLAGS)', @{$ent->{sources}}, '$(LDADD)')]);
+                '$(LDFLAGS)', @{$ent->{sources}}, $ent->{ldadd})]);
 
     $mf->add_dependency('all', $sofile);
     $mf->add_rule('clean', "rm -f $sofile");
