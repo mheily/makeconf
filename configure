@@ -186,6 +186,9 @@ sub make_pkgconfig {
     my %default = (
             'name' => $self->get('project'),
             'version' => $self->get('version'),
+            'description' => 'FIXME',
+            'requires' => '',
+            'conflicts' => '',
             'url' => undef,
             'libs' => undef,
             'libs.private' => undef,
