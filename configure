@@ -176,9 +176,11 @@ sub make_shared_library {
 
 sub make_pkgconfig {
     my $self = shift;
+    my %pc;
 
-    my %pc = %{ $self->{ast}->{pkgconfig} };
-    return unless keys %pc;
+    if ($self->{ast}->{pkgconfig}) {
+        %pc = %{ $self->{ast}->{pkgconfig} };
+    }
 
     # Fill in default values
     my %default = (
@@ -748,6 +750,7 @@ sub new {
             'pkgincludedir' => '$includedir/$project',
         },
 
+        # FIXME; duplicates information in {ast}, these should be dropped
         'pkgconfig' => +{},     # information to build a pkg-config .pc file
         'package' => +{},       # information to build a RPM package manifest
 
