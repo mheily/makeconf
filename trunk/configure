@@ -15,8 +15,106 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
 
-# Parse the configuration file
+#
+# A single library target to be built
+#
+package makeconf::target::library;
 
+use strict;
+use warnings;
+
+use Data::Dumper;
+
+sub new {
+    my ($class,$id,$self) = @_;
+    $self->{id} = $id;
+    bless($self, $class);
+
+    # Load default values
+    my %default = (
+            'abi_major' => '0',
+            'abi_minor' => '0',
+            'enable_shared' => 1,
+            'enable_static' => 0,
+            'cflags' => '', # TODO: pull from project
+            'ldflags' => '', # TODO: pull from project
+            'ldadd' => '', # TODO: pull from project
+            'sources' => [],
+            'headers' => [],
+            );
+    foreach (keys %default) {
+        $self->{$_} = $default{$_} unless exists $self->{$_};
+    }
+
+    return $self;
+}
+
+sub _make_shared_library {
+    my ($self,$mf) = @_;
+
+    my $sofile = "$self->{id}.so.$self->{abi_major}.$self->{abi_minor}";
+    $mf->add_target($sofile, $self->{sources}, [
+            join(' ', '$(CC)', '-o $@', $self->{cflags}, '-shared',
+                '-fPIC', '-fwhole-program',
+                '$(LDFLAGS)', @{$self->{sources}}, $self->{ldadd})]);
+
+    $mf->add_dependency('all', $sofile);
+    $mf->add_rule('clean', "rm -f $sofile");
+    $mf->add_deliverable($sofile, '$(LIBDIR)');
+        
+    # Create symlinks from libfoo.so.0.0 to libfoo.so.0 and libfoo.so
+    # This allows multiple versions of a library to be installed 
+    # without clobbering each other
+    #
+    # TODO: verify 'test -e' is portable
+    foreach ("$self->{id}.so.$self->{abi_major}", "$self->{id}.so") {
+        $mf->add_rule('install', "\$(LN) -sf $sofile \$(DESTDIR)\$(LIBDIR)/$_");
+        $mf->add_rule('uninstall', "rm \$(DESTDIR)\$(LIBDIR)/$_");
+    }
+}
+
+sub _make_static_library {
+    my ($self,$mf,$key,$ent) = @_;
+
+    my $afile = $key . '.a';
+
+    my (@rules,@objs);
+    foreach my $src (@{ $ent->{sources} }) {
+        my $obj = $src;
+        $obj =~ s/\.c$/.o/;
+        push @objs, $obj;
+        push @rules, join(' ', '$(CC)', '-c', "-o $obj", $ent->{cflags},
+                '$(LDFLAGS)', $src);
+    }
+    push @rules, "ar rcs $afile " . join(' ', @objs);
+
+    $mf->add_target($afile, $ent->{sources}, \@rules);
+    $mf->add_dependency('all', $afile);
+    $mf->add_rule('clean', "rm -f $afile");
+#TODO: add a configuration flag to make this installable
+#$mf->add_deliverable($afile, '$(LIBDIR)');
+}
+
+sub make {
+    my ($self,$mf) = @_;
+    $self->_make_shared_library($mf) if $self->{enable_shared};
+    $self->_make_static_library($mf) if $self->{enable_static};
+    $mf->add_distributable($self->{sources});
+
+    # Install headers
+    foreach (@{ $self->{headers} }) {
+        $mf->add_deliverable($_, '$(INCLUDEDIR)');
+    }
+    $mf->add_distributable($self->{headers});
+}
+
+1;
+
+#---------------------------------------------------------------------#
+
+#
+# Parse the configuration file
+#
 package makeconf::config;
 
 use Carp;
@@ -127,55 +225,10 @@ sub export_to_c {
     }
     close($fd) or die;
 }
-    
-sub make_static_library {
-    my ($self,$mf,$key,$ent) = @_;
-
-    my $afile = $key . '.a';
-
-    my (@rules,@objs);
-    foreach my $src (@{ $ent->{sources} }) {
-        my $obj = $src;
-        $obj =~ s/\.c$/.o/;
-        push @objs, $obj;
-        push @rules, join(' ', '$(CC)', '-c', "-o $obj", $ent->{cflags},
-                '$(LDFLAGS)', $src);
-    }
-    push @rules, "ar rcs $afile " . join(' ', @objs);
-
-    $mf->add_target($afile, $ent->{sources}, \@rules);
-    $mf->add_dependency('all', $afile);
-    $mf->add_rule('clean', "rm -f $afile");
-#TODO: add a configuration flag to make this installable
-#$mf->add_deliverable($afile, '$(LIBDIR)');
-}
-
-sub make_shared_library {
-    my ($self,$mf,$key,$ent) = @_;
-
-    my $sofile = "${key}.so.$ent->{abi_major}.$ent->{abi_minor}";
-    $mf->add_target($sofile, $ent->{sources}, [
-            join(' ', '$(CC)', '-o $@', $ent->{cflags}, '-shared',
-                '-fPIC', '-fwhole-program',
-                '$(LDFLAGS)', @{$ent->{sources}}, $ent->{ldadd})]);
-
-    $mf->add_dependency('all', $sofile);
-    $mf->add_rule('clean', "rm -f $sofile");
-    $mf->add_deliverable($sofile, '$(LIBDIR)');
-        
-    # Create symlinks from libfoo.so.0.0 to libfoo.so.0 and libfoo.so
-    # This allows multiple versions of a library to be installed 
-    # without clobbering each other
-    #
-    # TODO: verify 'test -e' is portable
-    foreach ("$key.so.$ent->{abi_major}", "$key.so") {
-        $mf->add_rule('install', "\$(LN) -sf $sofile \$(DESTDIR)\$(LIBDIR)/$_");
-        $mf->add_rule('uninstall', "rm \$(DESTDIR)\$(LIBDIR)/$_");
-    }
-}
 
 sub make_pkgconfig {
     my $self = shift;
+    my $mf = shift || die;
     my %pc;
 
     if ($self->{ast}->{pkgconfig}) {
@@ -221,17 +274,9 @@ sub make_libraries {
 
     while (my ($key, $ent) = each %{ $self->{ast}->{libraries} }) {
         
-        $self->make_shared_library($mf, $key, $ent);
-        $self->make_static_library($mf, $key, $ent);
+        my $lib = makeconf::target::library->new($key,$ent) or die;
+        $lib->make($mf);
 
-        $mf->add_distributable($ent->{sources});
-
-        # Install headers
-        $ent->{headers} ||= [];
-        foreach (@{ $ent->{headers} }) {
-            $mf->add_deliverable($_, '$(INCLUDEDIR)');
-        }
-        $mf->add_distributable($ent->{headers});
     }
 }
 
