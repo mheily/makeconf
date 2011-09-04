@@ -16,6 +16,54 @@
 #
 
 #
+# A single executable target to be built
+#
+package makeconf::target::executable;
+
+use strict;
+use warnings;
+
+use Data::Dumper;
+
+sub new {
+    my ($class,$id,$self) = @_;
+    $self->{id} = $id;
+    bless($self, $class);
+
+    # Load default values
+    my %default = (
+            'cflags' => '',
+            'ldflags' => '',
+            'ldadd' => '',
+            'sources' => [],
+            'headers' => [],
+            );
+    foreach (keys %default) {
+        $self->{$_} = $default{$_} unless exists $self->{$_};
+    }
+
+    return $self;
+}
+
+sub make {
+    my ($self,$mf) = @_;
+
+    my $binfile = $self->{id};
+    $mf->add_target($binfile, $self->{sources}, [
+            join(' ', '$(CC)', '-o $@', $self->{cflags},
+                '-fwhole-program', $self->{ldflags}, 
+                '$(LDFLAGS)', @{$self->{sources}}, $self->{ldadd})]);
+
+    $mf->add_distributable($self->{sources});
+    $mf->add_dependency('all', $binfile);
+    $mf->add_rule('clean', "rm -f $binfile");
+    $mf->add_deliverable($binfile, '$(BINDIR)'); #XXX-make relocatable
+}
+
+1;
+
+#---------------------------------------------------------------------#
+#
 # A single library target to be built
 #
 package makeconf::target::library;
@@ -268,15 +316,23 @@ sub make_pkgconfig {
     $mf->add_rule('clean', "rm -f $ofn");
 }
 
+sub make_binaries {
+    my $self = shift;
+    my $mf = shift || die;
+
+    while (my ($key, $ent) = each %{ $self->{ast}->{binaries} }) {
+        my $bin = makeconf::target::executable->new($key,$ent) or die;
+        $bin->make($mf);
+    }
+}
+
 sub make_libraries {
     my $self = shift;
     my $mf = shift || die;
 
     while (my ($key, $ent) = each %{ $self->{ast}->{libraries} }) {
-        
         my $lib = makeconf::target::library->new($key,$ent) or die;
         $lib->make($mf);
-
     }
 }
 
@@ -334,9 +390,9 @@ sub export_to_make {
     $mf->add_target('uninstall', [], []);
     $mf->add_target('package', ['all'], []);
 
+    $self->make_binaries($mf);
     $self->make_libraries($mf);
     $self->make_pkgconfig($mf);
-#TODO: $self->make_binaries($mf);
 #TODO: $self->make_install($mf);
 #TODO: $self->make_tests($mf);
     $self->make_dist($mf);
@@ -809,6 +865,9 @@ sub new {
 
         # Files to be installed in /usr/lib
         libraries => [],
+
+        # Executable binaries
+        binaries => [],
 
         targets => +{},
         tests => [],
