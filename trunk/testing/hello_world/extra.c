@@ -19,5 +19,5 @@
 void 
 where_am_i(void)
 {
-    printf("I'm in an different translation unit!\n");
+    printf("I'm in a different translation unit!\n");
 }
