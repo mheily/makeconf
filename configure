@@ -198,7 +198,7 @@ sub make {
     }
     $mf->add_target($binfile, \@deps, [
             $self->{cc}->command(
-                cflags  => $self->{cflags},
+                cflags  => $cflags,
                 ldflags => $self->{ldflags}, 
                 sources => $self->{sources},
                 ldadd => $self->{ldadd})]);
