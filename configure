@@ -16,6 +16,98 @@
 #
 
 #
+# The compiler used to build the project
+#
+package makeconf::compiler;
+
+use strict;
+use warnings;
+
+use Data::Dumper;
+use File::Temp qw(tempfile);
+
+sub new {
+    my ($class,$path) = @_;
+    my $self = +{};
+    bless($self, $class);
+    $self->{path} = $path;
+
+    # Load default values
+    my %default = (
+            cflags => '',
+            ldflags => '',
+            ldadd => '',
+            verbose => 0,
+            );
+    foreach (keys %default) {
+        $self->{$_} = $default{$_} unless exists $self->{$_};
+    }
+
+    # Check what features the compiler supports
+    #
+    $self->{features} = +{};
+    # FIXME: breaks on SunOS
+    #print "checking if the compiler supports the -combine option.. ";
+    #my $code = "int main() {}\n";
+    #$sym{cc_features}->{combine} = yesno(compile($code, cflags => '-combine'));
+
+    return $self;
+}
+
+sub command {
+    my ($self) = @_;
+
+#    my $binfile = $self->{id};
+#    $mf->add_target($binfile, $self->{sources}, [
+#            join(' ', '$(CC)', '-o $@', $self->{cflags},
+#                '-fwhole-program', $self->{ldflags}, 
+#                '$(LDFLAGS)', @{$self->{sources}}, $self->{ldadd})]);
+
+}
+
+# Compile a test program
+#
+sub compile {
+    my $self = shift;
+    my $code = shift || die;
+    my %opt = @_;
+    $opt{cflags} ||= $self->{cflags};
+    $opt{cc} ||= $self->{path};
+
+    my ($fh, $filename) = tempfile('mcXXXXXXXXXX', 
+            SUFFIX => '.c',
+            UNLINK => 1,
+            );
+    print $fh $code or die $!;
+    close($fh) or die $!;
+
+    my $cmd = "$opt{cc} -o /dev/null $opt{cflags} $filename";
+    if ($self->{verbose} > 1) {
+        print "\ncompiling with '$cmd`:\n" . 
+              ('-' x 72) . "\n" . 
+              $code . "\n" .
+              ('-' x 72) . "\n"; 
+    } else {
+        $cmd .= " >/dev/null 2>&1";
+    }
+    system $cmd;
+    if ($? == -1) {
+        die "failed to execute: $!\n";
+    } elsif ($? & 127) {
+        die "child died with signal %d, %s coredump\n",
+            ($? & 127),  ($? & 128) ? 'with' : 'without';
+    } else {
+        my $retval = $? >> 8;
+        print "exit status = $retval\n" if $self->{verbose} > 1;
+        return ($retval == 0 ? 1 : 0);
+    }
+}
+
+1;
+
+#---------------------------------------------------------------------#
+
+#
 # A single executable target to be built
 #
 package makeconf::target::executable;
@@ -166,7 +258,6 @@ sub make {
 package makeconf::config;
 
 use Carp;
-use File::Temp qw(tempfile);
 use Getopt::Long;
 use YAML ();
 use Data::Dumper;
@@ -473,6 +564,11 @@ sub export_to_make {
 
 # ------------------------- Private methods ------------------- #
 
+sub compile {
+    my $self = shift;
+    $self->{cc}->compile(@_);
+}
+
 sub parse_argv {
     my $self = shift;
     my %opt;
@@ -534,13 +630,7 @@ sub check_compiler {
     print "checking for a C compiler.. $self->{cc}\n";
     die 'not found' unless $self->{cc};
 
-    # Check what features the compiler supports
-    #
-    $self->{cc_features} = +{};
-    # FIXME: breaks on SunOS
-    #print "checking if the compiler supports the -combine option.. ";
-    #my $code = "int main() {}\n";
-    #$sym{cc_features}->{combine} = yesno(compile($code, cflags => '-combine'));
+    $self->{cc} = makeconf::compiler->new($self->{cc});
 }
 
 sub check_archiver {
@@ -621,42 +711,6 @@ sub check_symbol {
             $found = 1;
         }
         $self->{symbol}->{$header}->{$symbol} = yesno($found);
-    }
-}
-
-sub compile {
-    my $self = shift;
-    my $code = shift || die;
-    my %opt = @_;
-    $opt{cflags} ||= $self->{cflags};
-    $opt{cc} ||= $self->{cc};
-
-    my ($fh, $filename) = tempfile('mcXXXXXXXXXX', 
-            SUFFIX => '.c',
-            UNLINK => 1,
-            );
-    print $fh $code or die $!;
-    close($fh) or die $!;
-
-    my $cmd = "$opt{cc} -o /dev/null $opt{cflags} $filename";
-    if ($self->{verbose} > 1) {
-        print "\ncompiling with '$cmd`:\n" . 
-              ('-' x 72) . "\n" . 
-              $code . "\n" .
-              ('-' x 72) . "\n"; 
-    } else {
-        $cmd .= " >/dev/null 2>&1";
-    }
-    system $cmd;
-    if ($? == -1) {
-        die "failed to execute: $!\n";
-    } elsif ($? & 127) {
-        die "child died with signal %d, %s coredump\n",
-            ($? & 127),  ($? & 128) ? 'with' : 'without';
-    } else {
-        my $retval = $? >> 8;
-        print "exit status = $retval\n" if $self->{verbose} > 1;
-        return ($retval == 0 ? 1 : 0);
     }
 }
 
