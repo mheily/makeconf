@@ -158,6 +158,7 @@ sub new {
             ldadd => '',
             sources => [],
             headers => [],
+            depends => [],
             );
     foreach (keys %default) {
         $self->{$_} = $default{$_} unless exists $self->{$_};
@@ -170,8 +171,9 @@ sub new {
 sub make {
     my ($self,$mf) = @_;
 
+    my @deps = (@{ $self->{sources} }, @{ $self->{depends} });
     my $binfile = $self->{id};
-    $mf->add_target($binfile, $self->{sources}, [
+    $mf->add_target($binfile, \@deps, [
             $self->{cc}->command(
                 cflags => '-o $@ ' . $self->{cflags},
                 ldflags => $self->{ldflags}, 
@@ -517,8 +519,8 @@ sub export_to_make {
     $mf->add_target('uninstall', [], []);
     $mf->add_target('package', ['all'], []);
 
-    $self->make_binaries($mf);
     $self->make_libraries($mf);
+    $self->make_binaries($mf);
     $self->make_pkgconfig($mf);
 #TODO: $self->make_install($mf);
 #TODO: $self->make_tests($mf);
