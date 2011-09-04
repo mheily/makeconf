@@ -223,7 +223,7 @@ sub new {
     return $self;
 }
 
-sub _make_shared_library {
+sub make_shared_library {
     my ($self,$mf) = @_;
 
     my $sofile = "$self->{id}.so";
@@ -248,7 +248,7 @@ sub _make_shared_library {
     }
 }
 
-sub _make_static_library {
+sub make_static_library {
     my ($self,$mf) = @_;
 
     my $afile = $self->{id} . '.a';
@@ -260,6 +260,7 @@ sub _make_static_library {
         push @objs, $obj;
         push @rules, join(' ', '$(CC)', '-c', "-o $obj", $self->{cflags},
                 '$(LDFLAGS)', $src);
+        $mf->add_rule('clean', "rm -f $obj");
     }
     push @rules, "ar rcs $afile " . join(' ', @objs);
 
@@ -272,8 +273,8 @@ sub _make_static_library {
 
 sub make {
     my ($self,$mf) = @_;
-    $self->_make_shared_library($mf) if $self->{enable_shared};
-    $self->_make_static_library($mf) if $self->{enable_static};
+    $self->make_shared_library($mf) if $self->{enable_shared};
+    $self->make_static_library($mf) if $self->{enable_static};
     $mf->add_distributable($self->{sources});
 
     # Install headers
