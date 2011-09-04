@@ -8,7 +8,7 @@ libraries:
 binaries:
     hello:
         sources: [ main.c extra.c ]
-#FIXME:        ldflags: '-L . -rpath .'
+        ldflags: '-L . -rpath .'
         ldadd: '-lhello'
 #        install => {
 #            '$(LIBDIR)' => [ '-m 644', 'libhello.so' ],
