@@ -23,7 +23,7 @@ package makeconf::platform;
 sub rm {
     die 'at least one filename is required' unless $_[0];
     my $cmd = 'rm -f';
-     if ($^O eq 'MSWin32') {
+    if ($^O eq 'MSWin32') {
          $cmd = 'del /F';
      }
      return $cmd . ' ' . join(' ', @_);
@@ -361,6 +361,10 @@ sub new {
     };
     bless($self, $class);
 
+    if ($^O eq 'MSWin32') {
+       $self->get_msvc_info(); 
+    }
+
     if (not -e $path) {
         die "$path: file not found";
     }
@@ -390,6 +394,18 @@ sub new {
     }
 
     return $self;
+}
+
+# Get the location of Microsoft Visual Studio paths
+#
+sub get_msvc_info {
+    my $self = shift || die;
+
+    my @tmp = glob($ENV{'SYSTEMDRIVE'} . '/Program Files/Microsoft Visual Studio*');
+    die 'Cannot find Visual Studio' unless @tmp;
+    die 'Found multiple versions of Visual Studio' if $tmp[1];
+    die $tmp[0];
+
 }
 
 sub get {
