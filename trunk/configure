@@ -189,10 +189,16 @@ sub make {
 
     my @deps = (@{ $self->{sources} }, @{ $self->{depends} });
     my $binfile = $self->{id};
-    $binfile .= '.exe' if $^O eq 'MSWin32';
+    my $cflags = $self->{cflags},
+    if ($^O eq 'MSWin32') {
+        $binfile .= '.exe';
+        $cflags = '/Fe$@';
+    } else {
+        $cflags = '-o $@ ' . $cflags;
+    }
     $mf->add_target($binfile, \@deps, [
             $self->{cc}->command(
-                cflags => '-o $@ ' . $self->{cflags},
+                cflags  => $self->{cflags},
                 ldflags => $self->{ldflags}, 
                 sources => $self->{sources},
                 ldadd => $self->{ldadd})]);
