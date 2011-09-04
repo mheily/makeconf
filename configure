@@ -666,6 +666,10 @@ sub check_target {
 sub check_compiler {
     my $self = shift;
 
+    if ($^O eq 'MSWin32') {
+        $self->{cc} = 'cl.exe';
+    }
+
     print "checking for a C compiler.. $self->{cc}\n";
     die 'not found' unless $self->{cc};
 
