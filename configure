@@ -103,23 +103,38 @@ sub compile {
     print $fh $code or die $!;
     close($fh) or die $!;
 
-    my $cmd = "$opt{cc} -o /dev/null $opt{cflags} $filename";
+    # Write the output to a temporary ".bin" file
+    my $ofile = $filename;
+    $ofile =~ s/\.c$/\.bin/;
+
+    my $cmd = "$opt{cc} -o $ofile $opt{cflags} $filename";
     if ($self->{verbose} > 1) {
         print "\ncompiling with '$cmd`:\n" . 
               ('-' x 72) . "\n" . 
               $code . "\n" .
               ('-' x 72) . "\n"; 
     } else {
-        $cmd .= " >/dev/null 2>&1";
+        if ($^O eq 'MSWin32') {
+            $cmd .= " >NUL 2>NUL";
+        } else {
+            $cmd .= " >/dev/null 2>&1";
+        }
     }
     system $cmd;
-    if ($? == -1) {
+    my $rc = $?;
+    unlink $ofile;
+    if ($^O eq 'MSWin32') {
+        my $objfile = $filename;
+        $objfile =~ s/\.c$/\.obj/;
+        unlink $objfile;
+    }
+    if ($rc == -1) {
         die "failed to execute: $!\n";
-    } elsif ($? & 127) {
+    } elsif ($rc & 127) {
         die "child died with signal %d, %s coredump\n",
-            ($? & 127),  ($? & 128) ? 'with' : 'without';
+            ($rc & 127),  ($rc & 128) ? 'with' : 'without';
     } else {
-        my $retval = $? >> 8;
+        my $retval = $rc >> 8;
         print "exit status = $retval\n" if $self->{verbose} > 1;
         return ($retval == 0 ? 1 : 0);
     }
@@ -401,11 +416,14 @@ sub new {
 sub get_msvc_info {
     my $self = shift || die;
 
-    my @tmp = glob($ENV{'SYSTEMDRIVE'} . '/Program Files/Microsoft Visual Studio*');
+    my @tmp = glob($ENV{'SYSTEMDRIVE'} . '/Program\ Files/Microsoft\ Visual\ Studio*');
     die 'Cannot find Visual Studio' unless @tmp;
     die 'Found multiple versions of Visual Studio' if $tmp[1];
-    die $tmp[0];
+    my $msvc = $tmp[0];
+    $msvc =~ s/ /\\ /g;
 
+    $self->{cc} = 'cl.exe';
+    $self->{ar} = 'cl.exe'; # TODO, this is probably not needed
 }
 
 sub get {
@@ -705,10 +723,6 @@ sub check_target {
 sub check_compiler {
     my $self = shift;
 
-    if ($^O eq 'MSWin32') {
-        $self->{cc} = 'cl.exe';
-    }
-
     print "checking for a C compiler.. $self->{cc}\n";
     die 'not found' unless $self->{cc};
 
@@ -717,10 +731,6 @@ sub check_compiler {
 
 sub check_archiver {
     my $self = shift;
-
-    if ($^O eq 'MSWin32') {
-        $self->{ar} = 'cl.exe';
-    }
 
     print "checking for a suitable archiver.. ";
     die 'not found' unless $self->{ar};
