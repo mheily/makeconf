@@ -1,0 +1,10 @@
+project:    simple
+version:    0.1
+binaries:
+    hello:
+        sources: [ main.c ]
+
+check_header: [ stdlib.h, stdio.h, string.h, does-not-exist.h ]
+check_symbol:
+    fcntl.h: [ O_DOES_NOT_EXIST, O_RDWR ]
+    pthread.h: [ pthread_exit ]
