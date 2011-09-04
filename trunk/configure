@@ -679,6 +679,10 @@ sub check_compiler {
 sub check_archiver {
     my $self = shift;
 
+    if ($^O eq 'MSWin32') {
+        $self->{ar} = 'cl.exe';
+    }
+
     print "checking for a suitable archiver.. ";
     die 'not found' unless $self->{ar};
 
