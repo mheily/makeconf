@@ -692,6 +692,10 @@ sub check_archiver {
 sub check_install {
     my $self = shift;
 
+    if ($^O eq 'MSWin32') {
+        $self->{install} = 'XXX-FIXME';
+    }
+
     print "checking for a BSD-compatible install.. ";
     # workaround for solaris:
     if (-x '/usr/ucb/install') {
