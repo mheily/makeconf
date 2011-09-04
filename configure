@@ -189,7 +189,7 @@ sub make {
 
     my @deps = (@{ $self->{sources} }, @{ $self->{depends} });
     my $binfile = $self->{id};
-    my $cflags = $self->{cflags},
+    my $cflags = $self->{cflags};
     if ($^O eq 'MSWin32') {
         $binfile .= '.exe';
         $cflags = '/Fe$@';
