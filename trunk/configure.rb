@@ -88,6 +88,9 @@ class Compiler
     else
       throw 'fixme'
     end
+    if @platform.is_windows?
+        res = 'cl.exe'
+    end
     puts res
     @path = res
   end
