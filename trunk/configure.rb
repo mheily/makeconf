@@ -56,11 +56,17 @@ class Platform
     self.is_windows? ? ' >NUL 2>NUL' : ' >/dev/null 2>&1'
   end
 
+  # The extension used for executable files 
+  def executable_extension
+    self.is_windows? ? '.exe' : ''
+  end
+
 end
 
 class Compiler
   require 'tempfile'
   attr_reader :ldflags, :cflags, :path
+  attr_accessor :platform
 
   def initialize(platform, language, extension, path, ldflags = "", cflags = "", ldadd = "")
     @platform = platform
@@ -261,8 +267,7 @@ class Binary < Buildable
   end
 
   def build
-    binfile = @id
-    # Todo: add .exe on windows
+    binfile = @id + @compiler.platform.executable_extension
     @makefile.add_target(binfile, @depends, @compiler.command(binfile, @sources))
     super()
   end
