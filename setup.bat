@@ -1,1 +1,1 @@
-@ruby configure.rb %*
+@ruby configure %*
