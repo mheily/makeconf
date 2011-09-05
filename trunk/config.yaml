@@ -16,6 +16,7 @@ install:
 #
 check_header:
     - unistd.h
+    - nonexistent.h
 
 check_symbol: 
     'unistd.h': ['STDIN_FILENO', 'STDOUT_FILENO']
