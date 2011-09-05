@@ -68,14 +68,28 @@ class Compiler
   attr_reader :ldflags, :cflags, :path
   attr_accessor :platform
 
-  def initialize(platform, language, extension, path, ldflags = "", cflags = "", ldadd = "")
+  def initialize(platform, language, extension, ldflags = "", cflags = "", ldadd = "")
     @platform = platform
     @language = language
     @extension = extension
-    @path = path
     @cflags = cflags
     @ldflags = ldflags
     @ldadd = ldadd
+  end
+
+  # Search for a suitable compiler
+  def search(path)
+    res = nil
+    printf "checking for a " + @language + " compiler.. "
+    if (path)
+      res = path
+#  else if ENV['CC']
+#      res = 'CC'
+    else
+      throw 'fixme'
+    end
+    puts res
+    @path = res
   end
 
   # Return the complete command line to compile an object
@@ -103,7 +117,8 @@ end
 
 class CCompiler < Compiler
   def initialize(platform)
-    super(platform, 'c', '.c', '/usr/bin/cc')
+    super(platform, 'C', '.c')
+    search('/usr/bin/cc')
   end
 end
 
