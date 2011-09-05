@@ -88,9 +88,22 @@ class Compiler
     else
       throw 'fixme'
     end
+
     if @platform.is_windows?
         res = 'cl.exe'
+        help = ' /? <NUL'
+    else
+        help = ' --help'
     end
+    
+    # Verify the command can be executed
+    cmd = res + help + @platform.dev_null
+    puts " + " + cmd
+    unless system(cmd)
+       puts "not found"
+       raise
+    end
+
     puts res
     @path = res
   end
