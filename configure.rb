@@ -66,14 +66,15 @@ end
 class Compiler
   require 'tempfile'
   attr_reader :ldflags, :cflags, :path
-  attr_accessor :platform
+  attr_accessor :platform, :topdir
 
-  def initialize(platform, language, extension, ldflags = "", cflags = "", ldadd = "")
+  def initialize(platform, language, extension, ldflags = '', cflags = '', ldadd = '', topdir = '')
     @platform = platform
     @language = language
     @extension = extension
     @cflags = cflags
     @ldflags = ldflags
+    @topdir = topdir
     @ldadd = ldadd
   end
 
@@ -113,8 +114,16 @@ class Compiler
     cflags = @cflags
     cflags += ' -c' if compile_only == 1
     cflags += ' -o ' + output
-    sources = sources.flatten if sources.kind_of?(Array)
-    [ @path, cflags, sources, @ldadd, log_to ].join(' ')
+    
+    # Prepend @topdir to each input file
+    if sources.kind_of?(Array)
+      inputs = sources
+    else
+      inputs = [ sources ] 
+    end
+    inputs = inputs.collect { |x| @topdir + x }
+       
+    [ @path, cflags, inputs, @ldadd, log_to ].join(' ')
   end
 
   # Compile a test program
