@@ -66,15 +66,15 @@ end
 class Compiler
   require 'tempfile'
   attr_reader :ldflags, :cflags, :path
-  attr_accessor :platform, :topdir
+  attr_accessor :platform, :subdir
 
-  def initialize(platform, language, extension, ldflags = '', cflags = '', ldadd = '', topdir = '')
+  def initialize(platform, language, extension, ldflags = '', cflags = '', ldadd = '', subdir = '')
     @platform = platform
     @language = language
     @extension = extension
     @cflags = cflags
     @ldflags = ldflags
-    @topdir = topdir
+    @subdir = subdir
     @ldadd = ldadd
   end
 
@@ -115,13 +115,13 @@ class Compiler
     cflags += ' -c' if compile_only == 1
     cflags += ' -o ' + output
     
-    # Prepend @topdir to each input file
+    # Prepend @subdir to each input file
     if sources.kind_of?(Array)
       inputs = sources
     else
       inputs = [ sources ] 
     end
-    inputs = inputs.collect { |x| @topdir + x }
+    inputs = inputs.collect { |x| @subdir + x }
        
     [ @path, cflags, inputs, @ldadd, log_to ].join(' ')
   end
@@ -176,12 +176,13 @@ class Target
 end
 
 class Makefile
-  def initialize(platform, project, version)
+  def initialize(platform, project, version, subdir)
     @platform = platform
     @project = project
     @version = version
     @vars = {}
     @targets = {}
+    @subdir = subdir
 
     %w[all clean distclean install uninstall distdir].each do |x|
         @targets[x] = Target.new(x)
@@ -243,6 +244,7 @@ class Makefile
   private
 
   def make_dist
+    return if @subdir   # don't allow 'make dist' from a subdirectory
     distdir = @project + '-' + @version
     tg = Target.new('dist')
     tg.add_rule("rm -rf " + distdir)
@@ -348,22 +350,23 @@ class Project
 
   require 'yaml'
 
-  def initialize(manifest)
-    @ast = YAML.load_file('config.yaml')
+  def initialize(manifest, subdir = '')
+    @subdir = subdir
+    @ast = parse(manifest)
     @platform = Platform.new()
     @cc = CCompiler.new(@platform)
-    @mf = Makefile.new(@platform, @ast['project'], @ast['version'].to_s)
+    @mf = Makefile.new(@platform, @ast['project'], @ast['version'].to_s, subdir)
     @header = {}
     
+    # Include subprojects
+    @ast['subdirs'].each { |x| Project.new(subdir + x + '/config.yaml', subdir + x + '/') }
+
     # Define Makefile variables
     @mf.define_variable('MAKE', '=', 'make')
     @mf.define_variable('CFLAGS', '=', 'todo')
     @mf.define_variable('LDFLAGS', '=', 'todo')
     @mf.define_variable('LDADD', '=', 'todo')
     @mf.define_variable('CC', '=', @cc.path)
-
-    # Validate the AST
-    %w[libraries binaries].each { |x| @ast[x] ||= [] }
 
     check_headers
     make_libraries
@@ -373,6 +376,18 @@ class Project
   end
 
   private
+
+  def parse(manifest)
+    default = {
+        'subdirs' => [],
+        'libraries' => [],
+        'binaries' => [],
+        'check_header' => [],
+    }
+    ast = YAML.load_file(manifest)
+    default.each { |k,v| ast[k] ||= v }
+    ast
+  end
 
   def check_headers
     @ast['check_header'].each do |h|
@@ -393,16 +408,18 @@ class Project
   end
 
   def write_makefile
-    puts 'writing Makefile'
-    f = File.open('Makefile', 'w')
+    ofile = @subdir + 'Makefile'
+    puts 'writing ' + ofile
+    f = File.open(ofile, 'w')
     f.print "# AUTOMATICALLY GENERATED -- DO NOT EDIT\n"
     f.print @mf.to_s
     f.close
   end
 
   def write_config_h
-    puts 'Creating config.h'
-    f = File.open('config.h', 'w')
+    ofile = @subdir + 'config.h'
+    puts 'Creating ' + ofile
+    f = File.open(ofile, 'w')
     f.print "/* AUTOMATICALLY GENERATED -- DO NOT EDIT */\n"
     @header.each { |k,v| f.print v.to_config_h }
     f.close
@@ -414,5 +431,10 @@ end
 #
 #                               MAIN()
 #
+
+#TODO:
+#require 'logger'
+#File.unlink('config.log')
+#log = Logger.new('config.log')
 
 proj = Project.new('config.yaml')
