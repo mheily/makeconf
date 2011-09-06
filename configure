@@ -148,10 +148,13 @@ class CCompiler < Compiler
 end
 
 class Target
-  def initialize(objs,deps = [],rules = [])
+  def initialize(objs, deps = [], rules = [], subdir = '')
+      deps = [ deps ] unless deps.kind_of?(Array)
+      rules = [ rules ] unless rules.kind_of?(Array)
       @objs = objs
       @deps = deps
       @rules = rules
+      @subdir = subdir
   end
 
   def add_dependency(depends)
@@ -173,6 +176,7 @@ class Target
     @rules.each { |r| res += "\t" + r + "\n" }
     res
   end
+
 end
 
 class Makefile
@@ -185,7 +189,7 @@ class Makefile
     @subdir = subdir
 
     %w[all clean distclean install uninstall distdir].each do |x|
-        @targets[x] = Target.new(x)
+        @targets[x] = Target.new(objs = x, subdir = subdir)
     end
   end
 
@@ -194,7 +198,7 @@ class Makefile
   end
 
   def add_target(object,depends,rules)
-    @targets[object] = Target.new(object,depends,rules)
+    @targets[object] = Target.new(object,depends,rules,@subdir)
   end
 
   def add_rule(target, rule)
@@ -244,7 +248,7 @@ class Makefile
   private
 
   def make_dist
-    return if @subdir   # don't allow 'make dist' from a subdirectory
+    return if @subdir
     distdir = @project + '-' + @version
     tg = Target.new('dist')
     tg.add_rule("rm -rf " + distdir)
@@ -359,7 +363,10 @@ class Project
     @header = {}
     
     # Include subprojects
-    @ast['subdirs'].each { |x| Project.new(subdir + x + '/config.yaml', subdir + x + '/') }
+    @subproject = {}
+    @ast['subdirs'].each do |x| 
+      @subproject[x] = Project.new(subdir + x + '/config.yaml', subdir + x + '/') 
+    end
 
     # Define Makefile variables
     @mf.define_variable('MAKE', '=', 'make')
