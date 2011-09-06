@@ -6,6 +6,9 @@ scripts:
     makeconf:
         dest: bindir
         mode: 0755
+
+subdirs: [ testing ]
+
 install:
     - install -d -m 755 -o foo -g bar $pkgincludedir
     - install -m 0755 makeconf $bindir
