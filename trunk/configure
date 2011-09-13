@@ -295,12 +295,12 @@ class Library < Buildable
     default = {
         'abi_major' => '0',
         'abi_minor' => '0',
-        'enable_shared' => True,
-        'enable_static' => True,
+        'enable_shared' => true,
+        'enable_static' => true,
         'headers' => [],
     }
     default.each do |k,v| 
-      instance_variable_set(k, ast[k].nil? ? default[k] : ast[k])
+      instance_variable_set('@' + k, ast[k].nil? ? default[k] : ast[k])
     end
   end
 end
