@@ -33,11 +33,19 @@ class Platform
     @target_os =~ /mswin|mingw/
   end
 
+  def archiver(archive,members)
+    if self.is_windows? && ! ENV['MSYSTEM']
+      'lib.exe ' + members.join(' ') + ' /OUT:' + archive
+    else
+      'ar rs ' + archive + ' ' + members.join(' ')
+   end
+  end
+
   def rm(path)
     if path.kind_of?(Array)
         path = path.join(' ')
     end
-    if self.is_windows?
+    if self.is_windows? && ! ENV['MSYSTEM']
       return 'del /F ' + path
     else
       return 'rm -f ' + path
@@ -49,7 +57,7 @@ class Platform
       src = src.join(' ')
     end
 
-    if self.is_windows?
+    if self.is_windows? && ! ENV['MSYSTEM']
       return "copy #{src} #{dst}"
     else
       return "cp #{src} #{dst}"
@@ -57,7 +65,11 @@ class Platform
   end
 
   def dev_null
-    self.is_windows? ? ' >NUL 2>NUL' : ' >/dev/null 2>&1'
+    if self.is_windows? && ! ENV['MSYSTEM'] 
+      ' >NUL 2>NUL' 
+    else
+      ' >/dev/null 2>&1'
+    end
   end
 
   # The extension used for executable files 
@@ -68,6 +80,26 @@ class Platform
   # The extension used for intermediate object files 
   def object_extension
     self.is_windows? ? '.obj' : '.o'
+  end
+
+  # The extension used for static libraries
+  def static_library_extension
+    self.is_windows? ? '.lib' : '.a'
+  end
+
+  # The extension used for shared libraries
+  def shared_library_extension
+    self.is_windows? ? '.dll' : '.so'
+  end
+
+  # Emulate the which(1) command
+  def which(command)
+    return nil if self.is_windows?      # FIXME: STUB
+    ENV['PATH'].split(':').each do |prefix|
+      path = prefix + '/' + command
+      return command if File.executable?(path)
+    end
+    nil
   end
 
 end
@@ -95,19 +127,28 @@ class Compiler
   end
 
   # Search for a suitable compiler
-  def search(path)
+  def search(compilers)
     res = nil
     printf "checking for a " + @language + " compiler.. "
     if ENV['CC']
       res = ENV['CC']
-    elsif (path)
-      res = path
     else
-      throw 'fixme'
+      compilers.each do |command|
+         if @platform.which(command)
+           res = command
+           break
+         end
+      end
     end
 
+    # FIXME: kludge for Windows, breaks mingw
     if @platform.is_windows?
         res = 'cl.exe'
+    end
+
+    throw 'No compiler found' if res.nil? || res == ''
+
+    if @platform.is_windows? && res.match(/cl.exe/i)
         help = ' /? <NUL'
     else
         help = ' --help'
@@ -117,6 +158,7 @@ class Compiler
     cmd = res + help + @platform.dev_null
     unless system(cmd)
        puts "not found"
+       print " -- tried: " + cmd
        raise
     end
 
@@ -134,9 +176,29 @@ class Compiler
   def command(output, extra_cflags = "", log_to = "", compile_only = 0)
     cflags = @cflags + extra_cflags
     cflags += ' -c' if compile_only == 1 or @is_library
-    cflags += ' -o ' + output unless @is_makefile
     cflags += ' -fPIC' if @is_library and @is_shared
     
+    unless @is_makefile
+      if @path.match(/cl.exe$/i)
+        cflags += ' /Fo' + output
+      else
+        cflags += ' -o ' + output
+      end
+    end
+
+    # KLUDGE: remove things that CL.EXE doesn't understand
+    if @path.match(/cl.exe$/i)
+      cflags += ' '
+      cflags.gsub!(/ -Wall /, ' ') #  /Wall generates too much noise
+      cflags.gsub!(/ -Werror /, ' ')  # Could use /WX here
+      cflags.gsub!(/ -W /, ' ')
+      cflags.gsub!(/ -Wno-.*? /, ' ')
+      cflags.gsub!(/ -Wextra /, ' ')
+      cflags.gsub!(/ -fPIC /, ' ')
+      cflags.gsub!(/ -std=.*? /, ' ')
+      cflags.gsub!(/ -pedantic /, ' ')
+    end
+
     # Prepend @subdir to each input file
     if sources.kind_of?(Array)
       inputs = sources
@@ -174,7 +236,7 @@ class CCompiler < Compiler
   def initialize(platform)
     @output_type = nil
     super(platform, 'C', '.c')
-    search('/usr/bin/cc')
+    search(['cc', 'gcc', 'clang', 'cl.exe'])
   end
 
 end
@@ -346,7 +408,7 @@ class Library < Buildable
   private
 
   def build_static_library
-    libfile = @id + '.a'
+    libfile = @id + @compiler.platform.static_library_extension
     cc = @compiler.clone
     cc.is_library = true
     cc.is_shared = false
@@ -356,9 +418,10 @@ class Library < Buildable
     deps = cc.objs.sort
     deps.each do |d| 
       src = d.sub(/-static#{@compiler.platform.object_extension}$/, '.c')
-      @makefile.add_target(d, src, cmd + ' -o ' + d + ' ' + src) 
+      output = @compiler.platform.is_windows? ? ' /Fo' + d : ' -o ' + d
+      @makefile.add_target(d, src, cmd + output + ' ' + src) 
     end
-    @makefile.add_target(libfile, deps, 'ar rs ' + libfile + ' ' + deps.join(' '))
+    @makefile.add_target(libfile, deps, @compiler.platform.archiver(libfile, deps))
     @makefile.clean(cc.objs)
     @output.push libfile
   end
@@ -381,7 +444,11 @@ class Library < Buildable
       src = d.sub(/#{@compiler.platform.object_extension}$/, '.c')
       @makefile.add_target(d, src, cmd + ' ' + src) 
     end
-    @makefile.add_target(libfile, deps, '$(CC) -shared -o $@ ' + deps.join(' '))
+    if @compiler.platform.is_windows?
+      @makefile.add_target(libfile, deps, 'link.exe /DLL /OUT:$@ ' + deps.join(' '))
+    else
+      @makefile.add_target(libfile, deps, '$(CC) -shared -o $@ ' + deps.join(' '))
+    end 
     @makefile.clean(cc.objs)
     @output.push libfile
   end
