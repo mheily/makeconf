@@ -65,6 +65,11 @@ class Platform
     self.is_windows? ? '.exe' : ''
   end
 
+  # The extension used for intermediate object files 
+  def object_extension
+    self.is_windows? ? '.obj' : '.o'
+  end
+
 end
 
 class Compiler
@@ -122,7 +127,8 @@ class Compiler
 
   # Return the intermediate object files for each source file
   def objs
-    @sources.map { |s| s.sub(/.c$/, (@is_shared ? '.o' : '.static.o')) }
+    o = @platform.object_extension
+    @sources.map { |s| s.sub(/.c$/, (@is_shared ? o : '-static' + o)) }
   end
 
   # Return the complete command line to compile an object
@@ -333,7 +339,7 @@ class Library < Buildable
   end
 
   def build
-# build_static_library
+    build_static_library
     build_shared_library
     super()
   end
@@ -348,9 +354,12 @@ class Library < Buildable
     cc.is_makefile = true
     cc.sources = @sources
     cmd = cc.command(libfile, cflags = @cflags)
-    deps = cc.objs.sort.join(' ')
-    @makefile.add_target(deps, @depends, cmd)
-    @makefile.add_target(libfile, deps, 'ar rs ' + libfile + ' ' + deps)
+    deps = cc.objs.sort
+    deps.each do |d| 
+      src = d.sub(/-static#{@compiler.platform.object_extension}$/, '.c')
+      @makefile.add_target(d, src, cmd + ' -o ' + d + ' ' + src) 
+    end
+    @makefile.add_target(libfile, deps, 'ar rs ' + libfile + ' ' + deps.join(' '))
     @makefile.clean(cc.objs)
     @output.push libfile
   end
@@ -370,7 +379,7 @@ class Library < Buildable
     cmd = cc.command(libfile, cflags = @cflags)
     deps = cc.objs.sort
     deps.each do |d| 
-      src = d.sub(/\.o$/, '.c')
+      src = d.sub(/#{@compiler.platform.object_extension}$/, '.c')
       @makefile.add_target(d, src, cmd + ' ' + src) 
     end
     @makefile.add_target(libfile, deps, '$(CC) -shared -o $@ ' + deps.join(' '))
