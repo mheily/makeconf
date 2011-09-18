@@ -98,10 +98,10 @@ class Compiler
   def search(path)
     res = nil
     printf "checking for a " + @language + " compiler.. "
-    if (path)
+    if ENV['CC']
+      res = ENV['CC']
+    elsif (path)
       res = path
-#  else if ENV['CC']
-#      res = 'CC'
     else
       throw 'fixme'
     end
@@ -115,7 +115,6 @@ class Compiler
     
     # Verify the command can be executed
     cmd = res + help + @platform.dev_null
-    puts " + " + cmd
     unless system(cmd)
        puts "not found"
        raise
