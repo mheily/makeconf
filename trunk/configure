@@ -45,6 +45,10 @@ class Platform
   end
 
   def cp(src,dst)
+    if src.kind_of?(Array)
+      src = src.join(' ')
+    end
+
     if self.is_windows?
       return "copy #{src} #{dst}"
     else
@@ -66,7 +70,7 @@ end
 class Compiler
   require 'tempfile'
   attr_reader :ldflags, :cflags, :path
-  attr_accessor :platform, :subdir
+  attr_accessor :platform, :subdir, :is_library, :is_shared, :is_makefile, :sources
 
   def initialize(platform, language, extension, ldflags = '', cflags = '', ldadd = '', subdir = '')
     @platform = platform
@@ -76,6 +80,13 @@ class Compiler
     @ldflags = ldflags
     @subdir = subdir
     @ldadd = ldadd
+    @is_library = false
+    @is_shared = false
+    @is_makefile = false        # if true, the output will be customized for use in a Makefile
+  end
+
+  def clone
+    Marshal.load(Marshal.dump(self))
   end
 
   # Search for a suitable compiler
@@ -109,11 +120,17 @@ class Compiler
     @path = res
   end
 
+  # Return the intermediate object files for each source file
+  def objs
+    @sources.map { |s| s.sub(/.c$/, (@is_shared ? '.o' : '.static.o')) }
+  end
+
   # Return the complete command line to compile an object
-  def command(output,sources,log_to = "", compile_only = 0)
-    cflags = @cflags
-    cflags += ' -c' if compile_only == 1
-    cflags += ' -o ' + output
+  def command(output, extra_cflags = "", log_to = "", compile_only = 0)
+    cflags = @cflags + extra_cflags
+    cflags += ' -c' if compile_only == 1 or @is_library
+    cflags += ' -o ' + output unless @is_makefile
+    cflags += ' -fPIC' if @is_library and @is_shared
     
     # Prepend @subdir to each input file
     if sources.kind_of?(Array)
@@ -122,6 +139,11 @@ class Compiler
       inputs = [ sources ] 
     end
     inputs = inputs.collect { |x| @subdir + x }
+
+    # In a Makefile command, the sources are not listed explicitly
+    if @is_makefile
+      inputs = ''
+    end
        
     [ @path, cflags, inputs, @ldadd, log_to ].join(' ')
   end
@@ -141,10 +163,15 @@ class Compiler
 end
 
 class CCompiler < Compiler
+
+  attr_accessor :output_type
+
   def initialize(platform)
+    @output_type = nil
     super(platform, 'C', '.c')
     search('/usr/bin/cc')
   end
+
 end
 
 class Target
@@ -265,10 +292,11 @@ class Buildable
   def initialize(id, ast, compiler, makefile)
     @id = id
     @ast = ast
-    @compiler = compiler
+    @compiler = compiler.clone
     @makefile = makefile
+    @output = []
     default = {
-        'output' => id,
+        'extension' => '',
         'cflags' => '', # TODO: pull from project
         'ldflags' => '', # TODO: pull from project
         'ldadd' => '', # TODO: pull from project
@@ -303,6 +331,53 @@ class Library < Buildable
       instance_variable_set('@' + k, ast[k].nil? ? default[k] : ast[k])
     end
   end
+
+  def build
+# build_static_library
+    build_shared_library
+    super()
+  end
+
+  private
+
+  def build_static_library
+    libfile = @id + '.a'
+    cc = @compiler.clone
+    cc.is_library = true
+    cc.is_shared = false
+    cc.is_makefile = true
+    cc.sources = @sources
+    cmd = cc.command(libfile, cflags = @cflags)
+    deps = cc.objs.sort.join(' ')
+    @makefile.add_target(deps, @depends, cmd)
+    @makefile.add_target(libfile, deps, 'ar rs ' + libfile + ' ' + deps)
+    @makefile.clean(cc.objs)
+    @output.push libfile
+  end
+
+  def build_shared_library
+    libfile = @id
+    if @compiler.platform.is_windows?
+       libfile += '.dll'
+    else
+       libfile += '.so'
+    end
+    cc = @compiler.clone
+    cc.is_library = true
+    cc.is_shared = true
+    cc.is_makefile = true
+    cc.sources = @sources
+    cmd = cc.command(libfile, cflags = @cflags)
+    deps = cc.objs.sort
+    deps.each do |d| 
+      src = d.sub(/\.o$/, '.c')
+      @makefile.add_target(d, src, cmd + ' ' + src) 
+    end
+    @makefile.add_target(libfile, deps, '$(CC) -shared -o $@ ' + deps.join(' '))
+    @makefile.clean(cc.objs)
+    @output.push libfile
+  end
+
 end
 
 # An executable binary file
