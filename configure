@@ -178,6 +178,7 @@ class Compiler
     cflags += ' -c' if compile_only == 1 or @is_library
     cflags += ' -fPIC' if @is_library and @is_shared
     
+    # FIXME: we are letting the caller add these to Makefile targets ??
     unless @is_makefile
       if @path.match(/cl.exe$/i)
         cflags += ' /Fo' + output
@@ -442,7 +443,8 @@ class Library < Buildable
     deps = cc.objs.sort
     deps.each do |d| 
       src = d.sub(/#{@compiler.platform.object_extension}$/, '.c')
-      @makefile.add_target(d, src, cmd + ' ' + src) 
+      output = @compiler.platform.is_windows? ? ' /Fo' + d : ' -o ' + d
+      @makefile.add_target(d, src, cmd + output + ' ' + src) 
     end
     if @compiler.platform.is_windows?
       @makefile.add_target(libfile, deps, 'link.exe /DLL /OUT:$@ ' + deps.join(' '))
@@ -524,6 +526,7 @@ class Project
     @mf.define_variable('LDFLAGS', '=', 'todo')
     @mf.define_variable('LDADD', '=', 'todo')
     @mf.define_variable('CC', '=', @cc.path)
+    @mf.define_variable('STANDARD_API', '=', 'posix')
 
     check_headers
     make_libraries
