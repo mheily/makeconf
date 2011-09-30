@@ -213,8 +213,8 @@ class Compiler
     cflags += ' -c' if compile_only == 1 or @is_library
     cflags += ' -fPIC' if @is_library and @is_shared
 
-   # Add the linker flags to CFLAGS
-   cflags += @ld.to_s
+    # Add the linker flags to CFLAGS
+    cflags += @ld.to_s
 
     # FIXME: we are letting the caller add these to Makefile targets ??
     unless @is_makefile
@@ -239,13 +239,14 @@ class Compiler
     end
 
     # Prepend @subdir to each input file
-    sources = [] if sources.nil?
+    @sources = [] if @sources.nil?
     if sources.kind_of?(Array)
-      inputs = sources
+      inputs = @sources
     else
-      inputs = [ sources ] 
+      inputs = [ @sources ] 
     end
-    inputs = inputs.collect { |x| p x ; @subdir + x }
+    inputs = inputs.collect { |x| @subdir + x }
+    throw 'One or more sources are required' unless inputs.count
 
     # In a Makefile command, the sources are not listed explicitly
     if @is_makefile
@@ -515,7 +516,12 @@ class Binary < Buildable
 
   def build
     binfile = @id + @compiler.platform.executable_extension
-    @makefile.add_target(binfile, @depends, @compiler.command(binfile, @sources))
+    cc = @compiler.clone
+    cc.is_library = false
+    cc.is_makefile = true
+    cc.sources = @sources
+    throw 'FIXME -- needs to do what build_shared_library() does'
+    @makefile.add_target(binfile, @depends, cc.command(binfile))
     super()
   end
           
@@ -580,6 +586,7 @@ class Project
     check_headers
     make_libraries
     make_binaries
+    make_tests
     write_config_h
     write_makefile
   end
@@ -591,6 +598,7 @@ class Project
         'subdirs' => [],
         'libraries' => [],
         'binaries' => [],
+        'tests' => [],
         'check_header' => [],
     }
     ast = YAML.load_file(manifest)
@@ -614,6 +622,16 @@ class Project
     @ast['binaries'].each do |k,v|
         Binary.new(k, v, @cc, @mf).build
     end
+  end
+
+  def make_tests
+    return unless @ast['tests']
+    deps = []
+    @ast['tests'].each do |k,v|
+        Binary.new(k, v, @cc, @mf).build
+        deps.push k
+    end
+    @mf.add_target('check', deps, deps.map { |d| './' + d })
   end
 
   def write_makefile
