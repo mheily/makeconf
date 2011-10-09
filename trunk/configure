@@ -135,6 +135,7 @@ class Linker
 end
 
 class Compiler
+
   require 'tempfile'
   attr_reader :ldflags, :cflags, :path
   attr_accessor :platform, :subdir, :is_library, :is_shared, :is_makefile, :sources
@@ -267,6 +268,18 @@ class Compiler
     rc = system cmd
     File.unlink(objfile) if rc
     return rc
+  end
+
+  # Generate the Makefile targets for each translation unit
+  def add_targets(mf,prefix = '')
+    cmd = cc.command(libfile, cflags = @cflags)
+    throw 'Invalid parameter' unless mf.kind_of?(Makefile)
+    deps = objs.sort
+    deps.each do |d| 
+      src = d.sub(/#{@platform.object_extension}$/, '.c')
+      output = @platform.is_windows? ? ' /Fo' + d : ' -o ' + d
+      @mf.add_target(d, src, cmd + output + ' ' + src) 
+    end
   end
 end
 
@@ -479,13 +492,7 @@ class Library < Buildable
     cc.is_shared = true
     cc.is_makefile = true
     cc.sources = @sources
-    cmd = cc.command(libfile, cflags = @cflags)
-    deps = cc.objs.sort
-    deps.each do |d| 
-      src = d.sub(/#{@compiler.platform.object_extension}$/, '.c')
-      output = @compiler.platform.is_windows? ? ' /Fo' + d : ' -o ' + d
-      @makefile.add_target(d, src, cmd + output + ' ' + src) 
-    end
+    cc.add_targets(@makefile)
     if @compiler.platform.is_windows?
       @makefile.add_target(libfile, deps, 'link.exe /DLL /OUT:$@ ' + deps.join(' '))
     else
@@ -520,7 +527,7 @@ class Binary < Buildable
     cc.is_library = false
     cc.is_makefile = true
     cc.sources = @sources
-    throw 'FIXME -- needs to do what build_shared_library() does'
+    cc.add_targets(@makefile)
     @makefile.add_target(binfile, @depends, cc.command(binfile))
     super()
   end
