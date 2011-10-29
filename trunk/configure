@@ -29,6 +29,7 @@ class Platform
     @target_os = target_os
   end
 
+  # Returns true or false depending on if the target is MS Windows
   def is_windows?
     @target_os =~ /mswin|mingw/
   end
@@ -105,22 +106,33 @@ class Platform
 
 end
 
+# A linker combines multiple object files into a single executable or library file. 
+#
 class Linker
+
+  
+  # Constructor for the Linker class
+  # === Parameters
+  # * _platform_ - The target platform
+  #
   def initialize(platform)
     @platform = platform
     @flags = []
   end
 
+  # Sets the ELF soname to the specified string
   def soname(s)
     unless @platform.is_windows?
      @flags.push ['soname', s]
     end
   end
 
+  # Add all symbols to the dynamic symbol table (GNU ld only)
   def export_dynamic
      @flags.push 'export-dynamic'
   end
 
+  # Returns the linker flags suitable for passing to the compiler
   def to_s
      tok = []
      @flags.each do |f|
@@ -328,7 +340,17 @@ class Target
 
 end
 
+# A Makefile is a collection of targets and rules used to build software.
+#
 class Makefile
+  
+  # Object constructor.
+  # === Parameters
+  # * _platform_ - The target platform
+  # * _project_ - The name of the project
+  # * _version_ - The version number of the project
+  # * _version_ - The version number of the project
+  #  
   def initialize(platform, project, version, subdir)
     @platform = platform
     @project = project
@@ -535,25 +557,23 @@ class Binary < Buildable
           
 end
 
+# An external header file
+#
 class Header
 
+  # Check if a relative header path exists by compiling a test program.
   def initialize(path, compiler)
     @path = path
     @compiler = compiler
     @exists = check_exists
   end
 
-  def check_exists
-    printf "checking for #{@path}... "
-    rc = @compiler.test_compile("#include <" + @path + ">")
-    puts rc ? 'yes' : 'no'
-    rc
-  end
-
+  # Returns true if the header file exists.
   def exists?
     @exists
   end
 
+  # Returns preprocessor directive for inclusion in config.h
   def to_config_h
      id = @path.upcase.gsub(%r{[.-]}, '_')
      if @exists
@@ -561,6 +581,15 @@ class Header
      else
        "#undef  HAVE_" + id + "\n" 
      end
+  end
+
+  private
+
+  def check_exists
+    printf "checking for #{@path}... "
+    rc = @compiler.test_compile("#include <" + @path + ">")
+    puts rc ? 'yes' : 'no'
+    rc
   end
      
 end
@@ -571,6 +600,11 @@ class Project
 
   require 'yaml'
 
+  # Creates a new project
+  # === Parameters
+  # * _manifest_ - path to a YAML manifest
+  # * _subdir_ - (optional) used by subprojects
+  # * _subdir_ - relative path to the current directory (optional)
   def initialize(manifest, subdir = '')
     @subdir = subdir
     @ast = parse(manifest)
