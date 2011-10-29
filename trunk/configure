@@ -271,14 +271,15 @@ class Compiler
   end
 
   # Generate the Makefile targets for each translation unit
+  # XXX-THIS IS BROKEN DUE TO REFACTORING
   def add_targets(mf,prefix = '')
-    cmd = cc.command(libfile, cflags = @cflags)
     throw 'Invalid parameter' unless mf.kind_of?(Makefile)
     deps = objs.sort
     deps.each do |d| 
       src = d.sub(/#{@platform.object_extension}$/, '.c')
       output = @platform.is_windows? ? ' /Fo' + d : ' -o ' + d
-      @mf.add_target(d, src, cmd + output + ' ' + src) 
+      cmd = command(d, cflags = @cflags)
+      mf.add_target(d, src, cmd + output + ' ' + src) 
     end
   end
 end
@@ -564,6 +565,8 @@ class Header
      
 end
 
+# A project contains all of the information about the build.
+#
 class Project
 
   require 'yaml'
