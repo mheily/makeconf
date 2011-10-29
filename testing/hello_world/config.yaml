@@ -7,10 +7,10 @@ libraries:
 
 binaries:
     hello:
-        sources: [ main.c extra.c ]
+        sources: [ main.c, extra.c ]
         ldflags: '-L . -rpath .'
         ldadd: '-lhello'
-        depends: [ 'libhello.so' ]
+        depends: [ 'libhello.so.0.0' ]
 #        install => {
 #            '$(LIBDIR)' => [ '-m 644', 'libhello.so' ],
 #            '$(BINDIR)' => [ '-m 755', 'hello' ], 
