@@ -106,6 +106,44 @@ class Platform
 
 end
 
+# An installer copies files from the current directory to an OS-wide location
+class Installer
+
+  attr_accessor :prefix, :bindir, :sbindir, :libdir, :includedir, :mandir
+
+  def initialize()
+    printf "checking for a BSD-compatible install.. "
+    @path = search() or throw 'No installer found'
+    printf @path + "\n"
+
+    # Set default installation paths
+    @prefix = '/usr'
+    @bindir = '$(PREFIX)/bin'
+    @sbindir = '$(PREFIX)/sbin'
+    @libdir = '$(PREFIX)/lib'
+    @includedir = '$(PREFIX)/include'
+    @mandir = '$(PREFIX)/man'
+  end
+
+  def add_to_makefile(mf)
+    mf.define_variable('INSTALL', '=', @path)
+    %w[prefix bindir sbindir libdir includedir mandir].each do |x|
+      mf.define_variable(x.upcase, '=', instance_variable_get('@' + x))
+    end
+  end
+
+  private
+
+  def search()
+    [ ENV['INSTALL'], '/usr/ucb/install', '/usr/bin/install' ].each do |x|
+        if !x.nil? and File.exists?(x)
+         return x
+        end
+    end
+  end
+
+end
+
 # A linker combines multiple object files into a single executable or library file. 
 #
 class Linker
@@ -384,14 +422,17 @@ class Makefile
     @targets[target].add_dependency(depends)
   end
 
-  def add_deliverable(src,dst,rename = False)
-    add_rule('install', '$(INSTALL) -m 644 ' + $src + ' $(DESTDIR)' + $dst)
-    if (rename) 
-      add_rule('uninstall', @platform.rm('$(DESTDIR)' + $dst))
-    else 
-      raise "FIXME"
-#add_rule('uninstall', @platform.rm('$(DESTDIR)' + $dst + '/' . basename($src)));
-    end 
+  # Add a file to be installed during 'make install'
+  def install(src,dst,rename = false)
+    add_rule('install', '$(INSTALL) -m 644 ' + src + ' $(DESTDIR)' + dst)
+
+    # FIXME: broken
+#   if (rename) 
+#      add_rule('uninstall', @platform.rm('$(DESTDIR)' + dst))
+#    else 
+#      raise "FIXME"
+##add_rule('uninstall', @platform.rm('$(DESTDIR)' + $dst + '/' . basename($src)));
+#    end 
   end
 
   def add_distributable(src)
@@ -552,6 +593,7 @@ class Binary < Buildable
     @makefile.add_target(binfile, @depends + deps, tok.join(' '))
 
     @makefile.clean(cc.objs)
+    @makefile.install(binfile, '$(BINDIR)')
     @output.push binfile
     super()
   end
@@ -607,6 +649,7 @@ class Project
   def initialize(manifest)
     @ast = parse(manifest)
     @platform = Platform.new()
+    @installer = Installer.new()
     @cc = CCompiler.new(@platform)
     @mf = Makefile.new(@platform, @ast['project'], @ast['version'].to_s)
     @header = {}
@@ -618,12 +661,12 @@ class Project
     #end
 
     # Define Makefile variables
-    @mf.define_variable('MAKE', '=', 'make')
     @mf.define_variable('CFLAGS', '=', 'todo')
     @mf.define_variable('LDFLAGS', '=', 'todo')
     @mf.define_variable('LDADD', '=', 'todo')
     @mf.define_variable('CC', '=', @cc.path)
     @mf.define_variable('STANDARD_API', '=', 'posix')
+    @installer.add_to_makefile(@mf)
 
     check_headers
     make_libraries
