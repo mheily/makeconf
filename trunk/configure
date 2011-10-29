@@ -89,9 +89,9 @@ class Platform
     self.is_windows? ? '.lib' : '.a'
   end
 
-  # DEADWOOD - The extension used for shared libraries
-  def shared_library_extension
-    self.is_windows? ? '.dll' : '.so'
+  # The extension used for shared libraries
+  def shared_library_extension(abi_major,abi_minor)
+    self.is_windows? ? '.dll' : '.so.' + abi_major + '.' + abi_minor
   end
 
   # Emulate the which(1) command
@@ -110,7 +110,6 @@ end
 #
 class Linker
 
-  
   # Constructor for the Linker class
   # === Parameters
   # * _platform_ - The target platform
@@ -146,6 +145,8 @@ class Linker
   end
 end
 
+# Processes source code files to produce intermediate object files.
+#
 class Compiler
 
   require 'tempfile'
@@ -216,13 +217,13 @@ class Compiler
   # Return the intermediate object files for each source file
   def objs
     o = @platform.object_extension
-    @sources.map { |s| s.sub(/.c$/, (@is_shared ? o : '-static' + o)) }
+    @sources.map { |s| s.sub(/.c$/, ((!@is_library or @is_shared) ? o : '-static' + o)) }
   end
 
   # Return the complete command line to compile an object
-  def command(output, extra_cflags = "", log_to = "", compile_only = 0)
+  def command(output, extra_cflags = "", log_to = "")
     cflags = @cflags + extra_cflags
-    cflags += ' -c' if compile_only == 1 or @is_library
+    cflags += ' -c'
     cflags += ' -fPIC' if @is_library and @is_shared
 
     # Add the linker flags to CFLAGS
@@ -271,7 +272,7 @@ class Compiler
     f.print code
     f.flush
     objfile = f.path + '.out'
-    cmd = command(objfile, f.path, @platform.dev_null, 1)
+    cmd = command(objfile, f.path, @platform.dev_null)
 #puts ' + ' + cmd + "\n"
     rc = system cmd
     File.unlink(objfile) if rc
@@ -496,20 +497,19 @@ class Library < Buildable
   end
 
   def build_shared_library
-    libfile = @id
-    if @compiler.platform.is_windows?
-       libfile += '.dll'
-    else
-       libfile += '.so.' + @abi_major + '.' + @abi_minor
-    end
+    libfile = @id + @compiler.platform.shared_library_extension(@abi_major,@abi_minor)
     cc = @compiler.clone
     cc.is_library = true
     cc.is_shared = true
     cc.is_makefile = true
     cc.sources = @sources
     cc.add_targets(@makefile)
+
+    deps = cc.objs.sort
+
     if @compiler.platform.is_windows?
       @makefile.add_target(libfile, deps, 'link.exe /DLL /OUT:$@ ' + deps.join(' '))
+      # FIXME: shouldn't we use cmd to build the dll ??
     else
       # Build the linker flags
       ld = Linker.new(@compiler.platform)
@@ -543,7 +543,16 @@ class Binary < Buildable
     cc.is_makefile = true
     cc.sources = @sources
     cc.add_targets(@makefile)
-    @makefile.add_target(binfile, @depends, cc.command(binfile))
+
+    # Build the complete compiler string
+    # (FIXME) should use Compiler method here
+    deps = cc.objs.sort
+    tok = [ '$(CC)', '-o $@' ]
+    tok += deps
+    @makefile.add_target(binfile, @depends + deps, tok.join(' '))
+
+    @makefile.clean(cc.objs)
+    @output.push binfile
     super()
   end
           
