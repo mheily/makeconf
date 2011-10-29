@@ -150,15 +150,14 @@ class Compiler
 
   require 'tempfile'
   attr_reader :ldflags, :cflags, :path
-  attr_accessor :platform, :subdir, :is_library, :is_shared, :is_makefile, :sources
+  attr_accessor :platform, :is_library, :is_shared, :is_makefile, :sources
 
-  def initialize(platform, language, extension, ldflags = '', cflags = '', ldadd = '', subdir = '')
+  def initialize(platform, language, extension, ldflags = '', cflags = '', ldadd = '')
     @platform = platform
     @language = language
     @extension = extension
     @cflags = cflags
     @ldflags = ldflags
-    @subdir = subdir
     @ldadd = ldadd
     @is_library = false
     @is_shared = false
@@ -251,14 +250,11 @@ class Compiler
       cflags.gsub!(/ -pedantic /, ' ')
     end
 
-    # Prepend @subdir to each input file
-    @sources = [] if @sources.nil?
     if sources.kind_of?(Array)
       inputs = @sources
     else
       inputs = [ @sources ] 
     end
-    inputs = inputs.collect { |x| @subdir + x }
     throw 'One or more sources are required' unless inputs.count
 
     # In a Makefile command, the sources are not listed explicitly
@@ -309,13 +305,12 @@ class CCompiler < Compiler
 end
 
 class Target
-  def initialize(objs, deps = [], rules = [], subdir = '')
+  def initialize(objs, deps = [], rules = [])
       deps = [ deps ] unless deps.kind_of?(Array)
       rules = [ rules ] unless rules.kind_of?(Array)
       @objs = objs
       @deps = deps
       @rules = rules
-      @subdir = subdir
   end
 
   def add_dependency(depends)
@@ -349,18 +344,16 @@ class Makefile
   # * _platform_ - The target platform
   # * _project_ - The name of the project
   # * _version_ - The version number of the project
-  # * _version_ - The version number of the project
   #  
-  def initialize(platform, project, version, subdir)
+  def initialize(platform, project, version)
     @platform = platform
     @project = project
     @version = version
     @vars = {}
     @targets = {}
-    @subdir = subdir
 
     %w[all clean distclean install uninstall distdir].each do |x|
-        @targets[x] = Target.new(objs = x, subdir = subdir)
+        @targets[x] = Target.new(objs = x)
     end
   end
 
@@ -369,7 +362,7 @@ class Makefile
   end
 
   def add_target(object,depends,rules)
-    @targets[object] = Target.new(object,depends,rules,@subdir)
+    @targets[object] = Target.new(object,depends,rules)
   end
 
   def add_rule(target, rule)
@@ -419,7 +412,6 @@ class Makefile
   private
 
   def make_dist
-    return if @subdir
     distdir = @project + '-' + @version
     tg = Target.new('dist')
     tg.add_rule("rm -rf " + distdir)
@@ -603,21 +595,18 @@ class Project
   # Creates a new project
   # === Parameters
   # * _manifest_ - path to a YAML manifest
-  # * _subdir_ - (optional) used by subprojects
-  # * _subdir_ - relative path to the current directory (optional)
-  def initialize(manifest, subdir = '')
-    @subdir = subdir
+  def initialize(manifest)
     @ast = parse(manifest)
     @platform = Platform.new()
     @cc = CCompiler.new(@platform)
-    @mf = Makefile.new(@platform, @ast['project'], @ast['version'].to_s, subdir)
+    @mf = Makefile.new(@platform, @ast['project'], @ast['version'].to_s)
     @header = {}
     
-    # Include subprojects
-    @subproject = {}
-    @ast['subdirs'].each do |x| 
-      @subproject[x] = Project.new(subdir + x + '/config.yaml', subdir + x + '/') 
-    end
+    # TODO-Include subprojects
+    #@subproject = {}
+    #@ast['subdirs'].each do |x| 
+    #@subproject[x] = Project.new(subdir + x + '/config.yaml', subdir + x + '/') 
+    #end
 
     # Define Makefile variables
     @mf.define_variable('MAKE', '=', 'make')
@@ -639,7 +628,6 @@ class Project
 
   def parse(manifest)
     default = {
-        'subdirs' => [],
         'libraries' => [],
         'binaries' => [],
         'tests' => [],
@@ -679,7 +667,7 @@ class Project
   end
 
   def write_makefile
-    ofile = @subdir + 'Makefile'
+    ofile = 'Makefile'
     puts 'writing ' + ofile
     f = File.open(ofile, 'w')
     f.print "# AUTOMATICALLY GENERATED -- DO NOT EDIT\n"
@@ -688,7 +676,7 @@ class Project
   end
 
   def write_config_h
-    ofile = @subdir + 'config.h'
+    ofile = 'config.h'
     puts 'Creating ' + ofile
     f = File.open(ofile, 'w')
     f.print "/* AUTOMATICALLY GENERATED -- DO NOT EDIT */\n"
