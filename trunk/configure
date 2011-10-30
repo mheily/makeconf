@@ -15,6 +15,83 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
 
+
+#
+# Top-level class for generating Makefiles
+class Makeconf
+
+  require 'optparse'
+
+  def initialize(manifest = 'config.yaml')
+    @manifest = manifest
+  end
+
+  def parse_options(args = ARGV)
+     opts = OptionParser.new do |opts|
+       opts.banner = 'Usage: configure [options]'
+
+# opts.separator ""
+#       opts.separator "Specific options:"
+
+       opts.separator ''
+       opts.separator 'Common options:'
+
+       opts.on_tail('-h', '--help', 'Show this message') do
+          puts opts
+          exit
+       end
+
+      opts.on_tail('-V', '--version', 'Display version information and exit') do
+        puts OptionParser::Version.join('.')
+        exit
+      end
+    end
+
+    opts.parse!(args)
+  end
+
+  def configure
+     @proj = Project.new(@manifest)
+     @proj.installer = Installer.new()
+
+     parse_options
+     # Parse options from the command line
+     @proj.installer.directories.each do |dir|
+        @options.push [ '--' + dir, GetoptLong::REQUIRED_ARGUMENT ]
+     end
+     p @options
+     opts = GetoptLong.new(@options)
+     opts.each do |opt,arg|
+       case opt
+         when '--prefix'
+            @proj.installer.prefix = arg
+       end
+     end
+  end
+
+  # Write all output files
+  def finalize
+    @proj.finalize
+  end
+
+  # Print information about command line options and environment variables
+  def usage
+    puts <<EOF
+Usage: ./configure [OPTION] ...
+
+Options:
+  -h, --help            display this help and exit
+
+Installation directories:
+  --prefix=PREFIX         install architecture-independent files in PREFIX
+                          [/usr/local]
+
+EOF
+  exit 0
+  end
+
+end
+
 #
 # Abstraction for platform-specific system commands and variables
 #
@@ -112,6 +189,8 @@ class Installer
   attr_accessor :prefix, :bindir, :sbindir, :libdir, :includedir, :mandir
 
   def initialize()
+    @items = []
+
     printf "checking for a BSD-compatible install.. "
     @path = search() or throw 'No installer found'
     printf @path + "\n"
@@ -125,11 +204,22 @@ class Installer
     @mandir = '$(PREFIX)/man'
   end
 
-  def add_to_makefile(mf)
-    mf.define_variable('INSTALL', '=', @path)
-    %w[prefix bindir sbindir libdir includedir mandir].each do |x|
-      mf.define_variable(x.upcase, '=', instance_variable_get('@' + x))
+  # Return a list of configurable installation directories
+  def directories
+    %w[prefix bindir sbindir libdir includedir mandir]
+  end
+
+  # Register a file to be copied during the 'make install' phase.
+  def install(src,dst,mode = nil)
+  end
+
+  # Return a hash of variables to be included in a Makefile
+  def makefile_variables()
+    res = { 'INSTALL' => @path }
+    directories.each do |x|
+      res[x.upcase] = instance_variable_get('@' + x)
     end
+    return res
   end
 
   private
@@ -641,15 +731,17 @@ end
 #
 class Project
 
+  attr_accessor :installer
+
   require 'yaml'
 
   # Creates a new project
   # === Parameters
   # * _manifest_ - path to a YAML manifest
   def initialize(manifest)
+    @installer = nil
     @ast = parse(manifest)
     @platform = Platform.new()
-    @installer = Installer.new()
     @cc = CCompiler.new(@platform)
     @mf = Makefile.new(@platform, @ast['project'], @ast['version'].to_s)
     @header = {}
@@ -660,18 +752,25 @@ class Project
     #@subproject[x] = Project.new(subdir + x + '/config.yaml', subdir + x + '/') 
     #end
 
+    check_headers
+    make_libraries
+    make_binaries
+    make_tests
+  end
+
+  # Create the Makefile and config.h files.
+  def finalize
+
     # Define Makefile variables
     @mf.define_variable('CFLAGS', '=', 'todo')
     @mf.define_variable('LDFLAGS', '=', 'todo')
     @mf.define_variable('LDADD', '=', 'todo')
     @mf.define_variable('CC', '=', @cc.path)
     @mf.define_variable('STANDARD_API', '=', 'posix')
-    @installer.add_to_makefile(@mf)
+    @installer.makefile_variables.each do |k,v|
+      @mf.define_variable(k, '=', v)
+    end
 
-    check_headers
-    make_libraries
-    make_binaries
-    make_tests
     write_config_h
     write_makefile
   end
@@ -748,4 +847,6 @@ end
 #File.unlink('config.log')
 #log = Logger.new('config.log')
 
-proj = Project.new('config.yaml')
+m = Makeconf.new()
+m.configure
+m.finalize
