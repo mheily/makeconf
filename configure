@@ -15,36 +15,33 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
 
-
-#
-# Top-level class for generating Makefiles
 class Makeconf
 
   require 'optparse'
 
   def initialize(manifest = 'config.yaml')
     @manifest = manifest
+    @installer = Installer.new()
   end
 
   def parse_options(args = ARGV)
      opts = OptionParser.new do |opts|
        opts.banner = 'Usage: configure [options]'
 
-# opts.separator ""
-#       opts.separator "Specific options:"
+       @installer.parse_options(opts)
 
        opts.separator ''
        opts.separator 'Common options:'
 
        opts.on_tail('-h', '--help', 'Show this message') do
-          puts opts
+         puts opts
           exit
        end
 
-      opts.on_tail('-V', '--version', 'Display version information and exit') do
-        puts OptionParser::Version.join('.')
-        exit
-      end
+       opts.on_tail('-V', '--version', 'Display version information and exit') do
+         puts OptionParser::Version.join('.')
+         exit
+       end
     end
 
     opts.parse!(args)
@@ -52,42 +49,14 @@ class Makeconf
 
   def configure
      @proj = Project.new(@manifest)
-     @proj.installer = Installer.new()
 
      parse_options
-     # Parse options from the command line
-     @proj.installer.directories.each do |dir|
-        @options.push [ '--' + dir, GetoptLong::REQUIRED_ARGUMENT ]
-     end
-     p @options
-     opts = GetoptLong.new(@options)
-     opts.each do |opt,arg|
-       case opt
-         when '--prefix'
-            @proj.installer.prefix = arg
-       end
-     end
+     @proj.installer = @installer
   end
 
   # Write all output files
   def finalize
     @proj.finalize
-  end
-
-  # Print information about command line options and environment variables
-  def usage
-    puts <<EOF
-Usage: ./configure [OPTION] ...
-
-Options:
-  -h, --help            display this help and exit
-
-Installation directories:
-  --prefix=PREFIX         install architecture-independent files in PREFIX
-                          [/usr/local]
-
-EOF
-  exit 0
   end
 
 end
@@ -204,9 +173,23 @@ class Installer
     @mandir = '$(PREFIX)/man'
   end
 
+  # Parse command line options.
+  # Should only be called from Makeconf.parse_options()
+  def parse_options(opts)
+    opts.separator ""
+    opts.separator "Installation options:"
+
+    directories.each do |dir|
+       opts.on('--' + dir + ' [DIRECTORY]', 'FIXME') do |arg|
+          instance_variable_set('@' + dir, arg)
+       end
+    end
+
+  end
+
   # Return a list of configurable installation directories
   def directories
-    %w[prefix bindir sbindir libdir includedir mandir]
+    %w[prefix bindir sbindir libdir includedir mandir].sort
   end
 
   # Register a file to be copied during the 'make install' phase.
