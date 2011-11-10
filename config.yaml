@@ -6,8 +6,8 @@ extra_dist:
 scripts:
     makeconf:
         sources: [ 'makeconf' ]
-        dest: bindir
-        mode: 0755
+        dest: '$(BINDIR)'
+        mode: '0755'
 
 #FIXME: Not handed correctly yet
 #subdirs: [ testing ]

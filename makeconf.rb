@@ -467,6 +467,10 @@ class Makefile
     %w[all clean distclean install uninstall distdir].each do |x|
         @targets[x] = Target.new(objs = x)
     end
+
+    # Prepare the destination tree for 'make install'
+    @targets['install'].add_rule('test -z $(DESTDIR) || test -e $(DESTDIR)')
+    @targets['install'].add_rule('for x in $(BINDIR) $(SBINDIR) $(LIBDIR) ; do test -e $(DESTDIR)$$x || $(INSTALL) -d -m 755 $(DESTDIR)$$x ; done')
   end
 
   def define_variable(lval,op,rval)
@@ -496,8 +500,10 @@ class Makefile
   end
 
   # Add a file to be installed during 'make install'
-  def install(src,dst,rename = false)
-    add_rule('install', '$(INSTALL) -m 644 ' + src + ' $(DESTDIR)' + dst)
+  def install(src,dst,opt)
+    rename = opt.has_key?('rename') ? opt['rename'] : false
+    mode = opt.has_key?('mode') ? opt['mode'] : '644'
+    add_rule('install', "$(INSTALL) -m #{mode} #{src} $(DESTDIR)#{dst}")
 
     # FIXME: broken
 #   if (rename) 
@@ -703,6 +709,9 @@ class Script
 
   def build
     @makefile.distribute(@sources)
+    @sources.each do |src|
+       @makefile.install(src,@dest, { 'mode' => @mode })
+    end
   end
 
 end
