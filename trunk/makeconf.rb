@@ -471,6 +471,9 @@ class Makefile
     # Prepare the destination tree for 'make install'
     @targets['install'].add_rule('test -z $(DESTDIR) || test -e $(DESTDIR)')
     @targets['install'].add_rule('for x in $(BINDIR) $(SBINDIR) $(LIBDIR) ; do test -e $(DESTDIR)$$x || $(INSTALL) -d -m 755 $(DESTDIR)$$x ; done')
+
+    # Distribute some standard files with 'make distdir'
+    ['makeconf.rb', 'config.yaml', 'configure'].each { |f| distribute(f) }
   end
 
   def define_variable(lval,op,rval)
