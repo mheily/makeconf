@@ -2,8 +2,10 @@ project: makeconf
 version: 0.1
 extra_dist:
     - testing/Makefile
+
 scripts:
     makeconf:
+        sources: [ 'makeconf' ]
         dest: bindir
         mode: 0755
 
