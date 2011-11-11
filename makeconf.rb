@@ -165,7 +165,7 @@ class Installer
     printf @path + "\n"
 
     # Set default installation paths
-    @prefix = '/usr'
+    @prefix = '/usr/local'
     @bindir = '$(PREFIX)/bin'
     @sbindir = '$(PREFIX)/sbin'
     @libdir = '$(PREFIX)/lib'
@@ -503,10 +503,11 @@ class Makefile
   end
 
   # Add a file to be installed during 'make install'
-  def install(src,dst,opt)
+  def install(src,dst,opt = {})
     rename = opt.has_key?('rename') ? opt['rename'] : false
     mode = opt.has_key?('mode') ? opt['mode'] : '644'
     add_rule('install', "$(INSTALL) -m #{mode} #{src} $(DESTDIR)#{dst}")
+    add_rule('uninstall', @platform.rm("$(DESTDIR)#{dst}/#{File.basename(src)}"))
 
     # FIXME: broken
 #   if (rename) 
@@ -713,7 +714,7 @@ class Script
   def build
     @makefile.distribute(@sources)
     @sources.each do |src|
-       @makefile.install(src,@dest, { 'mode' => @mode })
+       @makefile.install(src, @dest, { 'mode' => @mode })
     end
   end
 
@@ -811,6 +812,7 @@ class Project
     default = {
         'libraries' => [],
         'binaries' => [],
+        'scripts' => [],
         'tests' => [],
         'check_header' => [],
     }
