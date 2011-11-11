@@ -656,6 +656,7 @@ class Library < Buildable
       tok += deps
       @makefile.add_target(libfile, deps, tok.join(' '))
     end 
+    @makefile.install(libfile, '$(LIBDIR)')
     @makefile.clean(cc.objs)
     @output.push libfile
   end
@@ -685,7 +686,7 @@ class Binary < Buildable
     @makefile.add_target(binfile, @depends + deps, tok.join(' '))
 
     @makefile.clean(cc.objs)
-    @makefile.install(binfile, '$(BINDIR)')
+    @makefile.install(binfile, '$(BINDIR)', { 'mode' => '755' })
     @output.push binfile
     super()
   end
