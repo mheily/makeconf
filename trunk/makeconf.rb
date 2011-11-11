@@ -20,7 +20,7 @@ class Makeconf
   require 'optparse'
 
   def initialize(manifest = 'config.yaml')
-    @manifest = manifest
+    @proj = Project.new(manifest)
     @installer = Installer.new()
   end
 
@@ -47,11 +47,12 @@ class Makeconf
     opts.parse!(args)
   end
 
+  # Examine the operating environment and set configuration options
   def configure
-     @proj = Project.new(@manifest)
-
      parse_options
+     @installer.configure
      @proj.installer = @installer
+     @proj.configure
   end
 
   # Write all output files
@@ -159,10 +160,7 @@ class Installer
 
   def initialize()
     @items = []
-
-    printf "checking for a BSD-compatible install.. "
-    @path = search() or throw 'No installer found'
-    printf @path + "\n"
+    @path = nil
 
     # Set default installation paths
     @prefix = '/usr/local'
@@ -171,6 +169,13 @@ class Installer
     @libdir = '$(PREFIX)/lib'
     @includedir = '$(PREFIX)/include'
     @mandir = '$(PREFIX)/man'
+  end
+
+  # Examine the operating environment and set configuration options
+  def configure
+    printf "checking for a BSD-compatible install.. "
+    @path = search() or throw 'No installer found'
+    printf @path + "\n"
   end
 
   # Parse command line options.
@@ -773,7 +778,6 @@ class Project
     @installer = nil
     @ast = parse(manifest)
     @platform = Platform.new()
-    @cc = CCompiler.new(@platform)
     @mf = Makefile.new(@platform, @ast['project'], @ast['version'].to_s)
     @header = {}
     
@@ -783,6 +787,11 @@ class Project
     #@subproject[x] = Project.new(subdir + x + '/config.yaml', subdir + x + '/') 
     #end
 
+  end
+
+  # Examine the operating environment and set configuration options
+  def configure
+    @cc = CCompiler.new(@platform)
     check_headers
     make_libraries
     make_binaries
@@ -875,17 +884,3 @@ class Project
   end
 
 end
-
-#######################################################################
-#
-#                               MAIN()
-#
-
-#TODO:
-#require 'logger'
-#File.unlink('config.log')
-#log = Logger.new('config.log')
-
-m = Makeconf.new()
-m.configure
-m.finalize
