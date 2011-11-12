@@ -863,6 +863,7 @@ class Project
         'libraries' => [],
         'binaries' => [],
         'scripts' => [],
+        'data' => [],
         'tests' => [],
         'check_header' => [],
     }
