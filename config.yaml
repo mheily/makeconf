@@ -7,7 +7,11 @@ scripts:
     makeconf:
         sources: [ 'makeconf' ]
         dest: '$(BINDIR)'
-        mode: '0755'
+
+data: 
+  'template/*': '$(PKGDATADIR)/template'
+  'makeconf.rb': '$(PKGDATADIR)/template'
+          
 
 #FIXME: Not handed correctly yet
 #subdirs: [ testing ]
