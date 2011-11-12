@@ -642,7 +642,9 @@ class Library < Buildable
         'headers' => [],
     }
     default.each do |k,v| 
-      instance_variable_set('@' + k, ast[k].nil? ? default[k] : ast[k])
+      v = ast[k] unless ast[k].nil?
+      v = v.to_s if default[k].is_a?(String)
+      instance_variable_set('@' + k, v)
     end
   end
 
