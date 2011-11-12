@@ -499,14 +499,15 @@ class Makefile
     end
 
     # Prepare the destination tree for 'make install'
-    @targets['install'].add_rule('test -z $(DESTDIR) || test -e $(DESTDIR)')
+    @targets['install'].add_rule('test -e $(DESTDIR)')
 
     # Distribute some standard files with 'make distdir'
     ['makeconf.rb', 'config.yaml', 'configure'].each { |f| distribute(f) }
   end
 
   def define_variable(lval,op,rval)
-    throw "invalid arguments" if lval.nil? or op.nil? or rval.nil?
+    throw "invalid arguments" if lval.nil? or op.nil? 
+    throw "variable `#{lval}' is undefined" if rval.nil?
     @vars[lval] = [ op, rval ]
   end
 
