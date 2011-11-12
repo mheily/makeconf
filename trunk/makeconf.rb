@@ -20,8 +20,8 @@ class Makeconf
   require 'optparse'
 
   def initialize(manifest = 'config.yaml')
-    @proj = Project.new(manifest)
     @installer = Installer.new()
+    @proj = Project.new(manifest, @installer)
   end
 
   def parse_options(args = ARGV)
@@ -51,8 +51,8 @@ class Makeconf
   def configure
      parse_options
      @installer.configure
-     @proj.installer = @installer
      @proj.configure
+     @installer.package = @proj.name
   end
 
   # Write all output files
@@ -157,9 +157,11 @@ end
 class Installer
 
   attr_reader :dir
+  attr_accessor :package
 
   def initialize()
     @items = []
+    @package = nil  # provided later by the user
     @path = nil
 
     # Set default installation paths
@@ -218,6 +220,7 @@ class Installer
   def makefile_variables
     res = { 
         'INSTALL' => @path,
+        'PACKAGE' => @package,
         'PKGINCLUDEDIR' => '$(INCLUDEDIR)/$(PACKAGE)',
         'PKGDATADIR' => '$(DATADIR)/$(PACKAGE)',
         'PKGLIBDIR' => '$(LIBDIR)/$(PACKAGE)',
@@ -478,15 +481,18 @@ class Makefile
   # Object constructor.
   # === Parameters
   # * _platform_ - The target platform
+  # * _installer_ - The installer to use
   # * _project_ - The name of the project
   # * _version_ - The version number of the project
   #  
-  def initialize(platform, project, version)
+  def initialize(platform, installer, project, version)
     @platform = platform
+    @installer = installer
     @project = project
     @version = version
     @vars = {}
     @targets = {}
+    @mkdir_list = []   # all directories that have been created so far
 
     %w[all clean distclean install uninstall distdir].each do |x|
         @targets[x] = Target.new(objs = x)
@@ -494,7 +500,6 @@ class Makefile
 
     # Prepare the destination tree for 'make install'
     @targets['install'].add_rule('test -z $(DESTDIR) || test -e $(DESTDIR)')
-    @targets['install'].add_rule('for x in $(BINDIR) $(SBINDIR) $(LIBDIR) ; do test -e $(DESTDIR)$$x || $(INSTALL) -d -m 755 $(DESTDIR)$$x ; done')
 
     # Distribute some standard files with 'make distdir'
     ['makeconf.rb', 'config.yaml', 'configure'].each { |f| distribute(f) }
@@ -530,7 +535,20 @@ class Makefile
   # Add a file to be installed during 'make install'
   def install(src,dst,opt = {})
     rename = opt.has_key?('rename') ? opt['rename'] : false
-    mode = opt.has_key?('mode') ? opt['mode'] : '644'
+    mode = opt.has_key?('mode') ? opt['mode'] : nil
+    mkdir = opt.has_key?('mkdir') ? opt['mkdir'] : true
+
+    # Determine the default mode based on the execute bit
+    if mode.nil?
+      mode = File.executable?(src) ? '755' : '644'
+    end
+
+    # Automatically create the destination directory, if needed
+    if mkdir and not @mkdir_list.include?(dst)
+       add_rule('install', "test -e $(DESTDIR)#{dst} || $(INSTALL) -d -m 755 $(DESTDIR)#{dst}")
+       @mkdir_list.push(dst)
+    end
+
     add_rule('install', "$(INSTALL) -m #{mode} #{src} $(DESTDIR)#{dst}")
     add_rule('uninstall', @platform.rm("$(DESTDIR)#{dst}/#{File.basename(src)}"))
 
@@ -787,18 +805,19 @@ end
 #
 class Project
 
-  attr_accessor :installer
+  attr_reader :name
 
   require 'yaml'
 
   # Creates a new project
   # === Parameters
   # * _manifest_ - path to a YAML manifest
-  def initialize(manifest)
-    @installer = nil
+  def initialize(manifest,installer)
+    @installer = installer
     @ast = parse(manifest)
+    @name = @ast['project']
     @platform = Platform.new()
-    @mf = Makefile.new(@platform, @ast['project'], @ast['version'].to_s)
+    @mf = Makefile.new(@platform, @installer, @name, @ast['version'].to_s)
     @header = {}
     
     # TODO-Include subprojects
@@ -816,6 +835,7 @@ class Project
     make_libraries
     make_binaries
     make_scripts
+    make_data
     make_tests
   end
 
@@ -872,6 +892,18 @@ class Project
   def make_scripts
     @ast['scripts'].each do |k,v|
         Script.new(k, v, @mf).build
+    end
+  end
+
+  def make_data
+    @ast['data'].each do |k,v|
+        if v.is_a?(String)
+          v = { 'dest' => v }
+        end
+        Dir.glob(k).each do |f|
+          @mf.distribute(f)
+          @mf.install(f, v['dest'], v)
+        end
     end
   end
 
