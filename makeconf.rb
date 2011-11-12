@@ -156,19 +156,37 @@ end
 # An installer copies files from the current directory to an OS-wide location
 class Installer
 
-  attr_accessor :prefix, :bindir, :sbindir, :libdir, :includedir, :mandir
+  attr_reader :dir
 
   def initialize()
     @items = []
     @path = nil
 
     # Set default installation paths
-    @prefix = '/usr/local'
-    @bindir = '$(PREFIX)/bin'
-    @sbindir = '$(PREFIX)/sbin'
-    @libdir = '$(PREFIX)/lib'
-    @includedir = '$(PREFIX)/include'
-    @mandir = '$(PREFIX)/man'
+    @dir = {
+        'prefix' => '/usr/local',
+        'exec-prefix' => '$(PREFIX)',
+
+        'bindir' => '$(EPREFIX)/bin',
+        'datarootdir' => '$(PREFIX)/share',
+        'datadir' => '$(DATAROOTDIR)',
+        'docdir' => '$(DATAROOTDIR)/doc/$(PACKAGE)',
+        'includedir' => '$(PREFIX)/include',
+        'infodir' => '$(DATAROOTDIR)/info',
+        'libdir' => '$(EPREFIX)/lib',
+        'libexecdir' => '$(EPREFIX)/libexec',
+        'localedir' => '$(DATAROOTDIR)/locale',
+        'localstatedir' => '$(PREFIX)/var',
+        'mandir' => '$(DATAROOTDIR)/man',
+        'oldincludedir' => '/usr/include',
+        'sbindir' => '$(EPREFIX)/sbin',
+        'sysconfdir' => '$(PREFIX)/etc',
+        'sharedstatedir' => '$(PREFIX)/com',
+        
+        #TODO: document this
+        #DEPRECATED: htmldir, dvidir, pdfdir, psdir
+    }
+ 
   end
 
   # Examine the operating environment and set configuration options
@@ -184,17 +202,12 @@ class Installer
     opts.separator ""
     opts.separator "Installation options:"
 
-    directories.each do |dir|
-       opts.on('--' + dir + ' [DIRECTORY]', 'FIXME') do |arg|
-          instance_variable_set('@' + dir, arg)
+    @dir.sort.each do |k, v|
+       opts.on('--' + k + ' [DIRECTORY]', "TODO describe this [#{v}]") do |arg|
+          @dir[k] = arg
        end
     end
 
-  end
-
-  # Return a list of configurable installation directories
-  def directories
-    %w[prefix bindir sbindir libdir includedir mandir].sort
   end
 
   # Register a file to be copied during the 'make install' phase.
@@ -202,10 +215,16 @@ class Installer
   end
 
   # Return a hash of variables to be included in a Makefile
-  def makefile_variables()
-    res = { 'INSTALL' => @path }
-    directories.each do |x|
-      res[x.upcase] = instance_variable_get('@' + x)
+  def makefile_variables
+    res = { 
+        'INSTALL' => @path,
+        'PKGINCLUDEDIR' => '$(INCLUDEDIR)/$(PACKAGE)',
+        'PKGDATADIR' => '$(DATADIR)/$(PACKAGE)',
+        'PKGLIBDIR' => '$(LIBDIR)/$(PACKAGE)',
+    }
+    @dir.each do |k,v|
+      k = (k == 'exec-prefix') ? 'EPREFIX' : k.upcase
+      res[k] = v
     end
     return res
   end
@@ -482,6 +501,7 @@ class Makefile
   end
 
   def define_variable(lval,op,rval)
+    throw "invalid arguments" if lval.nil? or op.nil? or rval.nil?
     @vars[lval] = [ op, rval ]
   end
 
