@@ -289,15 +289,18 @@ class Compiler
 
   require 'tempfile'
   attr_reader :ldflags, :cflags, :path
-  attr_accessor :platform, :is_library, :is_shared, :is_makefile, :sources
+  attr_accessor :platform, :is_library, :is_shared, :is_makefile, :sources, 
+                :ld
 
   def initialize(platform, language, extension, ldflags = '', cflags = '', ldadd = '')
     @platform = platform
     @language = language
     @extension = extension
     @cflags = cflags
+    @extra_cflags = ''
     @ldflags = ldflags
     @ldadd = ldadd
+    @output = nil
     @is_library = false
     @is_shared = false
     @is_makefile = false        # if true, the output will be customized for use in a Makefile
@@ -305,11 +308,8 @@ class Compiler
   end
 
   def clone
+    # does this deep copy the linker?
     Marshal.load(Marshal.dump(self))
-  end
-
-  def linker
-    @ld
   end
 
   # Search for a suitable compiler
@@ -352,6 +352,11 @@ class Compiler
     @path = res
   end
 
+  # Add additional user-defined compiler flags
+  def append_cflags(s)
+    @extra_cflags += ' ' + s
+  end
+
   # Return the intermediate object files for each source file
   def objs
     o = @platform.object_extension
@@ -359,10 +364,12 @@ class Compiler
   end
 
   # Return the complete command line to compile an object
-  def command(output, extra_cflags = "", log_to = "")
-    cflags = @cflags + extra_cflags
+  def command(output)
+    throw 'Invalid linker' unless @ld.is_a?(Linker)
+
+    cflags = @cflags + @extra_cflags
     cflags += ' -c'
-    cflags += ' -fPIC' if @is_library and @is_shared
+    cflags += ' -fPIC -shared' if @is_library and @is_shared
 
     # Add the linker flags to CFLAGS
     cflags += @ld.to_s
@@ -401,7 +408,7 @@ class Compiler
       inputs = ''
     end
        
-    [ @path, cflags, inputs, @ldadd, log_to ].join(' ')
+    [ @path, cflags, inputs, @ldadd ].join(' ')
   end
 
   # Compile a test program
@@ -417,18 +424,27 @@ class Compiler
     return rc
   end
 
-  # Generate the Makefile targets for each translation unit
-  # XXX-THIS IS BROKEN DUE TO REFACTORING
-  def add_targets(mf,prefix = '')
-    throw 'Invalid parameter' unless mf.kind_of?(Makefile)
-    deps = objs.sort
-    deps.each do |d| 
+  # Return a hash containing Makefile rules and targets
+  def to_make(output)
+    res = {}
+
+    # Generate the targets and rules for each translation unit
+    objs().sort.each do |d| 
       src = d.sub(/#{@platform.object_extension}$/, '.c')
-      output = @platform.is_windows? ? ' /Fo' + d : ' -o ' + d
-      cmd = command(d, cflags = @cflags)
-      mf.add_target(d, src, cmd + output + ' ' + src) 
+      x = @platform.is_windows? ? ' /Fo' + d : ' -o ' + d
+      cmd = command(d)
+      res[d] = [src, cmd + x + ' ' + src]
     end
+
+    # Generate the targets and rules for the link stage
+    cflags = [ "-o #{output}" ]
+    cflags.push('-shared') if @is_library and @is_shared
+    cmd = ["$(CC)", cflags, objs().sort].flatten.join(' ')
+    res[output] = [objs().sort, cmd]
+
+    return res
   end
+
 end
 
 class CCompiler < Compiler
@@ -509,6 +525,18 @@ class Makefile
     throw "invalid arguments" if lval.nil? or op.nil? 
     throw "variable `#{lval}' is undefined" if rval.nil?
     @vars[lval] = [ op, rval ]
+  end
+
+  # Add one or more targets to a Makefile.
+  # === Parameters
+  # * _h_ - a hash where each key is a target and each value is an array of rules
+  #
+  def merge(h)
+    throw 'invalid argument' unless h.is_a?(Hash)
+    h.each do |k,v|
+       throw 'invalid entry' unless v.is_a?(Array)
+       add_target(k, v[0], v[1])
+    end
   end
 
   def add_target(object,depends,rules)
@@ -639,7 +667,6 @@ class Library < Buildable
         'abi_minor' => '0',
         'enable_shared' => true,
         'enable_static' => true,
-        'headers' => [],
     }
     default.each do |k,v| 
       v = ast[k] unless ast[k].nil?
@@ -663,7 +690,8 @@ class Library < Buildable
     cc.is_shared = false
     cc.is_makefile = true
     cc.sources = @sources
-    cmd = cc.command(libfile, cflags = @cflags)
+    cc.append_cflags(@cflags)
+    cmd = cc.command(libfile)
     deps = cc.objs.sort
     deps.each do |d| 
       src = d.sub(/-static#{@compiler.platform.object_extension}$/, '.c')
@@ -682,7 +710,7 @@ class Library < Buildable
     cc.is_shared = true
     cc.is_makefile = true
     cc.sources = @sources
-    cc.add_targets(@makefile)
+    cc.append_cflags(@cflags)
 
     deps = cc.objs.sort
 
@@ -690,17 +718,9 @@ class Library < Buildable
       @makefile.add_target(libfile, deps, 'link.exe /DLL /OUT:$@ ' + deps.join(' '))
       # FIXME: shouldn't we use cmd to build the dll ??
     else
-      # Build the linker flags
-      ld = Linker.new(@compiler.platform)
-      ld.export_dynamic
-      ld.soname(@id + '.' + @abi_major)
-
-      # Build the complete compiler string
-      # (FIXME) should use Compiler method here
-      tok = [ '$(CC)', '-shared', '-o $@' ]
-      tok.push ld.to_s
-      tok += deps
-      @makefile.add_target(libfile, deps, tok.join(' '))
+      cc.ld.export_dynamic
+      cc.ld.soname(@id + '.' + @abi_major)
+      @makefile.merge(cc.to_make(libfile))
     end 
     @makefile.install(libfile, '$(LIBDIR)')
     @makefile.clean(cc.objs)
@@ -722,14 +742,15 @@ class Binary < Buildable
     cc.is_library = false
     cc.is_makefile = true
     cc.sources = @sources
-    cc.add_targets(@makefile)
+
+#XXX-BROKEN cc.add_targets(@makefile)
 
     # Build the complete compiler string
     # (FIXME) should use Compiler method here
     deps = cc.objs.sort
     tok = [ '$(CC)', '-o $@' ]
     tok += deps
-    @makefile.add_target(binfile, @depends + deps, tok.join(' '))
+    @makefile.add_target(binfile, @depends + deps, @cc.command(binfile))
 
     @makefile.clean(cc.objs)
     @makefile.install(binfile, '$(BINDIR)', { 'mode' => '755' })
@@ -838,7 +859,9 @@ class Project
     make_libraries
     make_binaries
     make_scripts
-    make_data
+    make_installable(@ast['headers'], '$(PKGINCLUDEDIR)')
+    make_installable(@ast['data'], '$(PKGDATADIR)')
+    make_installable(@ast['manpages'], '$(MANDIR)') #FIXME: Needs a subdir
     make_tests
   end
 
@@ -863,11 +886,14 @@ class Project
 
   def parse(manifest)
     default = {
-        'libraries' => [],
         'binaries' => [],
-        'scripts' => [],
         'data' => [],
+        'headers' => [],
+        'libraries' => [],
+        'manpages' => [],
+        'scripts' => [],
         'tests' => [],
+
         'check_header' => [],
     }
     ast = YAML.load_file(manifest)
@@ -899,15 +925,29 @@ class Project
     end
   end
 
-  def make_data
-    @ast['data'].each do |k,v|
+  # Add targets for distributing and installing ordinary non-compiled files,
+  # such as data or manpages.
+  #
+  def make_installable(ast,default_dest)
+    h = nil
+    if ast.is_a?(Array)
+      ast.each do |e|
+         h[e] = { 'dest' => default_dest }
+      end
+    elsif ast.is_a?(Hash)
+       h = ast
+    else
+       throw 'Unsupport AST type'
+    end
+
+    h.each do |k,v|
         if v.is_a?(String)
           v = { 'dest' => v }
         end
         Dir.glob(k).each do |f|
           @mf.distribute(f)
           @mf.install(f, v['dest'], v)
-        end
+       end
     end
   end
 
