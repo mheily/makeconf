@@ -929,7 +929,7 @@ class Project
   # such as data or manpages.
   #
   def make_installable(ast,default_dest)
-    h = nil
+    h = {}
     if ast.is_a?(Array)
       ast.each do |e|
          h[e] = { 'dest' => default_dest }
