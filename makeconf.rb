@@ -64,6 +64,7 @@ end
 
 #
 # Abstraction for platform-specific system commands and variables
+# This class only contains static methods.
 #
 class Platform
 
@@ -71,18 +72,18 @@ class Platform
 
   require 'rbconfig'
 
-  def initialize(target_os = Config::CONFIG['host_os'])
-    @host_os = Config::CONFIG['host_os']
-    @target_os = target_os
-  end
+  # TODO: allow target_os to be overridden for cross-compiling
+
+  @@host_os = Config::CONFIG['host_os']
+  @@target_os = @@host_os
 
   # Returns true or false depending on if the target is MS Windows
-  def is_windows?
-    @target_os =~ /mswin|mingw/
+  def Platform.is_windows?
+    @@target_os =~ /mswin|mingw/
   end
 
-  def archiver(archive,members)
-    if self.is_windows? && ! ENV['MSYSTEM']
+  def Platform.archiver(archive,members)
+    if is_windows? && ! ENV['MSYSTEM']
       'lib.exe ' + members.join(' ') + ' /OUT:' + archive
     else
       # TODO: add '/usr/bin/strip --strip-unneeded' + archive
@@ -90,31 +91,32 @@ class Platform
    end
   end
 
-  def rm(path)
+  def Platform.rm(path)
     if path.kind_of?(Array)
         path = path.join(' ')
     end
-    if self.is_windows? && ! ENV['MSYSTEM']
+    if is_windows? && ! ENV['MSYSTEM']
       return 'del /F ' + path
     else
       return 'rm -f ' + path
     end
   end
 
-  def cp(src,dst)
+  def Platform.cp(src,dst)
     if src.kind_of?(Array)
       src = src.join(' ')
     end
 
-    if self.is_windows? && ! ENV['MSYSTEM']
+    if is_windows? && ! ENV['MSYSTEM']
       return "copy #{src} #{dst}"
     else
       return "cp #{src} #{dst}"
     end
   end
 
-  def dev_null
-    if self.is_windows? && ! ENV['MSYSTEM'] 
+  # Send all output to /dev/null or it's equivalent
+  def Platform.dev_null
+    if is_windows? && ! ENV['MSYSTEM'] 
       ' >NUL 2>NUL' 
     else
       ' >/dev/null 2>&1'
@@ -122,28 +124,28 @@ class Platform
   end
 
   # The extension used for executable files 
-  def executable_extension
-    self.is_windows? ? '.exe' : ''
+  def Platform.executable_extension
+    is_windows? ? '.exe' : ''
   end
 
   # The extension used for intermediate object files 
-  def object_extension
-    self.is_windows? ? '.obj' : '.o'
+  def Platform.object_extension
+    is_windows? ? '.obj' : '.o'
   end
 
   # The extension used for static libraries
-  def static_library_extension
-    self.is_windows? ? '.lib' : '.a'
+  def Platform.static_library_extension
+    is_windows? ? '.lib' : '.a'
   end
 
   # The extension used for shared libraries
-  def shared_library_extension(abi_major,abi_minor)
-    self.is_windows? ? '.dll' : '.so.' + abi_major + '.' + abi_minor
+  def Platform.shared_library_extension(abi_major,abi_minor)
+    is_windows? ? '.dll' : '.so.' + abi_major + '.' + abi_minor
   end
 
   # Emulate the which(1) command
-  def which(command)
-    return nil if self.is_windows?      # FIXME: STUB
+  def Platform.which(command)
+    return nil if is_windows?      # FIXME: STUB
     ENV['PATH'].split(':').each do |prefix|
       path = prefix + '/' + command
       return command if File.executable?(path)
@@ -248,18 +250,13 @@ end
 #
 class Linker
 
-  # Constructor for the Linker class
-  # === Parameters
-  # * _platform_ - The target platform
-  #
-  def initialize(platform)
-    @platform = platform
+  def initialize
     @flags = []
   end
 
   # Sets the ELF soname to the specified string
   def soname(s)
-    unless @platform.is_windows?
+    unless Platform.is_windows?
      @flags.push ['soname', s]
     end
   end
@@ -289,11 +286,9 @@ class Compiler
 
   require 'tempfile'
   attr_reader :ldflags, :cflags, :path
-  attr_accessor :platform, :is_library, :is_shared, :is_makefile, :sources, 
-                :ld
+  attr_accessor :is_library, :is_shared, :is_makefile, :sources, :ld
 
-  def initialize(platform, language, extension, ldflags = '', cflags = '', ldadd = '')
-    @platform = platform
+  def initialize(language, extension, ldflags = '', cflags = '', ldadd = '')
     @language = language
     @extension = extension
     @cflags = cflags
@@ -304,7 +299,7 @@ class Compiler
     @is_library = false
     @is_shared = false
     @is_makefile = false        # if true, the output will be customized for use in a Makefile
-    @ld = Linker.new(platform)
+    @ld = Linker.new()
   end
 
   def clone
@@ -320,7 +315,7 @@ class Compiler
       res = ENV['CC']
     else
       compilers.each do |command|
-         if @platform.which(command)
+         if Platform.which(command)
            res = command
            break
          end
@@ -328,20 +323,20 @@ class Compiler
     end
 
     # FIXME: kludge for Windows, breaks mingw
-    if @platform.is_windows?
+    if Platform.is_windows?
         res = 'cl.exe'
     end
 
     throw 'No compiler found' if res.nil? || res == ''
 
-    if @platform.is_windows? && res.match(/cl.exe/i)
+    if Platform.is_windows? && res.match(/cl.exe/i)
         help = ' /? <NUL'
     else
         help = ' --help'
     end
     
     # Verify the command can be executed
-    cmd = res + help + @platform.dev_null
+    cmd = res + help + Platform.dev_null
     unless system(cmd)
        puts "not found"
        print " -- tried: " + cmd
@@ -359,7 +354,7 @@ class Compiler
 
   # Return the intermediate object files for each source file
   def objs
-    o = @platform.object_extension
+    o = Platform.object_extension
     @sources.map { |s| s.sub(/.c$/, ((!@is_library or @is_shared) ? o : '-static' + o)) }
   end
 
@@ -413,13 +408,19 @@ class Compiler
 
   # Compile a test program
   def test_compile(code)
+
+    # Write the code to a temporary source file
     f = Tempfile.new(['testprogram', '.' + @extension]);
     f.print code
     f.flush
     objfile = f.path + '.out'
-    cmd = command(objfile, f.path, @platform.dev_null)
-#puts ' + ' + cmd + "\n"
+
+    # Run the compiler
+    cc = self.clone
+    cc.sources = f.path
+    cmd = command(objfile) + Platform.dev_null
     rc = system cmd
+
     File.unlink(objfile) if rc
     return rc
   end
@@ -430,8 +431,8 @@ class Compiler
 
     # Generate the targets and rules for each translation unit
     objs().sort.each do |d| 
-      src = d.sub(/#{@platform.object_extension}$/, '.c')
-      x = @platform.is_windows? ? ' /Fo' + d : ' -o ' + d
+      src = d.sub(/#{Platform.object_extension}$/, '.c')
+      x = Platform.is_windows? ? ' /Fo' + d : ' -o ' + d
       cmd = command(d)
       res[d] = [src, cmd + x + ' ' + src]
     end
@@ -451,9 +452,9 @@ class CCompiler < Compiler
 
   attr_accessor :output_type
 
-  def initialize(platform)
+  def initialize
     @output_type = nil
-    super(platform, 'C', '.c')
+    super('C', '.c')
     search(['cc', 'gcc', 'clang', 'cl.exe'])
   end
 
@@ -496,13 +497,11 @@ class Makefile
   
   # Object constructor.
   # === Parameters
-  # * _platform_ - The target platform
   # * _installer_ - The installer to use
   # * _project_ - The name of the project
   # * _version_ - The version number of the project
   #  
-  def initialize(platform, installer, project, version)
-    @platform = platform
+  def initialize(installer, project, version)
     @installer = installer
     @project = project
     @version = version
@@ -549,12 +548,12 @@ class Makefile
 
   # Add a file to the tarball during 'make dist'
   def distribute(path)
-    @targets['distdir'].add_rule(@platform.cp(path, '$(distdir)'))
+    @targets['distdir'].add_rule(Platform.cp(path, '$(distdir)'))
   end
 
   # Add a file to be removed during 'make clean'
   def clean(path)
-    @targets['clean'].add_rule(@platform.rm(path))
+    @targets['clean'].add_rule(Platform.rm(path))
   end
 
   def add_dependency(target,depends)
@@ -579,14 +578,14 @@ class Makefile
     end
 
     add_rule('install', "$(INSTALL) -m #{mode} #{src} $(DESTDIR)#{dst}")
-    add_rule('uninstall', @platform.rm("$(DESTDIR)#{dst}/#{File.basename(src)}"))
+    add_rule('uninstall', Platform.rm("$(DESTDIR)#{dst}/#{File.basename(src)}"))
 
     # FIXME: broken
 #   if (rename) 
-#      add_rule('uninstall', @platform.rm('$(DESTDIR)' + dst))
+#      add_rule('uninstall', Platform.rm('$(DESTDIR)' + dst))
 #    else 
 #      raise "FIXME"
-##add_rule('uninstall', @platform.rm('$(DESTDIR)' + $dst + '/' . basename($src)));
+##add_rule('uninstall', Platform.rm('$(DESTDIR)' + $dst + '/' . basename($src)));
 #    end 
   end
 
@@ -614,7 +613,7 @@ class Makefile
     tg.add_rule("rm -rf " + distdir)
     tg.add_rule("mkdir " + distdir)
     tg.add_rule('$(MAKE) distdir distdir=' + distdir)
-    if @platform.is_windows? 
+    if Platform.is_windows? 
        raise 'FIXME - Not implemented'
     else
        tg.add_rule("rm -rf #{distdir}.tar #{distdir}.tar.gz")
@@ -684,7 +683,7 @@ class Library < Buildable
   private
 
   def build_static_library
-    libfile = @id + @compiler.platform.static_library_extension
+    libfile = @id + Platform.static_library_extension
     cc = @compiler.clone
     cc.is_library = true
     cc.is_shared = false
@@ -694,17 +693,17 @@ class Library < Buildable
     cmd = cc.command(libfile)
     deps = cc.objs.sort
     deps.each do |d| 
-      src = d.sub(/-static#{@compiler.platform.object_extension}$/, '.c')
-      output = @compiler.platform.is_windows? ? ' /Fo' + d : ' -o ' + d
+      src = d.sub(/-static#{Platform.object_extension}$/, '.c')
+      output = Platform.is_windows? ? ' /Fo' + d : ' -o ' + d
       @makefile.add_target(d, src, cmd + output + ' ' + src) 
     end
-    @makefile.add_target(libfile, deps, @compiler.platform.archiver(libfile, deps))
+    @makefile.add_target(libfile, deps, Platform.archiver(libfile, deps))
     @makefile.clean(cc.objs)
     @output.push libfile
   end
 
   def build_shared_library
-    libfile = @id + @compiler.platform.shared_library_extension(@abi_major,@abi_minor)
+    libfile = @id + Platform.shared_library_extension(@abi_major,@abi_minor)
     cc = @compiler.clone
     cc.is_library = true
     cc.is_shared = true
@@ -714,7 +713,7 @@ class Library < Buildable
 
     deps = cc.objs.sort
 
-    if @compiler.platform.is_windows?
+    if Platform.is_windows?
       @makefile.add_target(libfile, deps, 'link.exe /DLL /OUT:$@ ' + deps.join(' '))
       # FIXME: shouldn't we use cmd to build the dll ??
     else
@@ -737,7 +736,7 @@ class Binary < Buildable
   end
 
   def build
-    binfile = @id + @compiler.platform.executable_extension
+    binfile = @id + Platform.executable_extension
     cc = @compiler.clone
     cc.is_library = false
     cc.is_makefile = true
@@ -840,8 +839,7 @@ class Project
     @installer = installer
     @ast = parse(manifest)
     @name = @ast['project']
-    @platform = Platform.new()
-    @mf = Makefile.new(@platform, @installer, @name, @ast['version'].to_s)
+    @mf = Makefile.new(@installer, @name, @ast['version'].to_s)
     @header = {}
     
     # TODO-Include subprojects
@@ -854,7 +852,7 @@ class Project
 
   # Examine the operating environment and set configuration options
   def configure
-    @cc = CCompiler.new(@platform)
+    @cc = CCompiler.new()
     check_headers
     make_libraries
     make_binaries
