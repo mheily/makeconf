@@ -15,7 +15,9 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
 
-require_relative 'makeconf'
+$LOAD_PATH << File.dirname(__FILE__)
+
+require 'makeconf'
 
 m = Makeconf.new()
 m.configure
