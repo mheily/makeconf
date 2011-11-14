@@ -237,6 +237,7 @@ class Installer
   private
 
   def search()
+    return nil if Platform.is_windows?
     [ ENV['INSTALL'], '/usr/ucb/install', '/usr/bin/install' ].each do |x|
         if !x.nil? and File.exists?(x)
          return x
