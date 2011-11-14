@@ -102,6 +102,11 @@ class Platform
     end
   end
 
+  # Remove a directory along with all of it's contents
+  def Platform.rmdir(path)
+    is_windows? ? "rmdir /S /Q #{path}" : "rm -rf #{path}"
+  end
+
   def Platform.cp(src,dst)
     if src.kind_of?(Array)
       src = src.join(' ')
@@ -614,11 +619,13 @@ class Makefile
   def make_dist
     distdir = @project + '-' + @version
     tg = Target.new('dist')
-    tg.add_rule("rm -rf " + distdir)
+    tg.add_rule(Platform.rmdir(distdir))
     tg.add_rule("mkdir " + distdir)
     tg.add_rule('$(MAKE) distdir distdir=' + distdir)
     if Platform.is_windows? 
+       require 'zip/zip'
        raise 'FIXME - Not implemented'
+
     else
        tg.add_rule("rm -rf #{distdir}.tar #{distdir}.tar.gz")
        tg.add_rule("tar cvf #{distdir}.tar #{distdir}")
