@@ -195,9 +195,13 @@ class Installer
 
   # Examine the operating environment and set configuration options
   def configure
-    printf "checking for a BSD-compatible install.. "
-    @path = search() or throw 'No installer found'
-    printf @path + "\n"
+    printf 'checking for a BSD-compatible install.. '
+    if Platform.is_windows?
+       puts 'not found'
+    else
+       @path = search() or throw 'No installer found'
+       printf @path + "\n"
+    end
   end
 
   # Parse command line options.
@@ -237,7 +241,6 @@ class Installer
   private
 
   def search()
-    return nil if Platform.is_windows?
     [ ENV['INSTALL'], '/usr/ucb/install', '/usr/bin/install' ].each do |x|
         if !x.nil? and File.exists?(x)
          return x
