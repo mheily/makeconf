@@ -225,12 +225,12 @@ class Installer
   # Return a hash of variables to be included in a Makefile
   def makefile_variables
     res = { 
-        'INSTALL' => @path,
         'PACKAGE' => @package,
         'PKGINCLUDEDIR' => '$(INCLUDEDIR)/$(PACKAGE)',
         'PKGDATADIR' => '$(DATADIR)/$(PACKAGE)',
         'PKGLIBDIR' => '$(LIBDIR)/$(PACKAGE)',
     }
+    res['INSTALL'] = @path unless @path.nil?
     @dir.each do |k,v|
       k = (k == 'exec-prefix') ? 'EPREFIX' : k.upcase
       res[k] = v
