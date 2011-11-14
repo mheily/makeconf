@@ -624,7 +624,7 @@ class Makefile
     tg.add_rule('$(MAKE) distdir distdir=' + distdir)
     if Platform.is_windows? 
        require 'zip/zip'
-       raise 'FIXME - Not implemented'
+# FIXME - Not implemented yet
 
     else
        tg.add_rule("rm -rf #{distdir}.tar #{distdir}.tar.gz")
