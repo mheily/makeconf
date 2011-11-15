@@ -495,8 +495,6 @@ class Compiler
     # Add the linker flags to CFLAGS
     cflags += @ld.to_s
 
-    ldadd = @ldadd
-
     # FIXME: we are letting the caller add these to Makefile targets ??
     unless @is_makefile
       if @path.match(/cl.exe$/i)
@@ -531,10 +529,9 @@ class Compiler
     if @is_makefile
       inputs = ''
       cflags += ' $(CFLAGS) $(LDFLAGS)'
-      ldadd += ' $(LDADD)'
     end
        
-    [ @path, cflags, inputs, ldadd ].join(' ')
+    [ @path, cflags, inputs, @ldadd ].join(' ')
   end
 
   # Compile a test program
@@ -571,7 +568,7 @@ class Compiler
     # Generate the targets and rules for the link stage
     cflags = [ "-o #{output}" ]
     cflags.push('-shared') if @is_library and @is_shared
-    cmd = ["$(CC)", cflags, objs().sort].flatten.join(' ')
+    cmd = ['$(CC)', cflags, objs().sort, '$(LDADD)'].flatten.join(' ')
     res[output] = [objs().sort, cmd]
 
     return res
