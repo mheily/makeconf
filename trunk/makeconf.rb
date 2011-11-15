@@ -527,11 +527,11 @@ class Compiler
     throw 'One or more sources are required' unless inputs.count
 
     # In a Makefile command, the sources are not listed explicitly
+    # We are also expected to pass additional variables
     if @is_makefile
       inputs = ''
-      cflags.push '$(CFLAGS)'
-      cflags.push '$(LDFLAGS)'
-      ldadd.push '$(LDADD)'
+      cflags += ' $(CFLAGS) $(LDFLAGS)'
+      ldadd += ' $(LDADD)'
     end
        
     [ @path, cflags, inputs, ldadd ].join(' ')
