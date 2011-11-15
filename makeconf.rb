@@ -495,6 +495,8 @@ class Compiler
     # Add the linker flags to CFLAGS
     cflags += @ld.to_s
 
+    ldadd = @ldadd
+
     # FIXME: we are letting the caller add these to Makefile targets ??
     unless @is_makefile
       if @path.match(/cl.exe$/i)
@@ -527,9 +529,12 @@ class Compiler
     # In a Makefile command, the sources are not listed explicitly
     if @is_makefile
       inputs = ''
+      cflags.push '$(CFLAGS)'
+      cflags.push '$(LDFLAGS)'
+      ldadd.push '$(LDADD)'
     end
        
-    [ @path, cflags, inputs, @ldadd ].join(' ')
+    [ @path, cflags, inputs, ldadd ].join(' ')
   end
 
   # Compile a test program
@@ -657,6 +662,8 @@ class Makefile
     @vars = {}
     @targets = {}
     @mkdir_list = []   # all directories that have been created so far
+
+    parse_environment
 
     %w[all clean distclean install uninstall distdir].each do |x|
         @targets[x] = Target.new(objs = x)
@@ -794,6 +801,10 @@ class Makefile
        clean("#{distdir}.tar.gz")
     end
     @targets[distfile] = tg
+  end
+
+  def parse_environment
+     # TODO
   end
 
 end
@@ -1040,10 +1051,13 @@ class Project
   # Create the Makefile and config.h files.
   def finalize
 
+    # Pass environment variables
+    %w[CFLAGS LDFLAGS LDADD].each do |k|
+       v = ENV[k].nil? ? '' : ENV[k]
+       @mf.define_variable(k, '=', v)
+    end
+
     # Define Makefile variables
-    @mf.define_variable('CFLAGS', '=', 'todo')
-    @mf.define_variable('LDFLAGS', '=', 'todo')
-    @mf.define_variable('LDADD', '=', 'todo')
     @mf.define_variable('CC', '=', @cc.path)
     @mf.define_variable('STANDARD_API', '=', 'posix')
     @mf.define_variable('DISTFILE', '=', @distfile)
@@ -1079,7 +1093,17 @@ class Project
         'check_header' => [],
     }
     ast = YAML.load_file(manifest)
-    default.each { |k,v| ast[k] ||= v }
+    default.each do |k,v| 
+        if ast.has_key?(k)
+          if ast[k].is_a?(Float) and v.is_a?(String)
+            ast[k] = ast[k].to_i.to_s
+          elsif ast[k].is_a?(Integer) and v.is_a?(String)
+            ast[k] = ast[k].to_s
+          end
+        else
+          ast[k] = v
+        end
+    end
     ast
   end
 
