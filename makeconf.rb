@@ -528,7 +528,7 @@ class Compiler
     # We are also expected to pass additional variables
     if @is_makefile
       inputs = ''
-      cflags += ' $(CFLAGS) $(LDFLAGS)'
+      cflags += ' $(CFLAGS)'
     end
        
     [ @path, cflags, inputs, @ldadd ].join(' ')
@@ -568,7 +568,7 @@ class Compiler
     # Generate the targets and rules for the link stage
     cflags = [ "-o #{output}" ]
     cflags.push('-shared') if @is_library and @is_shared
-    cmd = ['$(CC)', cflags, objs().sort, '$(LDADD)'].flatten.join(' ')
+    cmd = ['$(CC)', cflags, '$(LDFLAGS)', objs().sort, '$(LDADD)'].flatten.join(' ')
     res[output] = [objs().sort, cmd]
 
     return res
