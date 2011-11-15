@@ -99,6 +99,20 @@ class Platform
    end
   end
 
+  # Create a directory and all of it's components
+  def Platform.mkdir(path)
+    if path.kind_of?(Array)
+        path = path.join(' ')
+    end
+    throw 'invalid path' if path.nil? or path == ''
+    if is_windows?
+       throw 'FIXME'
+    else
+       "umask 22 ; mkdir -p #{path}"
+    end
+  end
+
+  # Remove a regular file
   def Platform.rm(path)
     if path.kind_of?(Array)
         path = path.join(' ')
@@ -572,13 +586,29 @@ class CCompiler < Compiler
 
 end
 
+# A target is a section in a Makefile
 class Target
+
   def initialize(objs, deps = [], rules = [])
       deps = [ deps ] unless deps.kind_of?(Array)
       rules = [ rules ] unless rules.kind_of?(Array)
       @objs = objs
       @deps = deps
       @rules = rules
+      @dirs_to_create = []      # directories to create
+      @files_to_copy = {}       # files to be copied
+  end
+
+  # Ensure that a directory is created before any rules are evaluated
+  def mkdir(path)
+    @dirs_to_create.push(path) unless @dirs_to_create.include?(path)
+  end
+
+  # Copy a file to a directory. This is more efficient than calling cp(1)
+  # for each file.
+  def cp(src,dst)
+    @files_to_copy[dst] ||= []
+    @files_to_copy[dst].push(src)
   end
 
   def add_dependency(depends)
@@ -593,10 +623,17 @@ class Target
     @rules.unshift(rule)
   end
 
+  # Return the string representation of the target
   def to_s
     res = "\n" + @objs + ':'
     res += ' ' + @deps.join(' ') if @deps
     res += "\n"
+    unless @dirs_to_create.empty?
+       res += "\t" + Platform.mkdir(@dirs_to_create) + "\n"
+    end
+    @files_to_copy.each do |k,v|
+       res += "\t" + Platform.cp(v, k) + "\n"
+    end
     @rules.each { |r| res += "\t" + r + "\n" }
     res
   end
@@ -631,7 +668,16 @@ class Makefile
     @targets['install'].add_rule('test -e $(DESTDIR)')
 
     # Distribute some standard files with 'make distdir'
-    ['makeconf.rb', 'config.yaml', 'configure'].each { |f| distribute(f) }
+    ['config.yaml', 'configure'].each { |f| distribute(f) }
+
+    # Distribute makeconf.rb
+    if File.exists?('makeconf.rb')
+        distribute('makeconf.rb')
+    elsif File.exists?('makeconf/makeconf.rb')
+        distribute('makeconf/makeconf.rb')
+    else
+        throw 'Unable to locate makeconf.rb'
+    end
   end
 
   def define_variable(lval,op,rval)
@@ -662,7 +708,14 @@ class Makefile
 
   # Add a file to the tarball during 'make dist'
   def distribute(path)
-    @targets['distdir'].add_rule(Platform.cp(path, '$(distdir)'))
+    # FIXME: support Windows backslashery
+    if path =~ /\//
+       dst = '$(distdir)/' + File.dirname(path)
+       @targets['distdir'].mkdir(dst)
+       @targets['distdir'].cp(path, dst)
+    else
+       @targets['distdir'].cp(path, '$(distdir)')
+    end
   end
 
   # Add a file to be removed during 'make clean'
@@ -735,7 +788,7 @@ class Makefile
 
     else
        tg.add_rule("rm -rf #{distdir}.tar #{distdir}.tar.gz")
-       tg.add_rule("tar cvf #{distdir}.tar #{distdir}")
+       tg.add_rule("tar cf #{distdir}.tar #{distdir}")
        tg.add_rule("gzip #{distdir}.tar")
        tg.add_rule("rm -rf #{distdir}")
        clean("#{distdir}.tar.gz")
@@ -977,6 +1030,7 @@ class Project
     make_libraries
     make_binaries
     make_scripts
+    make_extra_dist
     make_installable(@ast['headers'], '$(PKGINCLUDEDIR)')
     make_installable(@ast['data'], '$(PKGDATADIR)')
     make_installable(@ast['manpages'], '$(MANDIR)') #FIXME: Needs a subdir
@@ -1008,10 +1062,10 @@ class Project
   def parse(manifest)
     default = {
         'project' => 'myproject',
-	'version' => '0.1',
-	'author' => 'Unknown Author <nobody@nowhere.invalid>',
-	'license' => 'Unknown License',
-	'summary' => 'Unknown Project Summary',
+        'version' => '0.1',
+        'author' => 'Unknown Author <nobody@nowhere.invalid>',
+        'license' => 'Unknown License',
+        'summary' => 'Unknown Project Summary',
 
         'binaries' => [],
         'data' => [],
@@ -1020,6 +1074,7 @@ class Project
         'manpages' => [],
         'scripts' => [],
         'tests' => [],
+        'extra_dist' => [],
 
         'check_header' => [],
     }
@@ -1049,6 +1104,12 @@ class Project
   def make_scripts
     @ast['scripts'].each do |k,v|
         Script.new(k, v, @mf).build
+    end
+  end
+
+  def make_extra_dist
+    @ast['extra_dist'].each do |k|
+      Dir.glob(k).each { |f| @mf.distribute(f) }
     end
   end
 
