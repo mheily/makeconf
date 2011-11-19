@@ -82,12 +82,32 @@ class Platform
     @@target_os =~ /mswin|mingw/
   end
 
+  # Returns true or false depending on if the target is Solaris
+  def Platform.is_solaris?
+    @@target_os =~ /^solaris/
+  end
+
   # Returns the name of the operating system vendor
   def Platform.vendor
     return 'Fedora' if File.exists?('/etc/fedora-release')
     return 'Red Hat' if File.exists?('/etc/redhat-release')
     return 'Debian' if File.exists?('/etc/debian_version')
     return 'Unknown' 
+  end
+  
+  # Returns the native word size
+  def Platform.word_size
+    if @@host_os =~ /^solaris/
+      `/usr/bin/isainfo -b`.to_i
+    elif @@host_os =~ /^linux/
+      if `/usr/bin/file /bin/bash` =~ /32-bit/
+        return 32
+      else
+        return 64
+      end
+    else
+      throw 'Unknown word size'
+    end
   end
 
   def Platform.archiver(archive,members)
@@ -584,6 +604,12 @@ class CCompiler < Compiler
     @output_type = nil
     super('C', '.c')
     search(['cc', 'gcc', 'clang', 'cl.exe'])
+
+    # GCC on Solaris produces 32-bit code by default, so add -m64
+    # when running in 64-bit mode.
+    if Platform.is_solaris? and Platform.word_size == 64
+       @cflags += ' -m64'
+    end
   end
 
 end
