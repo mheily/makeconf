@@ -99,7 +99,7 @@ class Platform
   def Platform.word_size
     if @@host_os =~ /^solaris/
       `/usr/bin/isainfo -b`.to_i
-    elif @@host_os =~ /^linux/
+    elsif @@host_os =~ /^linux/
       if `/usr/bin/file /bin/bash` =~ /32-bit/
         return 32
       else
