@@ -588,7 +588,7 @@ class Compiler
     # Generate the targets and rules for the link stage
     cflags = [ "-o #{output}" ]
     cflags.push('-shared') if @is_library and @is_shared
-    cmd = ['$(CC)', cflags, '$(LDFLAGS)', objs().sort, '$(LDADD)'].flatten.join(' ')
+    cmd = ['$(CC)', cflags, ldflags, '$(LDFLAGS)', objs().sort, '$(LDADD)'].flatten.join(' ')
     res[output] = [objs().sort, cmd]
 
     return res
@@ -609,6 +609,7 @@ class CCompiler < Compiler
     # when running in 64-bit mode.
     if Platform.is_solaris? and Platform.word_size == 64
        @cflags += ' -m64'
+       @ldflags += '-m64'
     end
   end
 
