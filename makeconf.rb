@@ -510,7 +510,7 @@ class Compiler
 
     cflags = @cflags + @extra_cflags
     cflags += ' -c'
-    cflags += ' -fPIC -shared' if @is_library and @is_shared
+    cflags += ' -fpic -shared' if @is_library and @is_shared
 
     # Add the linker flags to CFLAGS
     cflags += @ld.to_s
@@ -532,7 +532,7 @@ class Compiler
       cflags.gsub!(/ -W /, ' ')
       cflags.gsub!(/ -Wno-.*? /, ' ')
       cflags.gsub!(/ -Wextra /, ' ')
-      cflags.gsub!(/ -fPIC /, ' ')
+      cflags.gsub!(/ -fpic /, ' ')
       cflags.gsub!(/ -std=.*? /, ' ')
       cflags.gsub!(/ -pedantic /, ' ')
     end
