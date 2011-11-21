@@ -694,6 +694,7 @@ class Makefile
     end
 
     add_target('dist', ['clean', '$(DISTFILE)'], [])
+    add_target('check', [], [])
 
     # Prepare the destination tree for 'make install'
     @targets['install'].add_rule('test -e $(DESTDIR)')
