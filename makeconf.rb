@@ -540,6 +540,8 @@ class Compiler
   def command(output)
     throw 'Invalid linker' unless @ld.is_a?(Linker)
 
+    ldadd = @ldadd
+
     cflags = @cflags + @extra_cflags
     cflags += ' -c'
     cflags += ' -fpic -shared' if @is_library and @is_shared
@@ -580,10 +582,11 @@ class Compiler
     # We are also expected to pass additional variables
     if @is_makefile
       inputs = ''
+      ldadd = ''
       cflags += ' $(CFLAGS)'
     end
        
-    [ @path, cflags, inputs, @ldadd ].join(' ')
+    [ @path, cflags, inputs, ldadd ].join(' ')
   end
 
   # Compile a test program
