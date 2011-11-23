@@ -597,7 +597,7 @@ class Compiler
 
     # Generate the targets and rules for the link stage
     cflags = [ "-o #{output}" ]
-    cflags.push('-shared') if @is_library and @is_shared
+    cflags.push('-shared -Wl,-export-dynamic') if @is_library and @is_shared
     cmd = ['$(CC)', cflags, ldflags, '$(LDFLAGS)', objs().sort, @ldadd, '$(LDADD)'].flatten.join(' ')
     res[output] = [objs().sort, cmd]
 
@@ -847,7 +847,7 @@ end
 # A buildable object like a library or executable
 class Buildable
 
-  attr_accessor :installable, :distributable
+  attr_accessor :installable, :distributable, :compiler
 
   def initialize(id, ast, compiler, makefile)
     @id = id
@@ -1210,6 +1210,18 @@ class Project
         b = Binary.new(k, v, @cc, @mf)
         b.installable = false
         b.distributable = false
+        
+
+        # Assume that unit tests should be debuggable
+        b.compiler.append_cflags('-g -O0')
+
+        # Assume that the unit tests may require headers and libraries
+        # in the current working directory. To be sure, we should check
+        # the project to see if we are actually building libraries.
+        b.compiler.append_cflags('-I.')
+        b.compiler.append_cflags('-I./include') if File.directory?('./include')
+        b.compiler.append_ldflags('-Wl,-rpath,$$PWD -L$$PWD')
+
         b.build
         deps.push k
     end
