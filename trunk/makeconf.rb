@@ -87,6 +87,11 @@ class Platform
     @@target_os =~ /^solaris/
   end
 
+  # Returns true or false depending on if the target is Linux
+  def Platform.is_linux?
+    @@target_os =~ /^linux/
+  end
+
   # Returns the name of the operating system vendor
   def Platform.vendor
     return 'Fedora' if File.exists?('/etc/fedora-release')
@@ -493,6 +498,18 @@ class Compiler
     @path = res
   end
 
+  # Override the normal search path for the dynamic linker
+  def append_rpath(dir)
+    if Platform.is_solaris?
+      append_ldflags("-R#{dir}")
+    elsif Platform.is_linux?
+      append_ldflags("-Wl,-rpath,#{dir}")
+    else
+      throw 'Unsupported OS'
+    end
+    append_ldflags("-L#{dir}")
+   end
+       
   # Add additional user-defined compiler flags
   def append_cflags(s)
     @extra_cflags += ' ' + s
@@ -1223,7 +1240,7 @@ class Project
         # the project to see if we are actually building libraries.
         b.compiler.append_cflags('-I.')
         b.compiler.append_cflags('-I./include') if File.directory?('./include')
-        b.compiler.append_ldflags('-Wl,-rpath,$$PWD -L$$PWD')
+        b.compiler.append_rpath('$$PWD')
 
         b.build
         deps.push k
