@@ -540,14 +540,13 @@ class Compiler
   def command(output)
     throw 'Invalid linker' unless @ld.is_a?(Linker)
 
+    ldflags = @ld.to_s
     ldadd = @ldadd
 
     cflags = @cflags + @extra_cflags
     cflags += ' -c'
     cflags += ' -fpic -shared' if @is_library and @is_shared
 
-    # Add the linker flags to CFLAGS
-    cflags += @ld.to_s
 
     # FIXME: we are letting the caller add these to Makefile targets ??
     unless @is_makefile
@@ -578,15 +577,17 @@ class Compiler
     end
     throw 'One or more sources are required' unless inputs.count
 
-    # In a Makefile command, the sources are not listed explicitly
-    # We are also expected to pass additional variables
+    # In a Makefile command, the sources are not listed explicitly.
+    # Compilation and linking are separate steps.
+    # We are also expected to pass additional variables.
     if @is_makefile
       inputs = ''
       ldadd = ''
+      ldflags = ''
       cflags += ' $(CFLAGS)'
     end
        
-    [ @path, cflags, inputs, ldadd ].join(' ')
+    [ @path, cflags, ldflags, inputs, ldadd ].join(' ')
   end
 
   # Compile a test program
