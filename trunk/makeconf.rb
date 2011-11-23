@@ -434,13 +434,13 @@ class Compiler
   attr_reader :ldflags, :cflags, :path
   attr_accessor :is_library, :is_shared, :is_makefile, :sources, :ld
 
-  def initialize(language, extension, ldflags = '', cflags = '', ldadd = '')
+  def initialize(language, extension, ldflags = '', cflags = '')
     @language = language
     @extension = extension
     @cflags = cflags
     @extra_cflags = ''
     @ldflags = ldflags
-    @ldadd = ldadd
+    @ldadd = ''
     @output = nil
     @is_library = false
     @is_shared = false
@@ -496,6 +496,16 @@ class Compiler
   # Add additional user-defined compiler flags
   def append_cflags(s)
     @extra_cflags += ' ' + s
+  end
+
+  # Add additional user-defined link-time objects
+  def append_ldflags(s)
+    @ldflags += ' ' + s
+  end
+
+  # Add additional user-defined link-time objects
+  def append_ldadd(s)
+    @ldadd += ' ' + s
   end
 
   # Return the intermediate object files for each source file
@@ -588,7 +598,7 @@ class Compiler
     # Generate the targets and rules for the link stage
     cflags = [ "-o #{output}" ]
     cflags.push('-shared') if @is_library and @is_shared
-    cmd = ['$(CC)', cflags, ldflags, '$(LDFLAGS)', objs().sort, '$(LDADD)'].flatten.join(' ')
+    cmd = ['$(CC)', cflags, ldflags, '$(LDFLAGS)', objs().sort, @ldadd, '$(LDADD)'].flatten.join(' ')
     res[output] = [objs().sort, cmd]
 
     return res
@@ -837,11 +847,14 @@ end
 # A buildable object like a library or executable
 class Buildable
 
+  attr_accessor :installable, :distributable
+
   def initialize(id, ast, compiler, makefile)
     @id = id
     @ast = ast
-    @compiler = compiler.clone
     @makefile = makefile
+    @installable = true
+    @distributable = true
     @output = []
     default = {
         'extension' => '',
@@ -854,11 +867,16 @@ class Buildable
     default.each do |k,v| 
       instance_variable_set('@' + k, ast[k].nil? ? v : ast[k])
     end
+
+    @compiler = compiler.clone
+    @compiler.append_cflags(@cflags)
+    @compiler.append_ldflags(@ldflags)
+    @compiler.append_ldadd(@ldadd)
   end
 
   def build
     @makefile.clean(@output)
-    @makefile.distribute(@sources)
+    @makefile.distribute(@sources) if @distributable
     @makefile.add_dependency('all', @output)
   end
 
@@ -951,15 +969,11 @@ class Binary < Buildable
 
 #XXX-BROKEN cc.add_targets(@makefile)
 
-    # Build the complete compiler string
-    # (FIXME) should use Compiler method here
-    deps = cc.objs.sort
-    tok = [ '$(CC)', '-o $@' ]
-    tok += deps
-    @makefile.add_target(binfile, @depends + deps, @cc.command(binfile))
+    @makefile.merge(cc.to_make(binfile))
 
     @makefile.clean(cc.objs)
-    @makefile.install(binfile, '$(BINDIR)', { 'mode' => '755' })
+    @makefile.install(binfile, '$(BINDIR)', { 'mode' => '755' }) \
+        if @installable
     @output.push binfile
     super()
   end
@@ -1192,7 +1206,11 @@ class Project
     return unless @ast['tests']
     deps = []
     @ast['tests'].each do |k,v|
-        Binary.new(k, v, @cc, @mf).build
+        k = 'test-' + k
+        b = Binary.new(k, v, @cc, @mf)
+        b.installable = false
+        b.distributable = false
+        b.build
         deps.push k
     end
     @mf.add_target('check', deps, deps.map { |d| './' + d })
