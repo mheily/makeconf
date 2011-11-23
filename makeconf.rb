@@ -92,6 +92,11 @@ class Platform
     @@target_os =~ /^linux/
   end
 
+  # Returns true or false depending on if the target is x86-compatible
+  def Platform.is_x86?
+    Config::CONFIG['host_cpu'] =~ /^(x86_64|i386)$/ ? true : false
+  end
+
   # Returns the name of the operating system vendor
   def Platform.vendor
     return 'Fedora' if File.exists?('/etc/fedora-release')
@@ -635,11 +640,12 @@ class CCompiler < Compiler
     super('C', '.c')
     search(['cc', 'gcc', 'clang', 'cl.exe'])
 
-    # GCC on Solaris produces 32-bit code by default, so add -m64
+    # GCC on Solaris 10 produces 32-bit code by default, so add -m64
     # when running in 64-bit mode.
     if Platform.is_solaris? and Platform.word_size == 64
        @cflags += ' -m64'
        @ldflags += '-m64'
+       @ldflags += ' -R/usr/sfw/lib/amd64' if Platform.is_x86?
     end
   end
 
