@@ -597,7 +597,10 @@ class Compiler
 
     # Generate the targets and rules for the link stage
     cflags = [ "-o #{output}" ]
-    cflags.push('-shared -Wl,-export-dynamic') if @is_library and @is_shared
+    if @is_library and @is_shared
+       cflags.push('-shared')
+       cflags.push('-Wl,-export-dynamic') unless Platform.is_solaris?
+    end
     cmd = ['$(CC)', cflags, ldflags, '$(LDFLAGS)', objs().sort, @ldadd, '$(LDADD)'].flatten.join(' ')
     res[output] = [objs().sort, cmd]
 
