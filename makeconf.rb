@@ -60,6 +60,22 @@ class Makeconf
     @proj.finalize
   end
 
+  #
+  # Accessors
+  #
+
+  # Return a project object
+  def project(id)
+    # TODO: actually use <id> when multi-project is implemented
+    @proj
+  end
+
+  # Search all projects for a given library
+  def library(id)
+    # TODO: implement multi-project
+    @proj.library(id)
+  end
+
 end
 
 #
@@ -196,8 +212,8 @@ class Platform
   end
 
   # The extension used for shared libraries
-  def Platform.shared_library_extension(abi_major,abi_minor)
-    is_windows? ? '.dll' : '.so.' + abi_major + '.' + abi_minor
+  def Platform.shared_library_extension
+    is_windows? ? '.dll' : '.so'
   end
 
   # Emulate the which(1) command
@@ -590,6 +606,18 @@ class Compiler
     [ @path, cflags, ldflags, inputs, ldadd ].join(' ')
   end
 
+  # Test if the compiler supports a command line option
+  def has_option(opt)
+
+    # Create a simple test file
+    f = Tempfile.new(['testprogram', @extension]);
+    f.puts 'int main() { }'
+    f.flush
+
+    cmd = [ @path, opt, '-c', f.path ].join(' ') + Platform.dev_null
+    system cmd
+  end
+
   # Compile a test program
   def test_compile(code)
 
@@ -638,6 +666,11 @@ end
 class CCompiler < Compiler
 
   attr_accessor :output_type
+
+  # Check if a header is available
+  def check_header(path)
+    test_compile("#include <" + path + ">")
+  end
 
   def initialize
     @output_type = nil
@@ -898,6 +931,13 @@ class Buildable
       instance_variable_set('@' + k, ast[k].nil? ? v : ast[k])
     end
 
+    # Permit the use of wildcards in the 'sources' list
+    buf = []
+    @sources.each do |k|
+      buf.push Dir.glob(k)
+    end
+    @sources = buf.flatten
+
     @compiler = compiler.clone
     @compiler.append_cflags(@cflags)
     @compiler.append_ldflags(@ldflags)
@@ -958,7 +998,7 @@ class Library < Buildable
   end
 
   def build_shared_library
-    libfile = @id + Platform.shared_library_extension(@abi_major,@abi_minor)
+    libfile = @id + Platform.shared_library_extension
     cc = @compiler.clone
     cc.is_library = true
     cc.is_shared = true
@@ -1138,6 +1178,18 @@ class Project
     @packager.finalize
     @mf.merge(@packager.to_make)
     write_makefile
+  end
+
+  # Return the compiler associated with the project
+  def compiler(language = 'C')
+    throw 'Not implemented' if language != 'C'
+    throw 'Undefined compiler' if @cc.nil?
+    @cc
+  end
+
+  # Return a library definition
+  def library(id)
+    @ast['libraries'][id]
   end
 
   private
