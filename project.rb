@@ -54,8 +54,7 @@ class Project
     # Define Makefile variables
 #DEADWOOD: prevents mixing compilers in a multi-project environment: @makefile.define_variable('CC', '=', @cc.path)
     @makefile.define_variable('STANDARD_API', '=', 'posix')
-#XXX-FIXME distfile = @ast['project'] + '-' + @ast['version'] + '.tar.gz'
-    distfile = 'fixme.tar.gz'
+    distfile = @id + '-' + @version + '.tar.gz'
     @makefile.define_variable('DISTFILE', '=', distfile)
 
     # Add extra_dist items to the Makefile
