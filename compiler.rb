@@ -13,7 +13,6 @@ class Compiler
   end
 
   def clone
-    # does this deep copy the linker?
     Marshal.load(Marshal.dump(self))
   end
 
@@ -68,19 +67,23 @@ class Compiler
 
   # Return the complete command line to compile an object
   def command(h)
-    throw 'Invalid linker' unless @ld.is_a?(Linker)
+    res = []
 
+    throw 'Invalid linker' unless @ld.is_a?(Linker)
     throw ArgumentError.new unless h.is_a? Hash
     throw ArgumentError.new unless h.has_key? :output
     [:cflags, :ldflags, :ldadd].each do |x|
       h[x] = [] unless h.has_key? x
     end
+    [:rpath, :stage].each do |x|
+      h[x] = '' unless h.has_key? x
+    end
 
+    ld = @ld.clone
     ldadd = h[:ldadd]
     cflags = h[:cflags]
-    ldflags = h[:ldflags]
 
-    cflags.push '-c'
+    ld.rpath = h[:rpath] if h[:rpath].length > 0
 
     if @path.match(/cl.exe$/i)
       cflags.push '/Fo', h[:output]
@@ -106,7 +109,19 @@ class Compiler
     inputs = [ inputs ] if inputs.is_a? String
     throw 'One or more sources are required' unless inputs.count
 
-    [ @path, cflags, ldflags, @ld.to_s, inputs, ldadd ].flatten.join(' ')
+    if h[:stage] == :compile
+      res = [ @path, '-c', cflags, inputs ]
+    elsif h[:stage] == :link
+      ldflags = [ '-o', h[:output] ]
+      ldflags.push h[:ldflags]
+      res = [ @path, ldflags, ld.to_s, inputs, ldadd ]
+    elsif h[:stage] == :combined
+      throw 'STUB'
+    else
+      throw 'invalid stage'
+    end
+
+    res.flatten.join(' ')
   end
 
   # Test if the compiler supports a command line option
@@ -159,7 +174,9 @@ class Compiler
       if b.library? and b.library_type == :shared
         cflags.push '-fpic'
       end
-      cmd = command(:output => d, 
+      cmd = command(
+              :stage => :compile,
+              :output => d, 
               :sources => src, 
               :cflags => cflags,
               :ldflags => b.ldflags,
@@ -171,12 +188,14 @@ class Compiler
     end
 
     # Generate the targets and rules for the link stage
-    cflags = [ "-o #{b.output}" ]
-    if b.library? and b.library_type == :shared
-       cflags.push('-shared')
-       cflags.push('-Wl,-export-dynamic') unless Platform.is_solaris?
-    end
-    cmd = [@path, cflags, '$(CFLAGS)', b.ldflags, '$(LDFLAGS)', objs, b.ldadd, '$(LDADD)'].flatten.join(' ')
+    cmd = command(
+            :stage => :link,
+            :output => b.output, 
+            :sources => objs, 
+            :ldflags => b.ldflags,
+            :ldadd => b.ldadd,
+            :rpath => b.rpath
+            )
     makefile.add_target(b.output, objs, cmd)
     makefile.add_dependency('all', b.output)
     makefile.clean(b.output)

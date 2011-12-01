@@ -13,6 +13,9 @@ class Library < Buildable
     if @enable_shared 
       @output = @id + Platform.shared_library_extension
       @output_type = 'shared library'
+      @cflags.push '-fpic'
+      @ldflags.push('-shared')
+      @ldflags.push('-Wl,-export-dynamic') unless Platform.is_solaris?
     else
       @output = @id + Platform.static_library_extension
       @output_type = 'static library'

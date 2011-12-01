@@ -101,6 +101,11 @@ class Linker
 
   def initialize
     @flags = []
+    @cflags = [] # KLUDGE: passed to the compiler w/o the '-Wl,' prefix
+  end
+
+  def clone
+    Marshal.load(Marshal.dump(self))
   end
 
   # Sets the ELF soname to the specified string
@@ -118,18 +123,19 @@ class Linker
   # Override the normal search path for the dynamic linker
   def rpath=(dir)
     if Platform.is_solaris?
-      @flags.push "-R#{dir}"
+      @flags.push ['-R', dir]
     elsif Platform.is_linux?
-      @flags.push "-Wl,-rpath,#{dir}"
+      @flags.push ['-rpath', dir]
     else
       throw 'Unsupported OS'
     end
-    @flags.push "-L#{dir}"
+    @cflags.push ['-L', dir]
    end
 
   # Returns the linker flags suitable for passing to the compiler
   def to_s
      tok = []
+     tok.push @cflags
      @flags.each do |f|
         if f.kind_of?(Array)
           tok.push '-Wl,-' + f[0] + ',' + f[1]
