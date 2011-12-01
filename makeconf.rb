@@ -32,7 +32,6 @@ class Makeconf
 
   def initialize
     @installer = Installer.new
-    @packager = Packager.new(self)
     @makefile = Makefile.new
     @project = nil
   end
@@ -68,7 +67,6 @@ class Makeconf
      @installer.configure(project)
      @project.makefile = @makefile
      @project.installer = @installer
-     @project.packager = @packager
      @project.configure
   end
 
