@@ -2,7 +2,7 @@
 #
 class Project
 
-  attr_reader :id, :distfile
+  attr_reader :id, :version, :license, :author, :distfile
   attr_accessor :makefile, :installer, :packager
 
   require 'yaml'
@@ -10,18 +10,20 @@ class Project
   # Creates a new project
   def initialize(h)
     @id = h[:id]
-    @version = h[:version]
+    @version = h[:version] || '0.1'
+    @license = h[:license] || 'Unknown license'
+    @author = h[:author] || 'Unknown author'
     @header = {}
     @build = []         # List of items to build
     @distribute = []    # List of items to distribute
     @install = []       # List of items to install
     @test = []          # List of unit tests
     @cc = CCompiler.new()
+    @packager = Packager.new(self)
 
     # Provided by the parent Makeconf object
     @installer = nil
     @makefile = nil
-    @packager = nil
 
     [:id, :version].each do |k|
       raise ArgumentError.new("Missing argument: #{k}") \
