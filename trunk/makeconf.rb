@@ -143,6 +143,14 @@ class Linker
      end
      return ' ' + tok.join(' ')
   end
+
+  # TODO - not used yet
+  def command
+    # windows: 'link.exe /DLL /OUT:$@ ' + deps.join(' '))
+    # linux: 'cc ' .... (see Compiler::)
+  throw 'stub'
+  end
+
 end
 
 # An executable binary file

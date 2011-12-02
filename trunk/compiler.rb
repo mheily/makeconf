@@ -164,38 +164,44 @@ class Compiler
   def build(b)
     raise ArgumentError unless b.kind_of? Buildable
     makefile = Makefile.new
-
-    objs = object_files(b.sources).sort
+    objs = []
 
     # Generate the targets and rules for each translation unit
-    objs.each do |d| 
-      src = d.sub(/#{Platform.object_extension}$/, '.c')
+    b.sources.each do |src|
+      object_suffix = ''
       cflags = [ b.cflags ]
-      if b.library? and b.library_type == :shared
-        cflags.push '-fpic'
+      if b.library? 
+        if b.library_type == :shared
+          cflags.push '-fpic'
+        else
+          object_suffix = '-static'
+        end
       end
+      obj = src.sub(/.c$/, object_suffix + Platform.object_extension)
       cmd = command(
               :stage => :compile,
-              :output => d, 
+              :output => obj, 
               :sources => src, 
-              :cflags => cflags,
+              :cflags => cflags
+              )
+      makefile.add_target(obj, src, cmd)
+      makefile.clean(obj)
+      objs.push obj
+    end
+
+    # Generate the targets and rules for the link stage
+    if b.library? and b.library_type == :static
+       cmd = Platform.archiver(b.output, objs)
+    else
+      cmd = command(
+              :stage => :link,
+              :output => b.output, 
+              :sources => objs, 
               :ldflags => b.ldflags,
               :ldadd => b.ldadd,
               :rpath => b.rpath
               )
-      makefile.add_target(d, src, cmd)
-      makefile.clean(d)
     end
-
-    # Generate the targets and rules for the link stage
-    cmd = command(
-            :stage => :link,
-            :output => b.output, 
-            :sources => objs, 
-            :ldflags => b.ldflags,
-            :ldadd => b.ldadd,
-            :rpath => b.rpath
-            )
     makefile.add_target(b.output, objs, cmd)
     makefile.add_dependency('all', b.output)
     makefile.clean(b.output)
