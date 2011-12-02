@@ -87,11 +87,18 @@ class Project
   # Add item(s) to build
   def build(*arg)
     arg.each do |x|
-      throw ArgumentError.new('Invalid argument') unless x.respond_to?('build')
+      throw ArgumentError.new('Invalid argument') unless x.kind_of? Buildable
+
+      if x.kind_of?(SharedLibrary) or x.kind_of?(StaticLibrary)
+        dest = '$(LIBDIR)'
+      else
+        dest = '$(BINDIR)'
+      end
+
       @build.push x
       @install.push({ 
         :sources => x.output,
-        :dest => (x.kind_of?(Library) ? '$(LIBDIR)' : '$(BINDIR)'),
+        :dest => dest,
         :mode => '0755',
         })
     end
