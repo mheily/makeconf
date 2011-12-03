@@ -30,8 +30,22 @@ class Project
           unless h.has_key? k
     end
 
-    h[:manpages].each { |x| manpage(x) } if h[:manpages]   
-    h[:headers].each { |x| header(x) } if h[:headers]   
+    [:manpages, :headers, :libraries, :tests].each do |k|
+       h[k] = [] unless h.has_key? k
+    end
+
+    h[:manpages].each { |x| manpage(x) } 
+    h[:headers].each { |x| header(x) }   
+    h[:headers].each { |x| header(x) }   
+    h[:libraries].each do |id,buildable| 
+       buildable[:id] = id
+       build SharedLibrary.new(buildable)
+       build StaticLibrary.new(buildable)
+    end
+    h[:tests].each do |id,buildable| 
+       buildable[:id] = id
+       test Binary.new(buildable)
+    end
   end
 
   # Examine the operating environment and set configuration options

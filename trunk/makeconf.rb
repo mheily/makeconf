@@ -30,10 +30,10 @@ class Makeconf
   require 'makeconf/project'
   require 'makeconf/target'
 
-  def initialize
+  def initialize(project = nil)
     @installer = Installer.new
     @makefile = Makefile.new
-    @project = nil
+    @project = project.nil? ? nil : Project.new(project)
   end
 
   def parse_options(args = ARGV)
@@ -60,8 +60,8 @@ class Makeconf
   end
 
   # Examine the operating environment and set configuration options
-  def configure(project)
-     @project = project
+  def configure(project = nil)
+     project = @project if project.nil?
 
      parse_options
      @installer.configure(project)
