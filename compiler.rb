@@ -19,7 +19,6 @@ class Compiler
   # Search for a suitable compiler
   def search(compilers)
     res = nil
-    printf "checking for a " + @language + " compiler.. "
     if ENV['CC']
       res = ENV['CC']
     else
@@ -79,6 +78,7 @@ class Compiler
       h[x] = '' unless h.has_key? x
     end
 
+    cc = h[:cc] || @path
     ld = @ld.clone
     ldadd = h[:ldadd]
     cflags = h[:cflags]
@@ -151,9 +151,7 @@ class Compiler
     objfile = f.path + '.out'
 
     # Run the compiler
-    cc = self.clone
-    cc.sources = f.path
-    cmd = command(objfile) + Platform.dev_null
+    cmd = command(:sources => f.path, :output => objfile) + Platform.dev_null
     rc = system cmd
 
     File.unlink(objfile) if rc
@@ -219,6 +217,7 @@ class CCompiler < Compiler
   def initialize
     @output_type = nil
     super('C', '.c')
+    printf "checking for a C compiler.. "
     search(['cc', 'gcc', 'clang', 'cl.exe'])
 
     # GCC on Solaris 10 produces 32-bit code by default, so add -m64
