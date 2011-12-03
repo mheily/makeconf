@@ -34,6 +34,15 @@ class Makeconf
     @installer = Installer.new
     @makefile = Makefile.new
     @project = project.nil? ? nil : Project.new(project)
+    @finalized = false
+    at_exit { at_exit_handler }
+  end
+
+  def at_exit_handler
+    unless @finalized == true
+      configure(@project)
+      finalize
+    end
   end
 
   def parse_options(args = ARGV)
@@ -73,6 +82,7 @@ class Makeconf
   # Write all output files
   def finalize
      @project.finalize
+     @finalized == true
   end
 
   #
