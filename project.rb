@@ -2,7 +2,7 @@
 #
 class Project
 
-  attr_reader :id, :version, :license, :author, :distfile
+  attr_reader :id, :version, :summary, :description, :license, :author, :distfile
   attr_accessor :makefile, :installer, :packager
 
   require 'yaml'
@@ -11,6 +11,8 @@ class Project
   def initialize(h)
     @id = h[:id]
     @version = h[:version] || '0.1'
+    @summary = h[:summary] || 'Undefined project summary'
+    @description = h[:description] || 'Undefined project description'
     @license = h[:license] || 'Unknown license'
     @author = h[:author] || 'Unknown author'
     @header = {}        # Hash of system header availablity
