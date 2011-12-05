@@ -151,7 +151,7 @@ class Compiler
     objfile = f.path + '.out'
 
     # Run the compiler
-    cmd = command(:sources => f.path, :output => objfile) + Platform.dev_null
+    cmd = command(:stage => :compile, :sources => f.path, :output => objfile) + Platform.dev_null
     rc = system cmd
 
     File.unlink(objfile) if rc
