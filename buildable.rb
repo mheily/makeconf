@@ -52,6 +52,22 @@ class Buildable
     @output_type =~ /binary/
   end
 
+  # Examine the sources and return a list of system headers as possible
+  # dependencies.
+  def system_headers
+    res = []
+    @sources.each do |src| 
+      Dir.glob(src).each do |path|
+          File.open(path, 'r').each do |s|
+          if s =~ /^\s*#\s*include\s+\<(.*?)\>/
+            res.push $1
+          end
+        end
+      end
+    end
+    res.sort.uniq
+  end
+
   def finalize
     # Expand wildcards in the list of input files
     buf = []

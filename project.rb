@@ -13,7 +13,7 @@ class Project
     @version = h[:version] || '0.1'
     @license = h[:license] || 'Unknown license'
     @author = h[:author] || 'Unknown author'
-    @header = {}
+    @header = {}        # Hash of system header availablity
     @build = []         # List of items to build
     @distribute = []    # List of items to distribute
     @install = []       # List of items to install
@@ -50,6 +50,19 @@ class Project
 
   # Examine the operating environment and set configuration options
   def configure
+
+    # Test for the existence of each referenced system header
+    system_headers = []
+    @build.each do |x| 
+      system_headers.push x.system_headers
+    end
+
+    system_headers.flatten.sort.uniq.each do |header|
+      printf "checking for #{header}.. "
+      @header[header] = @cc.check_header(header)
+      puts @header[header] ? 'yes' : 'no'
+    end
+
 #    make_installable(@ast['data'], '$(PKGDATADIR)')
 #    make_installable(@ast['manpages'], '$(MANDIR)') #FIXME: Needs a subdir
   end
@@ -265,7 +278,15 @@ class Project
     puts 'Creating ' + ofile
     f = File.open(ofile, 'w')
     f.print "/* AUTOMATICALLY GENERATED -- DO NOT EDIT */\n"
-    @header.each { |k,v| f.print v.to_config_h }
+    @header.keys.sort.each do |k|
+      v = @header[k]
+      id = k.upcase.gsub(%r{[/.-]}, '_')
+      if v == true
+        f.printf "#define HAVE_" + id + " 1\n"
+      else
+        f.printf "#undef  HAVE_" + id + "\n" 
+      end
+    end
     f.close
   end
 
