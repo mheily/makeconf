@@ -15,6 +15,7 @@ class Project
     @description = h[:description] || 'Undefined project description'
     @license = h[:license] || 'Unknown license'
     @author = h[:author] || 'Unknown author'
+    @config_h = h[:config_h] || 'config.h'
     @header = {}        # Hash of system header availablity
     @build = []         # List of items to build
     @distribute = []    # List of items to distribute
@@ -276,7 +277,7 @@ class Project
   end
 
   def write_config_h
-    ofile = 'config.h'
+    ofile = @config_h
     puts 'Creating ' + ofile
     f = File.open(ofile, 'w')
     f.print "/* AUTOMATICALLY GENERATED -- DO NOT EDIT */\n"
