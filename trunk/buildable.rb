@@ -31,6 +31,11 @@ class Buildable
     @cflags = [ @cflags.split(' ') ] if @cflags.is_a? String
     @output = id
     @output_type = nil      # filled in by the derived class
+
+    # Use glob(3) to expand the list of sources
+    buf = []
+    @sources.each { |src| buf << Dir.glob(src) }
+    @sources = buf.flatten
   end
 
   def library?
@@ -57,11 +62,9 @@ class Buildable
   def system_headers
     res = []
     @sources.each do |src| 
-      Dir.glob(src).each do |path|
-          File.open(path, 'r').each do |s|
-          if s =~ /^\s*#\s*include\s+\<(.*?)\>/
-            res.push $1
-          end
+      File.open(src, 'r').each do |line|
+        if line =~ /^\s*#\s*include\s+\<(.*?)\>/
+          res.push $1
         end
       end
     end
@@ -69,11 +72,6 @@ class Buildable
   end
 
   def finalize
-    # Expand wildcards in the list of input files
-    buf = []
-    @sources.each do |k|
-      buf.push Dir.glob(k)
-    end
-    @sources = buf.flatten
   end
+
 end
