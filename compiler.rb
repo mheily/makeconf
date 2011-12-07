@@ -158,6 +158,35 @@ class Compiler
     return rc
   end
 
+  
+  # Return a hash containing Makefile dependencies
+  def makedepends(b)
+    res = []
+    raise ArgumentError unless b.kind_of? Buildable
+
+    # Generate the targets and rules for each translation unit
+    b.sources.each do |src|
+      cflags = [ b.cflags, '-E' ]
+      cmd = command(
+                :stage => :compile,
+                :output => '-', 
+                :sources => src, 
+                :cflags => cflags
+              ) + Platform.dev_null_stderr
+
+      # TODO: do b.sysdep also
+      b.localdep[src] = []
+      IO.popen(cmd).each do |x|
+        if x =~ /^# \d+ "([^\/<].*\.h)"/
+          b.localdep[src].push $1
+        end
+      end
+      res.concat b.localdep[src].sort!.uniq!
+
+    end
+    res
+  end
+
   # Return a hash containing Makefile rules and targets
   def build(b)
     raise ArgumentError unless b.kind_of? Buildable
@@ -182,7 +211,7 @@ class Compiler
               :sources => src, 
               :cflags => cflags
               )
-      makefile.add_target(obj, src, cmd)
+      makefile.add_target(obj, [src, b.localdep[src]].flatten, cmd)
       makefile.clean(obj)
       objs.push obj
     end
