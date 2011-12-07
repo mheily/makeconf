@@ -183,6 +183,23 @@ class Compiler
       end
       res.concat b.localdep[src].sort!.uniq!
 
+      # Generate a list of system header dependencies
+      # FIXME: does a lot of duplicate work reading files in..
+      buf = []
+      b.sysdep[src] = []
+      buf.concat File.read(src).split(/\r?\n/)
+      b.localdep[src].each do |x|
+        if File.exist? x
+          buf.concat File.read(x).split(/\r?\n/)
+        end
+      end
+      buf.each do |x|
+        if x =~ /^#\s*include\s+\<(.*?)\>/
+          b.sysdep[src].push $1
+        end
+      end
+      b.sysdep[src].sort!.uniq!
+
     end
     res
   end

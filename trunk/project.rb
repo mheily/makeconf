@@ -62,13 +62,11 @@ class Project
     local_headers.sort!.uniq!
 
     # Test for the existence of each referenced system header
-    pp local_headers
-    warn 'FIXME -- CHECK FOR SYSTEM HEADERS'
-#system_headers.each do |header|
-#      printf "checking for #{header}.. "
-#      @header[header] = @cc.check_header(header)
-#      puts @header[header] ? 'yes' : 'no'
-#    end
+    sysdeps.each do |header|
+      printf "checking for #{header}.. "
+      @header[header] = @cc.check_header(header)
+      puts @header[header] ? 'yes' : 'no'
+    end
 
 #    make_installable(@ast['data'], '$(PKGDATADIR)')
 #    make_installable(@ast['manpages'], '$(MANDIR)') #FIXME: Needs a subdir
@@ -207,6 +205,16 @@ class Project
   # Return a library definition
   def library(id)
     @ast['libraries'][id]
+  end
+
+  # Return a list of all system header dependencies for all Buildable
+  # objects in the project.
+  def sysdeps
+    res = []
+    @build.each do |x|
+      x.sysdep.each { |k,v| res.concat v }
+    end
+    res.sort.uniq
   end
 
   private
