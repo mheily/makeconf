@@ -2,7 +2,8 @@
 class Buildable
 
   attr_accessor :id, :installable, :distributable,
-                :output, :output_type, :sources, :cflags, :ldflags, :ldadd, :rpath
+        :localdep, :sysdep,
+        :output, :output_type, :sources, :cflags, :ldflags, :ldadd, :rpath
 
   def initialize(h, extra_options = {})
     default = {
@@ -32,10 +33,20 @@ class Buildable
     @output = id
     @output_type = nil      # filled in by the derived class
 
+    # Local and system header dependencies for each @sources file
+    # These are filled in by Compiler.makedepends()
+    @localdep = {}
+    @sysdep = {}
+
     # Use glob(3) to expand the list of sources
     buf = []
     @sources.each { |src| buf << Dir.glob(src) }
     @sources = buf.flatten
+
+    # Read all source code into a single array
+    @source_code = {}
+    @sources.each { |x| @source_code[x] = File.read(x).split(/\r?\n/) }
+
   end
 
   def library?
@@ -55,20 +66,6 @@ class Buildable
 
   def binary?
     @output_type =~ /binary/
-  end
-
-  # Examine the sources and return a list of system headers as possible
-  # dependencies.
-  def system_headers
-    res = []
-    @sources.each do |src| 
-      File.open(src, 'r').each do |line|
-        if line =~ /^\s*#\s*include\s+\<(.*?)\>/
-          res.push $1
-        end
-      end
-    end
-    res.sort.uniq
   end
 
   def finalize

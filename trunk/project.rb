@@ -54,17 +54,21 @@ class Project
   # Examine the operating environment and set configuration options
   def configure
 
-    # Test for the existence of each referenced system header
-    system_headers = []
+    # Build a list of local headers
+    local_headers = []
     @build.each do |x| 
-      system_headers.push x.system_headers
+      local_headers.concat @cc.makedepends(x)
     end
+    local_headers.sort!.uniq!
 
-    system_headers.flatten.sort.uniq.each do |header|
-      printf "checking for #{header}.. "
-      @header[header] = @cc.check_header(header)
-      puts @header[header] ? 'yes' : 'no'
-    end
+    # Test for the existence of each referenced system header
+    pp local_headers
+    warn 'FIXME -- CHECK FOR SYSTEM HEADERS'
+#system_headers.each do |header|
+#      printf "checking for #{header}.. "
+#      @header[header] = @cc.check_header(header)
+#      puts @header[header] ? 'yes' : 'no'
+#    end
 
 #    make_installable(@ast['data'], '$(PKGDATADIR)')
 #    make_installable(@ast['manpages'], '$(MANDIR)') #FIXME: Needs a subdir

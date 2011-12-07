@@ -116,6 +116,15 @@ class Platform
     end
   end
 
+  # Send standard error to /dev/null or it's equivalent
+  def Platform.dev_null_stderr
+    if is_windows? && ! ENV['MSYSTEM'] 
+      ' 2>NUL' 
+    else
+      ' 2>/dev/null'
+    end
+  end
+
   # The extension used for executable files 
   def Platform.executable_extension
     is_windows? ? '.exe' : ''
