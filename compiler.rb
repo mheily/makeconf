@@ -16,45 +16,6 @@ class Compiler
     Marshal.load(Marshal.dump(self))
   end
 
-  # Search for a suitable compiler
-  def search(compilers)
-    res = nil
-    if ENV['CC']
-      res = ENV['CC']
-    else
-      compilers.each do |command|
-         if Platform.which(command)
-           res = command
-           break
-         end
-      end
-    end
-
-    # FIXME: kludge for Windows, breaks mingw
-    if Platform.is_windows?
-        res = 'cl.exe'
-    end
-
-    throw 'No compiler found' if res.nil? || res == ''
-
-    if Platform.is_windows? && res.match(/cl.exe/i)
-        help = ' /? <NUL'
-    else
-        help = ' --help'
-    end
-    
-    # Verify the command can be executed
-    cmd = res + help + Platform.dev_null
-    unless system(cmd)
-       puts "not found"
-       print " -- tried: " + cmd
-       raise
-    end
-
-    puts res
-    @path = res
-  end
-
   # Return the intermediate object files for each source file
   def object_files(sources)
     res = []
@@ -82,6 +43,8 @@ class Compiler
     ld = @ld.clone
     ldadd = h[:ldadd]
     cflags = h[:cflags]
+    ldflags = [ '-o', h[:output] ]
+    ldflags.push h[:ldflags]
 
     ld.rpath = h[:rpath] if h[:rpath].length > 0
 
@@ -112,11 +75,9 @@ class Compiler
     if h[:stage] == :compile
       res = [ @path, '-c', cflags, inputs ]
     elsif h[:stage] == :link
-      ldflags = [ '-o', h[:output] ]
-      ldflags.push h[:ldflags]
       res = [ @path, ldflags, ld.to_s, inputs, ldadd ]
     elsif h[:stage] == :combined
-      throw 'STUB'
+      res = [ @path, cflags, ldflags, inputs, ldadd ]
     else
       throw 'invalid stage'
     end
@@ -141,8 +102,13 @@ class Compiler
     test_compile("#include <" + path + ">")
   end
 
+  # Compile and link a test program
+  def test_link(code)
+    test_compile(code, :combined)
+  end
+
   # Compile a test program
-  def test_compile(code)
+  def test_compile(code, stage = :compile)
 
     # Write the code to a temporary source file
     f = Tempfile.new(['testprogram', '.' + @extension]);
@@ -151,7 +117,7 @@ class Compiler
     objfile = f.path + '.out'
 
     # Run the compiler
-    cmd = command(:stage => :compile, :sources => f.path, :output => objfile) + Platform.dev_null
+    cmd = command(:stage => stage, :sources => f.path, :output => objfile) + Platform.dev_null
     rc = system cmd
 
     File.unlink(objfile) if rc
@@ -254,6 +220,47 @@ class Compiler
     return makefile
   end
 
+  private
+
+  # Search for a suitable compiler
+  def search(compilers)
+    res = nil
+    if ENV['CC']
+      res = ENV['CC']
+    else
+      compilers.each do |command|
+         if Platform.which(command)
+           res = command
+           break
+         end
+      end
+    end
+
+    # FIXME: kludge for Windows, breaks mingw
+    if Platform.is_windows?
+        res = 'cl.exe'
+    end
+
+    throw 'No compiler found' if res.nil? || res == ''
+
+    if Platform.is_windows? && res.match(/cl.exe/i)
+        help = ' /? <NUL'
+    else
+        help = ' --help'
+    end
+    
+    # Verify the command can be executed
+    cmd = res + help + Platform.dev_null
+    unless system(cmd)
+       puts "not found"
+       print " -- tried: " + cmd
+       raise
+    end
+
+    puts res
+    res
+  end
+
 end
 
 class CCompiler < Compiler
@@ -264,7 +271,7 @@ class CCompiler < Compiler
     @output_type = nil
     super('C', '.c')
     printf "checking for a C compiler.. "
-    search(['cc', 'gcc', 'clang', 'cl.exe'])
+    @path = search(['cc', 'gcc', 'clang', 'cl.exe'])
 
     # GCC on Solaris 10 produces 32-bit code by default, so add -m64
     # when running in 64-bit mode.

@@ -21,6 +21,8 @@ class Project
     @distribute = []    # List of items to distribute
     @install = []       # List of items to install
     @test = []          # List of unit tests
+    @decls = {}         # List of declarations discovered via check_decl()
+    @funcs = {}         # List of functions discovered via check_func()
     @cc = CCompiler.new()
     @packager = Packager.new(self)
 
@@ -33,7 +35,7 @@ class Project
           unless h.has_key? k
     end
 
-    [:manpages, :headers, :libraries, :tests].each do |k|
+    [:manpages, :headers, :libraries, :tests, :check_decls, :check_funcs].each do |k|
        h[k] = [] unless h.has_key? k
     end
 
@@ -49,6 +51,12 @@ class Project
        buildable[:id] = id
        test Binary.new(buildable)
     end
+    h[:check_decls].each do |id,decl|
+      check_decl(id,decl)
+    end
+    h[:check_funcs].each do |f|
+      check_func(f)
+    end
   end
 
   # Examine the operating environment and set configuration options
@@ -63,7 +71,7 @@ class Project
 
     # Test for the existence of each referenced system header
     sysdeps.each do |header|
-      printf "checking for #{header}.. "
+      printf "checking for #{header}... "
       @header[header] = @cc.check_header(header)
       puts @header[header] ? 'yes' : 'no'
     end
@@ -114,6 +122,34 @@ class Project
     end
 
     write_makefile
+  end
+
+  # Check if a system header declares a macro or symbol
+  def check_decl(header,decl)
+      throw ArgumentError unless header.kind_of? String
+      decl = [ decl ] if decl.kind_of? String
+      throw ArgumentError unless decl.kind_of? Array
+
+      decl.each do |x|
+        next if @decls.has_key? x
+        printf "checking whether #{x} is declared... "
+        @decls[x] = @cc.test_compile "#define _GNU_SOURCE\n#include <#{header}>\nint main() { #{x}; }"
+        puts @decls[x] ? 'yes' : 'no'
+      end
+  end
+
+  # Check if a function is available in the standard C library
+  # TODO: probably should add :ldadd when checking..
+  def check_func(func)
+      func = [ func ] if func.kind_of? String
+      throw ArgumentError unless func.kind_of? Array
+
+      func.each do |x|
+        next if @funcs.has_key? x
+        printf "checking for #{x}... "
+        @funcs[x] = @cc.test_link "void *#{x}();\nint main() { void *p;\np = &#{x}; }"
+        puts @funcs[x] ? 'yes' : 'no'
+      end
   end
 
   # Add item(s) to build
@@ -290,16 +326,22 @@ class Project
 
   def write_config_h
     ofile = @config_h
+    buf = {}
+
+    @header.keys.sort.each { |k| buf["HAVE_#{k}".upcase] = @header[k] }
+    @decls.keys.sort.each { |x| buf["HAVE_DECL_#{x}".upcase] = @decls[x] }
+    @funcs.keys.sort.each { |x| buf["HAVE_#{x}".upcase] = @funcs[x] }
+
     puts 'Creating ' + ofile
     f = File.open(ofile, 'w')
     f.print "/* AUTOMATICALLY GENERATED -- DO NOT EDIT */\n"
-    @header.keys.sort.each do |k|
-      v = @header[k]
+    buf.keys.sort.each do |k|
+      v = buf[k]
       id = k.upcase.gsub(%r{[/.-]}, '_')
       if v == true
-        f.printf "#define HAVE_" + id + " 1\n"
+        f.printf "#define #{id} 1\n"
       else
-        f.printf "#undef  HAVE_" + id + "\n" 
+        f.printf "#undef  #{id}\n" 
       end
     end
     f.close
