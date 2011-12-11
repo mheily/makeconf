@@ -85,15 +85,7 @@ class Project
 
     @makefile.toplevel_init  #FIXME bad place for this
 
-    # Pass environment variables
-    %w[CFLAGS LDFLAGS LDADD].each do |k|
-       v = ENV[k].nil? ? '' : ENV[k]
-       @makefile.define_variable(k, '=', v)
-    end
-
     # Define Makefile variables
-#DEADWOOD: prevents mixing compilers in a multi-project environment: @makefile.define_variable('CC', '=', @cc.path)
-    @makefile.define_variable('STANDARD_API', '=', 'posix')
     distfile = @id + '-' + @version + '.tar.gz'
     @makefile.define_variable('DISTFILE', '=', distfile)
 
