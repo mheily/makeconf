@@ -147,7 +147,8 @@ class Compiler
           b.localdep[src].push $1
         end
       end
-      res.concat b.localdep[src].sort!.uniq!
+      b.localdep[src].sort!.uniq!
+      res.concat b.localdep[src]
 
       # Generate a list of system header dependencies
       # FIXME: does a lot of duplicate work reading files in..
