@@ -15,7 +15,7 @@ class Makefile
 
   # Add rules and targets used in the top-level Makefile
   def toplevel_init
-    add_target('dist', ['clean', '$(DISTFILE)'], [])
+    add_target('dist', [], [])
 
     # Prepare the destination tree for 'make install'
     @targets['install'].add_rule('test -e $(DESTDIR)')
