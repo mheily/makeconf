@@ -117,6 +117,7 @@ class Installer
         throw 'Unable to expand a directory macro'
       end
     end
+
     buf
   end
 

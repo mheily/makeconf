@@ -20,17 +20,8 @@ class Makefile
     # Prepare the destination tree for 'make install'
     @targets['install'].add_rule('test -e $(DESTDIR)')
 
-    # Distribute some standard files with 'make distdir'
-    ['config.yaml', 'configure'].each { |f| distribute(f) }
-
-    # Distribute makeconf.rb
-    if File.exists?('makeconf.rb')
-        distribute('makeconf.rb')
-    elsif File.exists?('makeconf/makeconf.rb')
-        distribute('makeconf/makeconf.rb')
-    else
-        throw 'Unable to locate makeconf.rb'
-    end
+    # Distribute Makeconf with 'make distdir'
+    distribute(['setup.rb', 'configure', 'makeconf/*.rb'])
   end
 
   # Define a variable within the Makefile
@@ -64,13 +55,17 @@ class Makefile
 
   # Add a file to the tarball during 'make dist'
   def distribute(path)
-    # FIXME: support Windows backslashery
-    if path =~ /\//
-       dst = '$(distdir)/' + File.dirname(path)
-       @targets['distdir'].mkdir(dst)
-       @targets['distdir'].cp(path, dst)
-    else
-       @targets['distdir'].cp(path, '$(distdir)')
+    path = [ path ] if path.kind_of? String
+
+    path.each do |src|
+      # FIXME: support Windows backslashery
+      if src =~ /\//
+         dst = '$(distdir)/' + File.dirname(src)
+         @targets['distdir'].mkdir(dst)
+         @targets['distdir'].cp(src, dst)
+      else
+         @targets['distdir'].cp(src, '$(distdir)')
+      end
     end
   end
 
