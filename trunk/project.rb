@@ -2,7 +2,7 @@
 #
 class Project
 
-  attr_reader :id, :version, :summary, :description, :license, :author, :distfile
+  attr_reader :id, :version, :summary, :description, :license, :author
   attr_accessor :makefile, :installer, :packager
 
   require 'yaml'
@@ -85,9 +85,7 @@ class Project
 
     @makefile.toplevel_init  #FIXME bad place for this
 
-    # Define Makefile variables
-    distfile = @id + '-' + @version + '.tar.gz'
-    @makefile.define_variable('DISTFILE', '=', distfile)
+    @makefile.add_dependency('dist', distfile)
 
     # Add extra_dist items to the Makefile
     @distribute.each { |f| @makefile.distribute(f) }
@@ -243,6 +241,11 @@ class Project
       x.sysdep.each { |k,v| res.concat v }
     end
     res.sort.uniq
+  end
+
+  # Returns the filename of the source code distribution archive
+  def distfile
+    @id + '-' + @version + '.tar.gz'
   end
 
   private

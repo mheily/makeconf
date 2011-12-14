@@ -12,11 +12,11 @@ class Packager
     make_rpm_spec
     @makefile.add_target(
             'package',
-            ['clean', '$(DISTFILE)'],
+            ['clean', @project.distfile],
      		['rm -rf rpm *.rpm',
              'mkdir -p rpm/BUILD rpm/RPMS rpm/SOURCES rpm/SPECS rpm/SRPMS',
              'mkdir -p rpm/RPMS/i386 rpm/RPMS/x86_64',
-		     'cp $(DISTFILE) rpm/SOURCES',
+		     "cp #{@project.distfile} rpm/SOURCES",
   		     'rpmbuild --define "_topdir ./rpm" -bs rpm.spec',
   	   	     'mv ./rpm/SRPMS/* .',
       		 'rm -rf rpm',
