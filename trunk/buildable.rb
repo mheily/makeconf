@@ -43,6 +43,11 @@ class Buildable
     @sources.each { |src| buf << Dir.glob(src) }
     @sources = buf.flatten
 
+    # Ensure that all source files exist
+    @sources.each do |src|
+      throw ArgumentError("#{src} does not exist") unless File.exist? src
+    end
+
     # Read all source code into a single array
     @source_code = {}
     @sources.each { |x| @source_code[x] = File.read(x).split(/\r?\n/) }
