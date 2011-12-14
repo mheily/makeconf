@@ -54,8 +54,8 @@ class Target
     res = "\n" + @objs + ':'
     res += ' ' + @deps.join(' ') if @deps
     res += "\n"
-    unless @dirs_to_create.empty?
-       res += "\t" + Platform.mkdir(@dirs_to_create) + "\n"
+    @dirs_to_create.each do |dir|
+       res += "\t" + Platform.mkdir(dir) + "\n"
     end
     @files_to_copy.each do |k,v|
        res += "\t" + Platform.cp(v, k) + "\n"
