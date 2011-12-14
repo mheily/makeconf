@@ -11,24 +11,28 @@ class Installer
 
     # Set default installation paths
     @dir = {
-        'prefix' => '/usr/local',
-        'exec-prefix' => '$(PREFIX)',
+        :prefix => '/usr/local',
+        :eprefix => '$(PREFIX)',    # this is --exec-prefix
+        :bindir => '$(EPREFIX)/bin',
+        :datarootdir => '$(PREFIX)/share',
+        :datadir => '$(DATAROOTDIR)',
+        :docdir => '$(DATAROOTDIR)/doc/$(PACKAGE)',
+        :includedir => '$(PREFIX)/include',
+        :infodir => '$(DATAROOTDIR)/info',
+        :libdir => '$(EPREFIX)/lib',
+        :libexecdir => '$(EPREFIX)/libexec',
+        :localedir => '$(DATAROOTDIR)/locale',
+        :localstatedir => '$(PREFIX)/var',
+        :mandir => '$(DATAROOTDIR)/man',
+        :oldincludedir => '/usr/include',
+        :sbindir => '$(EPREFIX)/sbin',
+        :sysconfdir => '$(PREFIX)/etc',
+        :sharedstatedir => '$(PREFIX)/com',
 
-        'bindir' => '$(EPREFIX)/bin',
-        'datarootdir' => '$(PREFIX)/share',
-        'datadir' => '$(DATAROOTDIR)',
-        'docdir' => '$(DATAROOTDIR)/doc/$(PACKAGE)',
-        'includedir' => '$(PREFIX)/include',
-        'infodir' => '$(DATAROOTDIR)/info',
-        'libdir' => '$(EPREFIX)/lib',
-        'libexecdir' => '$(EPREFIX)/libexec',
-        'localedir' => '$(DATAROOTDIR)/locale',
-        'localstatedir' => '$(PREFIX)/var',
-        'mandir' => '$(DATAROOTDIR)/man',
-        'oldincludedir' => '/usr/include',
-        'sbindir' => '$(EPREFIX)/sbin',
-        'sysconfdir' => '$(PREFIX)/etc',
-        'sharedstatedir' => '$(PREFIX)/com',
+        # Package-specific directories
+        :pkgincludedir => '$(INCLUDEDIR)/$(PACKAGE)',
+        :pkgdatadir => '$(DATADIR)/$(PACKAGE)',
+        :pkglibdir => '$(LIBDIR)/$(PACKAGE)',
         
         #TODO: document this
         #DEPRECATED: htmldir, dvidir, pdfdir, psdir
@@ -54,9 +58,13 @@ class Installer
     opts.separator ""
     opts.separator "Installation options:"
 
-    @dir.sort.each do |k, v|
+    # Convert symbols to strings
+    tmp = {}
+    @dir.each { |k,v| tmp[k.to_s] = v }
+
+    tmp.sort.each do |k, v|
        opts.on('--' + k + ' [DIRECTORY]', "TODO describe this [#{v}]") do |arg|
-          @dir[k] = arg
+          @dir[k.to_sym] = arg
        end
     end
 
@@ -81,20 +89,7 @@ class Installer
 
   def to_make
     m = Makefile.new
-
-    # Add variables
-    tmp = { 
-        'PACKAGE' => @project.id,
-        'PKGINCLUDEDIR' => '$(INCLUDEDIR)/$(PACKAGE)',
-        'PKGDATADIR' => '$(DATADIR)/$(PACKAGE)',
-        'PKGLIBDIR' => '$(LIBDIR)/$(PACKAGE)',
-    }
-    tmp['INSTALL'] = @path unless @path.nil?
-    @dir.each do |k,v|
-      k = (k == 'exec-prefix') ? 'EPREFIX' : k.upcase
-      tmp[k] = v
-    end
-    tmp.each { |k,v| m.define_variable(k, '=', v) }
+    m.define_variable('INSTALL', '=', @path) unless @path.nil?
 
     # Add 'make install' rules
     @items.each do |i| 
@@ -106,6 +101,24 @@ class Installer
   end
 
   private
+
+  # Expand makefile variables related to installation directories
+  def expand_dir(s)
+    buf = s
+
+    throw 'FIXME -- handle $(PACKAGE)' if buf =~ /\$\(PACKAGE\)/
+    while buf =~ /\$/
+      old = buf.dup
+      @dir.each do |k,v|
+        buf.gsub!(/\$\(#{k.to_s.upcase}\)/, v)
+      end
+      # Prevent infinite loops if the macro doesn't exist
+      if old == buf and buf =~ /\$/
+        throw 'Unable to expand a directory macro'
+      end
+    end
+    buf
+  end
 
   # Translate an @item into the equivalent shell command(s)
   def install_command(h)
@@ -120,7 +133,7 @@ class Installer
       res.push('-o', h[:owner]) if h[:owner]
       res.push('-g', h[:group]) if h[:group]
       res.push h[:sources] if h[:sources]
-      res.push '$(DESTDIR)' + h[:dest]
+      res.push '$(DESTDIR)' + expand_dir(h[:dest])
     end
 
     res.join(' ')
