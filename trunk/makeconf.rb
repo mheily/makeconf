@@ -33,16 +33,20 @@ class Makeconf
   def initialize(project = nil)
     @installer = Installer.new
     @makefile = Makefile.new
-    @project = project.nil? ? nil : Project.new(project)
-    @finalized = false
+    @project = {}
+    @configured = false         # if true, configure() has completed
+    @finalized = false          # if true, finalize() has completed
     at_exit { at_exit_handler }
+
+    unless project.nil?
+      x = Project.new(project)
+      @project[x.id] = x
+    end
   end
 
   def at_exit_handler
-    unless @finalized == true
-      configure(@project)
-      finalize
-    end
+    configure unless @configured
+    finalize unless @finalized
   end
 
   def parse_options(args = ARGV)
@@ -69,19 +73,20 @@ class Makeconf
   end
 
   # Examine the operating environment and set configuration options
-  def configure(project = nil)
-     project = @project if project.nil?
-
+  def configure
      parse_options
-     @installer.configure(project)
-     @project.makefile = @makefile
-     @project.installer = @installer
-     @project.configure
+     @project.each do |id,proj|
+        @installer.configure(proj)
+        proj.makefile = @makefile
+        proj.installer = @installer
+        proj.configure
+     end
+     @configured = true
   end
 
   # Write all output files
   def finalize
-     @project.finalize
+     @project.each { |id,proj| proj.finalize }
      @finalized == true
   end
 
@@ -91,13 +96,13 @@ class Makeconf
 
   # Return a project object
   def project(id)
-    # TODO: actually use <id> when multi-project is implemented
-    @project
+    @project[id]
   end
 
   # Search all projects for a given library
   def library(id)
     # TODO: actually use <id> when multi-project is implemented
+#XXX-BROKEN
     @project.library(id)
   end
 
