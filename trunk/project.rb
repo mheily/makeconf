@@ -35,7 +35,8 @@ class Project
           unless h.has_key? k
     end
 
-    [:manpages, :headers, :libraries, :tests, :check_decls, :check_funcs].each do |k|
+    [:manpages, :headers, :libraries, :tests, :check_decls, :check_funcs,
+     :extra_dist].each do |k|
        h[k] = [] unless h.has_key? k
     end
 
@@ -51,12 +52,9 @@ class Project
        buildable[:id] = id
        test Binary.new(buildable)
     end
-    h[:check_decls].each do |id,decl|
-      check_decl(id,decl)
-    end
-    h[:check_funcs].each do |f|
-      check_func(f)
-    end
+    h[:check_decls].each { |id,decl| check_decl(id,decl) }
+    h[:check_funcs].each { |f| check_func(f) }
+    h[:extra_dist].each { |f| distribute(f) }
   end
 
   # Examine the operating environment and set configuration options
