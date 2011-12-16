@@ -86,7 +86,16 @@ class Makeconf
 
   # Write all output files
   def finalize
-     @project.each { |id,proj| proj.finalize }
+     makefile = Makefile.new
+     toplevel_init(makefile)
+     @project.each do |id,proj| 
+       proj.finalize 
+       makefile.merge! proj.to_make
+     end
+     puts 'FIXME -- Write config.h'
+##write_config_h
+     puts 'writing Makefile'
+     makefile.write('Makefile')
      @finalized == true
   end
 
@@ -104,6 +113,19 @@ class Makeconf
     # TODO: actually use <id> when multi-project is implemented
 #XXX-BROKEN
     @project.library(id)
+  end
+
+  private
+
+  # Add rules and targets used in the top-level Makefile
+  def toplevel_init(makefile)
+    makefile.add_target('dist', [], [])
+
+    # Prepare the destination tree for 'make install'
+    makefile.add_rule('install', 'test -e $(DESTDIR)')
+
+    # Distribute Makeconf with 'make distdir'
+    makefile.distribute(['setup.rb', 'configure', 'makeconf/*.rb'])
   end
 
 end
