@@ -163,15 +163,15 @@ class Project
   # Add item(s) to install
   def install(*arg)
     arg.each do |x|
-      @extra_dist.push Dir.glob(x)
-      distribute x
+      # FIXME: shouldn't something be installed now?
+      @distribute.push Dir.glob(x)
     end
   end
 
   # Add item(s) to distribute in the source tarball
   def distribute(*arg)
     arg.each do |x|
-      @extra_dist.push Dir.glob(x)
+      @distribute.push Dir.glob(x)
     end
   end
 
