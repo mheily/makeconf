@@ -78,38 +78,31 @@ class Project
 #    make_installable(@ast['manpages'], '$(MANDIR)') #FIXME: Needs a subdir
   end
 
-  # Create the Makefile and config.h files.
-  def finalize
+  # Return the Makefile for the project
+  # This should only be done after finalize() has been called.
+  def to_make
+    makefile = Makefile.new
 
-    @makefile.toplevel_init  #FIXME bad place for this
-
-    @makefile.add_dependency('dist', distfile)
-
-    # Add extra_dist items to the Makefile
-    @distribute.each { |f| @makefile.distribute(f) }
-
-    write_config_h
-    @packager.finalize
-    @makefile.merge!(@packager.makefile)
-    @makefile.make_dist(@id, @version)
-
-    # Build each buildable object
-    @build.each do |x| 
-      x.finalize
-      @makefile.merge! @cc.build(x)
-    end
-
-    # Add installable items
-    @install.each { |x| @installer.install(x) }
-    @makefile.merge! @installer.to_make
+    makefile.add_dependency('dist', distfile)
+    makefile.merge!(@packager.makefile)
+    makefile.make_dist(@id, @version)
+    @distribute.each { |f| @makefile.distribute f }
+    @build.each { |x| makefile.merge! @cc.build(x) }
+    makefile.merge! @installer.to_make
 
     # Add unit tests
     @test.each do |x| 
-      @makefile.add_dependency('check', x.id)
-      @makefile.add_rule('check', './' + x.id)
+      makefile.add_dependency('check', x.id)
+      makefile.add_rule('check', './' + x.id)
     end
 
-    write_makefile
+    makefile
+  end
+
+  def finalize
+    @packager.finalize
+    @build.each { |x| x.finalize }
+    @install.each { |x| @installer.install x }
   end
 
   # Check if a system header declares a macro or symbol
@@ -306,15 +299,6 @@ class Project
           @makefile.install(f, v['dest'], v)
        end
     end
-  end
-
-  def write_makefile
-    ofile = 'Makefile'
-    puts 'writing ' + ofile
-    f = File.open(ofile, 'w')
-    f.print "# AUTOMATICALLY GENERATED -- DO NOT EDIT\n"
-    f.print @makefile.to_s
-    f.close
   end
 
   def write_config_h

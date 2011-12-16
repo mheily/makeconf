@@ -13,17 +13,6 @@ class Makefile
     end
   end
 
-  # Add rules and targets used in the top-level Makefile
-  def toplevel_init
-    add_target('dist', [], [])
-
-    # Prepare the destination tree for 'make install'
-    @targets['install'].add_rule('test -e $(DESTDIR)')
-
-    # Distribute Makeconf with 'make distdir'
-    distribute(['setup.rb', 'configure', 'makeconf/*.rb'])
-  end
-
   # Define a variable within the Makefile
   def define_variable(lval,op,rval)
     throw "invalid arguments" if lval.nil? or op.nil? 
@@ -147,6 +136,13 @@ class Makefile
     targets.each { |x,y| throw "#{x} is broken" unless y.is_a? Target }
     @targets.sort.each { |x,y| res += y.to_s }
     res
+  end
+
+  def write(path)
+    f = File.open(path, 'w')
+    f.print "# AUTOMATICALLY GENERATED -- DO NOT EDIT\n"
+    f.print self.to_s
+    f.close
   end
 
   protected
