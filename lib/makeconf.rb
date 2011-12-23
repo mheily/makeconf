@@ -95,7 +95,7 @@ class Makeconf
      write_config_h
      puts 'creating Makefile'
      makefile.write('Makefile')
-     @finalized == true
+     @finalized = true
 
  # XXX-FIXME kludge for Windows testing
      if Platform.is_windows?
