@@ -72,7 +72,7 @@ class Platform
     end
     throw 'invalid path' if path.nil? or path == ''
     if is_windows?
-       throw 'FIXME'
+       "mkdir '#{path}'"
     else
        "umask 22 ; mkdir -p '#{path}'"
     end
@@ -155,4 +155,12 @@ class Platform
     nil
   end
 
+  # Converts a slash-delimited path into a backslash-delimited path on Windows.
+  def Platform.pathspec(path)
+    if is_windows?
+      path.gsub(%r{/}) { "\\" }
+    else
+      path
+    end
+  end
 end
