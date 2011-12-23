@@ -96,6 +96,12 @@ class Makeconf
      puts 'creating Makefile'
      makefile.write('Makefile')
      @finalized == true
+
+ # XXX-FIXME kludge for Windows testing
+     if Platform.is_windows?
+        system "nmake"
+        system "pause"
+     end
   end
 
   #
@@ -169,6 +175,8 @@ class Linker
       @flags.push ['-R', dir]
     elsif Platform.is_linux?
       @flags.push ['-rpath', dir]
+    elsif Platform.is_windows?
+      # XXX-FIXME Windows does not support the rpath concept
     else
       throw 'Unsupported OS'
     end

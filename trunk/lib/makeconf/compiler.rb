@@ -10,6 +10,7 @@ class Compiler
     @language = language
     @extension = extension
     @ld = Linker.new()
+    windows_init if Platform.is_windows?
   end
 
   def clone
@@ -48,10 +49,13 @@ class Compiler
 
     ld.rpath = h[:rpath] if h[:rpath].length > 0
 
+    # Set the output path
     if @path.match(/cl.exe$/i)
-      cflags.push '/Fo', h[:output]
+      cflags.push '"-IC:\Program Files\Microsoft Visual Studio 10.0\VC\include"' # XXX-HARDCODED
+      cflags.push '/Fo' + Platform.pathspec(h[:output])
+      cflags.push '/MD'
     else
-      cflags.push '-o', h[:output]
+      cflags.push '-o', Platform.pathspec(h[:output])
     end
 
     # KLUDGE: remove things that CL.EXE doesn't understand
@@ -70,6 +74,7 @@ class Compiler
 
     inputs = h[:sources]
     inputs = [ inputs ] if inputs.is_a? String
+    inputs = inputs.map { |x| Platform.pathspec x }
     throw 'One or more sources are required' unless inputs.count
 
     if h[:stage] == :compile
@@ -222,6 +227,19 @@ class Compiler
   end
 
   private
+
+  # Special initialization for MS Windows
+  def windows_init
+    # FIXME: hardcoded to VS10 on C: drive, should pull the information from vcvars.bat
+    ENV['PATH'] = 'C:\Program Files\Microsoft Visual Studio 10.0\Common7\IDE\;C:\Program Files\Microsoft Visual Studio 10.0\VC\BIN;C:\Program Files\Microsoft Visual Studio 10.0\Common7\Tools' + ENV['PATH']
+    ENV['INCLUDE'] = 'INCLUDE=C:\Program Files\Microsoft Visual Studio 10.0\VC\INCLUDE;C:\Program Files\Microsoft SDKs\Windows\v7.0A\include;'
+    ENV['LIB'] = 'C:\Program Files\Microsoft Visual Studio 10.0\VC\LIB;C:\Program Files\Microsoft SDKs\Windows\v7.0A\lib;'
+    ENV['LIBPATH'] = 'C:\WINDOWS\Microsoft.NET\Framework\v4.0.30319;C:\WINDOWS\Microsoft.NET\Framework\v3.5;C:\Program Files\Microsoft Visual Studio 10.0\VC\LIB;'
+    ENV['VCINSTALLDIR'] = "C:\Program Files\\Microsoft Visual Studio 10.0\\VC\\"
+    ENV['VS100COMNTOOLS'] = "C:\\Program Files\\Microsoft Visual Studio 10.0\\Common7\\Tools\\"
+    ENV['VSINSTALLDIR'] = "C:\\Program Files\\Microsoft Visual Studio 10.0\\"
+    ENV['WindowsSdkDir'] = "C:\\Program Files\\Microsoft SDKs\\Windows\\v7.0A\\"
+  end
 
   # Search for a suitable compiler
   def search(compilers)

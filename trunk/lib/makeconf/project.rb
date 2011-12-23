@@ -38,6 +38,7 @@ class Project
     [:manpages, :headers, :libraries, :tests, :check_decls, :check_funcs,
      :extra_dist].each do |k|
        h[k] = [] unless h.has_key? k
+       h[k] = [ h[k] ] if h[k].kind_of?(String)
     end
 
     h[:manpages].each { |x| manpage(x) } 

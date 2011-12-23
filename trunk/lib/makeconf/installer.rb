@@ -125,8 +125,17 @@ class Installer
   def install_command(h)
     res = []
 
+    # TODO: more sanity checks (e.g. !h[:directory] && h[:sources])
+
     if Platform.is_windows?
-      throw 'FIXME'
+      # XXX-this is not fully implemented, need mode/owner/group
+      if h[:directory]
+        res.push 'mkdir $(DESTDIR)' + expand_dir(h[:dest])
+      else
+        res.push "copy" 
+        res.push h[:sources]
+        res.push '$(DESTDIR)' + expand_dir(h[:dest])
+      end
     else
       res.push '$(INSTALL)'
       res.push '-d' if h[:directory]
@@ -144,8 +153,15 @@ class Installer
   def uninstall_command(h)
     res = []
 
+    h[:sources] = [ h[:sources] ] if h[:sources].kind_of?(String)
+
+    # TODO: use Platform abstractions instead of duplicate logic
     if Platform.is_windows?
-      throw 'FIXME'
+      unless h[:sources]
+        res.push 'del', '$(DESTDIR)' + h[:dest]
+      else
+        res.push 'del', h[:sources].map { |x| '$(DESTDIR)' + h[:dest] + '/' + x }
+      end
     else
       unless h[:sources]
         res.push 'rmdir', '$(DESTDIR)' + h[:dest]
