@@ -21,6 +21,8 @@ class Packager
   	   	     'mv ./rpm/SRPMS/* .',
       		 'rm -rf rpm',
      		])
+    @makefile.add_rule('clean', Platform.rm('*.rpm')) # FIXME: wildcard is bad
+    @makefile.add_rule('distclean', Platform.rm('rpm.spec'))
   end
 
   # Generate an RPM spec file
