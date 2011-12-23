@@ -126,6 +126,7 @@ class Makeconf
   # Add rules and targets used in the top-level Makefile
   def toplevel_init(makefile)
     makefile.add_target('dist', [], [])
+    makefile.add_dependency('distclean', 'clean')
 
     # Prepare the destination tree for 'make install'
     makefile.add_rule('install', 'test -e $(DESTDIR)')
