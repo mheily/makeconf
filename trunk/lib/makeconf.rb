@@ -92,9 +92,8 @@ class Makeconf
        proj.finalize 
        makefile.merge! proj.to_make
      end
-     puts 'FIXME -- Write config.h'
-##write_config_h
-     puts 'writing Makefile'
+     write_config_h
+     puts 'creating Makefile'
      makefile.write('Makefile')
      @finalized == true
   end
@@ -116,6 +115,13 @@ class Makeconf
   end
 
   private
+
+  # Write the config.h header files for each project
+  def write_config_h
+    @project.each do |k,v| 
+      v.write_config_h
+    end
+  end
 
   # Add rules and targets used in the top-level Makefile
   def toplevel_init(makefile)
