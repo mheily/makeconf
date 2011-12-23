@@ -84,6 +84,7 @@ class Project
     makefile = Makefile.new
 
     makefile.add_dependency('dist', distfile)
+    makefile.add_rule('distclean', Platform.rm(distfile))
     makefile.merge!(@packager.makefile)
     makefile.make_dist(@id, @version)
     @distribute.each { |f| @makefile.distribute f }
