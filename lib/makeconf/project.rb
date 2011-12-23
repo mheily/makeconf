@@ -239,6 +239,30 @@ class Project
     @id + '-' + @version + '.tar.gz'
   end
 
+  # Generate the config.h header file
+  def write_config_h
+    ofile = @config_h
+    buf = {}
+
+    @header.keys.sort.each { |k| buf["HAVE_#{k}".upcase] = @header[k] }
+    @decls.keys.sort.each { |x| buf["HAVE_DECL_#{x}".upcase] = @decls[x] }
+    @funcs.keys.sort.each { |x| buf["HAVE_#{x}".upcase] = @funcs[x] }
+
+    puts 'creating ' + ofile
+    f = File.open(ofile, 'w')
+    f.print "/* AUTOMATICALLY GENERATED -- DO NOT EDIT */\n"
+    buf.keys.sort.each do |k|
+      v = buf[k]
+      id = k.upcase.gsub(%r{[/.-]}, '_')
+      if v == true
+        f.printf "#define #{id} 1\n"
+      else
+        f.printf "#undef  #{id}\n" 
+      end
+    end
+    f.close
+  end
+
   private
 
   def parse(manifest)
@@ -299,29 +323,6 @@ class Project
           @makefile.install(f, v['dest'], v)
        end
     end
-  end
-
-  def write_config_h
-    ofile = @config_h
-    buf = {}
-
-    @header.keys.sort.each { |k| buf["HAVE_#{k}".upcase] = @header[k] }
-    @decls.keys.sort.each { |x| buf["HAVE_DECL_#{x}".upcase] = @decls[x] }
-    @funcs.keys.sort.each { |x| buf["HAVE_#{x}".upcase] = @funcs[x] }
-
-    puts 'Creating ' + ofile
-    f = File.open(ofile, 'w')
-    f.print "/* AUTOMATICALLY GENERATED -- DO NOT EDIT */\n"
-    buf.keys.sort.each do |k|
-      v = buf[k]
-      id = k.upcase.gsub(%r{[/.-]}, '_')
-      if v == true
-        f.printf "#define #{id} 1\n"
-      else
-        f.printf "#undef  #{id}\n" 
-      end
-    end
-    f.close
   end
 
 end
