@@ -59,8 +59,15 @@ class Makefile
   end
 
   # Add a file to be removed during 'make clean'
+  # TODO: optimize by eliminating multiple rm(1) fork/exec
   def clean(path)
     add_rule('clean', Platform.rm(path))
+  end
+
+  # Add a file to be removed during 'make distclean'
+  # TODO: optimize by eliminating multiple rm(1) fork/exec
+  def distclean(path)
+    add_rule('distclean', Platform.rm(path))
   end
 
   def add_dependency(target,depends)

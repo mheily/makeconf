@@ -127,6 +127,7 @@ class Makeconf
   def toplevel_init(makefile)
     makefile.add_target('dist', [], [])
     makefile.add_dependency('distclean', 'clean')
+    makefile.add_rule('distclean', Platform.rm('Makefile'))
 
     # Prepare the destination tree for 'make install'
     makefile.add_rule('install', 'test -e $(DESTDIR)')
