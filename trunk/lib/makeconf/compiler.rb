@@ -44,18 +44,27 @@ class Compiler
     ld = @ld.clone
     ldadd = h[:ldadd]
     cflags = h[:cflags]
-    ldflags = [ '-o', h[:output] ]
+    ldflags = []
     ldflags.push h[:ldflags]
-
     ld.rpath = h[:rpath] if h[:rpath].length > 0
 
+    # Set the path to the linker
+    if vendor == 'Microsoft'
+      linker_path = 'LINK.EXE'
+    else
+      linker_path = cc
+    end
+
     # Set the output path
-    if @path.match(/cl.exe$/i)
+    outfile = Platform.pathspec(h[:output])
+    if vendor == 'Microsoft'
       cflags.push '"-IC:\Program Files\Microsoft Visual Studio 10.0\VC\include"' # XXX-HARDCODED
-      cflags.push '/Fo' + Platform.pathspec(h[:output])
+      cflags.push '/Fo' + outfile
       cflags.push '/MD'
+      ldflags.push "/OUT:\"#{outfile}\""
     else
       cflags.push '-o', Platform.pathspec(h[:output])
+      ldflags.push '-o', outfile
     end
 
     # KLUDGE: remove things that CL.EXE doesn't understand
@@ -80,7 +89,7 @@ class Compiler
     if h[:stage] == :compile
       res = [ @path, '-c', cflags, inputs ]
     elsif h[:stage] == :link
-      res = [ @path, ldflags, ld.to_s, inputs, ldadd ]
+      res = [ linker_path, ldflags, ld.to_s, inputs, ldadd ]
     elsif h[:stage] == :combined
       res = [ @path, cflags, ldflags, inputs, ldadd ]
     else
@@ -280,6 +289,14 @@ class Compiler
     res
   end
 
+  # Return the name of the compiler vendor
+  def vendor
+    if @path.match(/cl.exe$/i)
+      'Microsoft'
+    else
+      'Unknown'
+    end
+  end
 end
 
 class CCompiler < Compiler

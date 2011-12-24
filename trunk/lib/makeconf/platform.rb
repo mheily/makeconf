@@ -62,7 +62,7 @@ class Platform
     else
       # TODO: add '/usr/bin/strip --strip-unneeded' + archive
       'ar rs ' + archive + ' ' + members.join(' ')
-   end
+    end
   end
 
   # Create a directory and all of it's components

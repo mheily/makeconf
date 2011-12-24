@@ -21,6 +21,7 @@ class Makeconf
   require 'pp'
 
   require 'makeconf/buildable'
+  require 'makeconf/binary'
   require 'makeconf/compiler'
   require 'makeconf/installer'
   require 'makeconf/library'
@@ -38,6 +39,14 @@ class Makeconf
     @finalized = false          # if true, finalize() has completed
     at_exit { at_exit_handler }
 
+# TODO: make this a Platform.graphical? function:
+#       if ENV['DISPLAY'] or Platform.is_windows?
+    if ENV['MAKECONF_GUI']
+      require 'makeconf/gui'
+      gui = Makeconf::GUI.new
+      gui.run
+    end
+
     unless project.nil?
       x = Project.new(project)
       @project[x.id] = x
@@ -50,7 +59,7 @@ class Makeconf
   end
 
   def parse_options(args = ARGV)
-     opts = OptionParser.new do |opts|
+     x = OptionParser.new do |opts|
        opts.banner = 'Usage: configure [options]'
 
        @installer.parse_options(opts)
@@ -69,7 +78,7 @@ class Makeconf
        end
     end
 
-    opts.parse!(args)
+    x.parse!(args)
   end
 
   # Examine the operating environment and set configuration options
@@ -96,12 +105,6 @@ class Makeconf
      puts 'creating Makefile'
      makefile.write('Makefile')
      @finalized = true
-
- # XXX-FIXME kludge for Windows testing
-     if Platform.is_windows?
-        system "nmake"
-        system "pause"
-     end
   end
 
   #
@@ -166,7 +169,9 @@ class Linker
 
   # Add all symbols to the dynamic symbol table (GNU ld only)
   def export_dynamic
+    unless Platform.is_windows?
      @flags.push 'export-dynamic'
+    end
   end
 
   # Override the normal search path for the dynamic linker
@@ -177,11 +182,12 @@ class Linker
       @flags.push ['-rpath', dir]
     elsif Platform.is_windows?
       # XXX-FIXME Windows does not support the rpath concept
+      return
     else
       throw 'Unsupported OS'
     end
     @cflags.push ['-L', dir]
-   end
+  end
 
   # Returns the linker flags suitable for passing to the compiler
   def to_s
@@ -204,33 +210,6 @@ class Linker
   throw 'stub'
   end
 
-end
-
-# An executable binary file
-class Binary < Buildable
-
-  def initialize(h)
-    super(h)
-    @output_type = 'binary'
-  end
-
-  def build
-    binfile = @id + Platform.executable_extension
-    cc = @compiler.clone
-    cc.is_library = false
-    cc.sources = @sources
-
-#XXX-BROKEN cc.add_targets(@makefile)
-
-    @makefile.merge!(cc.to_make(binfile))
-
-    @makefile.clean(cc.objs)
-    @makefile.install(binfile, '$(BINDIR)', { 'mode' => '755' }) \
-        if @installable
-    @output.push binfile
-    super()
-  end
-          
 end
 
 # A script file, written in an interpreted language like Perl/Ruby/Python

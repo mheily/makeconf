@@ -20,9 +20,13 @@ class SharedLibrary < Buildable
     })
     @output = @id + Platform.shared_library_extension
     @output_type = 'shared library'
-    @cflags.push '-fpic'
-    @ldflags.push('-shared')
-    @ldflags.push('-Wl,-export-dynamic') unless Platform.is_solaris?
+    if Platform.is_windows?
+      @ldflags.push '/DLL'
+    else
+      @cflags.push '-fpic'
+      @ldflags.push('-shared')
+      @ldflags.push('-Wl,-export-dynamic') unless Platform.is_solaris?
+    end
   end
 
 end
