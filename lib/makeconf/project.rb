@@ -200,7 +200,7 @@ class Project
         x.distributable = false
 
         # Assume that unit tests should be debuggable
-        x.cflags.push('-g', '-O0')
+        x.cflags.push('-g', '-O0') unless Platform.is_windows?
 
         # Assume that the unit tests may require headers and libraries
         # in the current working directory. To be sure, we should check
