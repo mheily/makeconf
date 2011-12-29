@@ -168,15 +168,20 @@ class Compiler
       # FIXME: does a lot of duplicate work reading files in..
       buf = []
       b.sysdep[src] = []
-      buf.concat File.read(src).split(/\r?\n/)
+      buf.concat File.readlines(src)
       b.localdep[src].each do |x|
         if File.exist? x
-          buf.concat File.read(x).split(/\r?\n/)
+          buf.concat File.readlines(x)
         end
       end
       buf.each do |x|
-        if x =~ /^#\s*include\s+\<(.*?)\>/
-          b.sysdep[src].push $1
+        begin
+          if x =~ /^#\s*include\s+<(.*?)>/
+            b.sysdep[src].push $1
+          end
+        rescue ArgumentError
+          # FIXME: should give more info about which file and line
+          warn "** WARNING: invalid multibyte sequence encountered in one of the source code files"
         end
       end
       b.sysdep[src].sort!.uniq!

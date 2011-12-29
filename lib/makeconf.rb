@@ -16,55 +16,30 @@
 #
 
 class Makeconf
-
   require 'optparse'
   require 'pp'
 
   require 'makeconf/buildable'
   require 'makeconf/binary'
   require 'makeconf/compiler'
+  require 'makeconf/gui'
   require 'makeconf/installer'
   require 'makeconf/library'
+  require 'makeconf/linker'
   require 'makeconf/makefile'
   require 'makeconf/packager'
   require 'makeconf/platform'
   require 'makeconf/project'
   require 'makeconf/target'
 
-  def initialize(project = nil)
-    @installer = Installer.new
-    @makefile = Makefile.new
-    @project = {}
-    @configured = false         # if true, configure() has completed
-    @finalized = false          # if true, finalize() has completed
-    at_exit { at_exit_handler }
+  @@installer = Installer.new
+  @@makefile = Makefile.new
 
-# TODO: make this a Platform.graphical? function:
-#       if ENV['DISPLAY'] or Platform.is_windows?
-    if ENV['MAKECONF_GUI']
-      require 'makeconf/gui'
-      gui = Makeconf::GUI.new
-      gui.run
-    end
-
-    unless project.nil?
-      x = Project.new(project)
-      @project[x.id] = x
-    end
-  end
-
-  def at_exit_handler
-    unless @project.empty?
-      configure unless @configured
-      finalize unless @finalized
-    end
-  end
-
-  def parse_options(args = ARGV)
+  def Makeconf.parse_options(args = ARGV)
      x = OptionParser.new do |opts|
        opts.banner = 'Usage: configure [options]'
 
-       @installer.parse_options(opts)
+       @@installer.parse_options(opts)
 
        opts.separator ''
        opts.separator 'Common options:'
@@ -84,58 +59,44 @@ class Makeconf
   end
 
   # Examine the operating environment and set configuration options
-  def configure
-     parse_options
-     @project.each do |id,proj|
-        @installer.configure(proj)
-        proj.makefile = @makefile
-        proj.installer = @installer
-        proj.configure
-     end
-     @configured = true
-  end
-
-  # Write all output files
-  def finalize
-     makefile = Makefile.new
-     toplevel_init(makefile)
-     @project.each do |id,proj| 
-       proj.finalize 
-       makefile.merge! proj.to_make
-     end
-     write_config_h
-     puts 'creating Makefile'
-     makefile.write('Makefile')
-     @finalized = true
-  end
-
-  #
-  # Accessors
-  #
-
-  # Return a project object
-  def project(id)
-    @project[id]
-  end
-
-  # Search all projects for a given library
-  def library(id)
-    # TODO: actually use <id> when multi-project is implemented
-#XXX-BROKEN
-    @project.library(id)
+  def Makeconf.configure(project_list)
+    #TODO:if ENV['DISPLAY'] or Platform.is_windows?
+    if ENV['MAKECONF_GUI']
+      ui = Makeconf::GUI.new(project_list)
+      ui.main_loop
+    else
+      Makeconf.configure_project(project_list)
+    end
   end
 
   private
 
-  # Write the config.h header files for each project
-  def write_config_h
-    @project.each do |k,v| 
-      v.write_config_h
-    end
+
+  # Examine the operating environment and set configuration options
+  def Makeconf.configure_project(project_list)
+     project_list = [ project_list ] if project_list.kind_of?(Project)
+     throw "Invalid argument" unless project_list.kind_of?(Array)
+     parse_options
+
+     makefile = Makefile.new
+     toplevel_init(makefile)
+
+     project_list.each do |project|
+        @@installer.configure(project)
+        project.makefile = @@makefile
+        project.installer = @@installer
+        project.configure
+        project.finalize 
+        project.write_config_h
+        makefile.merge! project.to_make
+     end
+
+     puts 'creating Makefile'
+     makefile.write('Makefile')
   end
 
   # Add rules and targets used in the top-level Makefile
-  def toplevel_init(makefile)
+  def Makeconf.toplevel_init(makefile)
     makefile.add_target('dist', [], [])
     makefile.add_dependency('distclean', 'clean')
     makefile.add_rule('distclean', Platform.rm('Makefile'))
@@ -148,135 +109,3 @@ class Makeconf
   end
 
 end
-
-# A linker combines multiple object files into a single executable or library file. 
-#
-class Linker
-
-  def initialize
-    @flags = []
-    @cflags = [] # KLUDGE: passed to the compiler w/o the '-Wl,' prefix
-  end
-
-  def clone
-    Marshal.load(Marshal.dump(self))
-  end
-
-  # Sets the ELF soname to the specified string
-  def soname(s)
-    unless Platform.is_windows?
-     @flags.push ['soname', s]
-    end
-  end
-
-  # Add all symbols to the dynamic symbol table (GNU ld only)
-  def export_dynamic
-    unless Platform.is_windows?
-     @flags.push 'export-dynamic'
-    end
-  end
-
-  # Override the normal search path for the dynamic linker
-  def rpath=(dir)
-    if Platform.is_solaris?
-      @flags.push ['-R', dir]
-    elsif Platform.is_linux?
-      @flags.push ['-rpath', dir]
-    elsif Platform.is_windows?
-      # XXX-FIXME Windows does not support the rpath concept
-      return
-    else
-      throw 'Unsupported OS'
-    end
-    @cflags.push ['-L', dir]
-  end
-
-  # Returns the linker flags suitable for passing to the compiler
-  def to_s
-     tok = []
-     tok.push @cflags
-     @flags.each do |f|
-        if f.kind_of?(Array)
-          tok.push '-Wl,-' + f[0] + ',' + f[1]
-        else
-          tok.push '-Wl,-' + f
-        end
-     end
-     return ' ' + tok.join(' ')
-  end
-
-  # TODO - not used yet
-  def command
-    # windows: 'link.exe /DLL /OUT:$@ ' + deps.join(' '))
-    # linux: 'cc ' .... (see Compiler::)
-  throw 'stub'
-  end
-
-end
-
-# A script file, written in an interpreted language like Perl/Ruby/Python
-#
-class Script
-
-  def initialize(id, ast, makefile)
-    @id = id
-    @ast = ast
-    @makefile = makefile
-    @output = []
-    default = {
-        'sources' => [],
-        'dest' => '$(BINDIR)',
-        'mode' => '755',
-    }
-    default.each do |k,v| 
-      instance_variable_set('@' + k, ast[k].nil? ? v : ast[k])
-    end
-  end
-
-  def build
-    @makefile.distribute(@sources)
-    @sources.each do |src|
-       @makefile.install(src, @dest, { 'mode' => @mode })
-    end
-  end
-
-end
-
-#DEADWOOD -- 
-# An external header file
-#
-class Header
-
-  # Check if a relative header path exists by compiling a test program.
-  def initialize(path, compiler)
-    @path = path
-    @compiler = compiler
-    @exists = check_exists
-  end
-
-  # Returns true if the header file exists.
-  def exists?
-    @exists
-  end
-
-  # Returns preprocessor directive for inclusion in config.h
-  def to_config_h
-     id = @path.upcase.gsub(%r{[.-]}, '_')
-     if @exists
-       "#define HAVE_" + id + " 1\n"
-     else
-       "#undef  HAVE_" + id + "\n" 
-     end
-  end
-
-  private
-
-  def check_exists
-    printf "checking for #{@path}... "
-    rc = @compiler.test_compile("#include <" + @path + ">")
-    puts rc ? 'yes' : 'no'
-    rc
-  end
-     
-end
-
