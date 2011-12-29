@@ -54,8 +54,10 @@ class Makeconf
   end
 
   def at_exit_handler
-    configure unless @configured
-    finalize unless @finalized
+    unless @project.empty?
+      configure unless @configured
+      finalize unless @finalized
+    end
   end
 
   def parse_options(args = ARGV)
