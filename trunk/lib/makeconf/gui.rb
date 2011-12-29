@@ -69,6 +69,7 @@ class Makeconf::GUI
 
 end
 
+__END__
 # UNUSED: might use for showing error messages if "require 'tk'" fails
 #
 class Makeconf::GUI::Minimal
