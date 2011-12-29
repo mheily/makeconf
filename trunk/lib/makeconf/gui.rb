@@ -1,32 +1,98 @@
 class Makeconf::GUI
 
+  def initialize(project_list)
+    require 'tk'
+
+    @project_list = project_list
+
+    @mainMessage = TkVariable.new 
+    @mainMessage.set_value 'hi'
+
+    @root = TkRoot.new() { 
+        title "Installation" 
+    }
+
+    @mainFrame = TkFrame.new(@root) {
+        height      400
+        width       400
+        background  'white'
+        borderwidth 5
+        relief      'groove'
+        padx        10
+        pady        10
+        pack('side' => 'top')
+    }
+
+    @mainText = TkLabel.new(@mainFrame) {
+        background  'white'
+        place('relx'=>0.0, 'rely' => 0.0)
+    }
+    @mainText.configure('textvariable', @mainMessage)
+
+    @cancelButton = TkButton.new(@root) { 
+        text "Cancel" 
+        command proc {
+            exit 1
+        }
+        pack('side' => 'right')
+    }
+
+    @nextButton = TkButton.new(@root) { 
+        text "Next" 
+        pack('side' => 'right')
+    }
+#nextButton.configure('command', proc { mainMessage.set_value 'You click it' })
+
+    @backButton = TkButton.new(@root) { 
+        text "Back" 
+        pack('side' => 'right')
+    }
+  end
+
+  def main_loop
+    intro_page
+    Tk.mainloop()
+  end
+
+  def intro_page
+    @mainMessage.set_value "This will install #{@project_list.id} on your computer"
+    @backButton.configure('state', 'disabled')
+    @nextButton.configure('command', proc { 
+            @backButton.configure('state', 'normal')
+            license_page 
+            })
+  end
+
+  def license_page
+    @mainMessage.set_value "Here is the license"
+  end
+
+end
+
+# UNUSED: might use for showing error messages if "require 'tk'" fails
+#
+class Makeconf::GUI::Minimal
+
   if Platform.is_windows?
     require 'dl'
   end
 
   def initialize
-    bootstrap_wxruby
-    require 'makeconf/wxapp'
-    @app = Makeconf::WxApp.new
-  end
-
-  def run
-    @app.main_loop
-   # XXX-FIXME kludge for Windows testing
-     if Platform.is_windows?
-        system "nmake"
-        system "pause"
-     end
   end
 
   # Display a graphical message box
   def message_box(txt, title, buttons=0)
     if Platform.is_windows?
-#Ruby 1.8
+
+# FIXME: add conditional
+
+#Ruby 1.8:
 #      user32 = DL.dlopen('user32')
 #      msgbox = user32['MessageBoxA', 'ILSSI']
 #      r, rs = msgbox.call(0, txt, title, buttons)
 #      return r
+
+#Ruby 1.9:
     user32 = DL.dlopen('user32')
     msgbox = DL::CFunc.new(user32['MessageBoxA'], DL::TYPE_LONG, 'MessageBox')
     r, rs = msgbox.call([0, txt, title, buttons].pack('L!ppL!').unpack('L!*'))
@@ -51,20 +117,4 @@ class Makeconf::GUI
     return (message_box(txt, title, 1) == 1) ? true : false
   end
 
-  private
-
-  def bootstrap_wxruby
-    begin
-      require 'wx'
-    rescue LoadError
-      if confirm('This program requires wxRuby. Download and install it?', 'wxRuby Required')
-        # Ruby 1.8
-        #system 'gem install wxruby'
-        system 'gem install wxruby-ruby19'
-      else
-        notice('Installation cannot proceed. Please install wxRuby and try again.', 'Installation failed')
-        exit 1
-      end
-    end
-  end
 end

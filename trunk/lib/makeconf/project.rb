@@ -1,15 +1,21 @@
 # A project contains all of the information about the build.
 #
 class Project
+ 
+  require 'net/http'
 
-  attr_reader :id, :version, :summary, :description, :license, :author
+  attr_accessor :id, :version, :summary, :description, :license, :author,
+                :config_h
+
+  # KLUDGE: remove these if possible                
   attr_accessor :makefile, :installer, :packager
+
 
   require 'yaml'
 
   # Creates a new project
-  def initialize(h)
-    @id = h[:id]
+  def initialize(h = {})
+    @id = h[:id] || 'myproject'
     @version = h[:version] || '0.1'
     @summary = h[:summary] || 'Undefined project summary'
     @description = h[:description] || 'Undefined project description'
@@ -23,17 +29,11 @@ class Project
     @test = []          # List of unit tests
     @decls = {}         # List of declarations discovered via check_decl()
     @funcs = {}         # List of functions discovered via check_func()
-    @cc = CCompiler.new()
     @packager = Packager.new(self)
 
     # Provided by the parent Makeconf object
     @installer = nil
     @makefile = nil
-
-    [:id, :version].each do |k|
-      raise ArgumentError.new("Missing argument: #{k}") \
-          unless h.has_key? k
-    end
 
     [:manpages, :headers, :libraries, :tests, :check_decls, :check_funcs,
      :extra_dist].each do |k|
@@ -56,10 +56,13 @@ class Project
     h[:check_decls].each { |id,decl| check_decl(id,decl) }
     h[:check_funcs].each { |f| check_func(f) }
     h[:extra_dist].each { |f| distribute(f) }
+    yield self if block_given?
   end
 
   # Examine the operating environment and set configuration options
   def configure
+
+    @cc ||= CCompiler.new() #FIXME: stop this
 
     # Build a list of local headers
     local_headers = []
@@ -114,6 +117,8 @@ class Project
       decl = [ decl ] if decl.kind_of? String
       throw ArgumentError unless decl.kind_of? Array
 
+       @cc ||= CCompiler.new() #FIXME: stop this
+
       decl.each do |x|
         next if @decls.has_key? x
         printf "checking whether #{x} is declared... "
@@ -128,6 +133,7 @@ class Project
       func = [ func ] if func.kind_of? String
       throw ArgumentError unless func.kind_of? Array
 
+       @cc ||= CCompiler.new() #FIXME: stop this
       func.each do |x|
         next if @funcs.has_key? x
         printf "checking for #{x}... "
@@ -264,6 +270,12 @@ class Project
       end
     end
     f.close
+  end
+
+#XXX fixme -- testing
+  def mount(uri,subdir)
+    x = Net::HTTP.get(URI(uri))
+    puts x.length
   end
 
   private

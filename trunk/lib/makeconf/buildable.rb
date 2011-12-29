@@ -50,7 +50,7 @@ class Buildable
 
     # Read all source code into a single array
     @source_code = {}
-    @sources.each { |x| @source_code[x] = File.read(x).split(/\r?\n/) }
+    @sources.each { |x| @source_code[x] = File.readlines(x) }
 
   end
 

@@ -77,7 +77,7 @@ class Makefile
 
   # Add a file to be installed during 'make install'
   def install(src,dst,opt = {})
-    rename = opt.has_key?('rename') ? opt['rename'] : false
+#FIXME:rename = opt.has_key?('rename') ? opt['rename'] : false
     mode = opt.has_key?('mode') ? opt['mode'] : nil
     mkdir = opt.has_key?('mkdir') ? opt['mkdir'] : true
 
@@ -102,12 +102,6 @@ class Makefile
 #      raise "FIXME"
 ##add_rule('uninstall', Platform.rm('$(DESTDIR)' + $dst + '/' . basename($src)));
 #    end 
-  end
-
-  def add_distributable(src)
-    mode = '755' #TODO: test -x src, use 644 
-    #FIXME:
-    # add_rule('dist', "$(INSTALL) -m %{mode} %{src} %{self.distdir}")
   end
 
   def make_dist(project,version)

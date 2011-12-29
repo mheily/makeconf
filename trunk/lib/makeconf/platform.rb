@@ -10,7 +10,7 @@ class Platform
 
   # TODO: allow target_os to be overridden for cross-compiling
 
-  @@host_os = Config::CONFIG['host_os']
+  @@host_os = RbConfig::CONFIG['host_os']
   @@target_os = @@host_os
 
   # Returns true or false depending on if the target is MS Windows
@@ -30,7 +30,7 @@ class Platform
 
   # Returns true or false depending on if the target is x86-compatible
   def Platform.is_x86?
-    Config::CONFIG['host_cpu'] =~ /^(x86_64|i386)$/ ? true : false
+    RbConfig::CONFIG['host_cpu'] =~ /^(x86_64|i386)$/ ? true : false
   end
 
   # Returns the name of the operating system vendor
