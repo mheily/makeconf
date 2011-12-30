@@ -32,7 +32,11 @@ class Makefile
   end
 
   def add_target(object,depends = [], rules = [])
-    @targets[object] = Target.new(object,depends,rules)
+    if object.kind_of?(Target)
+      @targets[object.objs] = object
+    else
+      @targets[object] = Target.new(object,depends,rules)
+    end
   end
 
   def add_rule(target, rule)

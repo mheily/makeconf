@@ -1,6 +1,8 @@
 # A target is a section in a Makefile
 class Target
 
+  attr_reader :objs, :deps, :rules
+
   def initialize(objs, deps = [], rules = [])
       deps = [ deps ] if deps.kind_of?(String)
       rules = [ rules ] if rules.kind_of?(String)
@@ -66,5 +68,5 @@ class Target
 
   protected
 
-  attr_reader :objs, :deps, :rules, :dirs_to_create, :files_to_copy
+  attr_reader :dirs_to_create, :files_to_copy
 end
