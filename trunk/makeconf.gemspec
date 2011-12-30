@@ -17,7 +17,7 @@
 Gem::Specification.new do |s|
   s.name        = 'makeconf'
   s.version     = '0.1.0'
-  s.date        = '2011-12-16'
+  s.date        = '2011-12-30'
   s.summary     = 'Generates configurable Makefiles'
   s.description = 'An alternative to GNU autoconf/automake/libtool/etc'
   s.authors     = ['Mark Heily']
