@@ -59,12 +59,14 @@ class Makeconf
   end
 
   # Examine the operating environment and set configuration options
-  def Makeconf.configure(project_list)
+  def Makeconf.configure(project)
+    project = Project.new(project) if project.kind_of?(Hash)
+
     if ENV['MAKECONF_GUI'] and Platform.is_graphical?
-      ui = Makeconf::GUI.new(project_list)
+      ui = Makeconf::GUI.new(project)
       ui.main_loop
     else
-      Makeconf.configure_project(project_list)
+      Makeconf.configure_project(project)
     end
   end
 
@@ -72,23 +74,19 @@ class Makeconf
 
 
   # Examine the operating environment and set configuration options
-  def Makeconf.configure_project(project_list)
-     project_list = [ project_list ] if project_list.kind_of?(Project)
-     throw "Invalid argument" unless project_list.kind_of?(Array)
+  def Makeconf.configure_project(project)
      parse_options
 
      makefile = Makefile.new
      toplevel_init(makefile)
 
-     project_list.each do |project|
-        @@installer.configure(project)
-        project.makefile = @@makefile
-        project.installer = @@installer
-        project.configure
-        project.finalize 
-        project.write_config_h
-        makefile.merge! project.to_make
-     end
+     @@installer.configure(project)
+     project.makefile = @@makefile
+     project.installer = @@installer
+     project.configure
+     project.finalize 
+     project.write_config_h
+     makefile.merge! project.to_make
 
      puts 'creating Makefile'
      makefile.write('Makefile')
