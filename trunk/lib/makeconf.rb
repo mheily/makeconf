@@ -62,7 +62,9 @@ class Makeconf
   def Makeconf.configure(project)
     project = Project.new(project) if project.kind_of?(Hash)
 
-    if ENV['MAKECONF_GUI'] and Platform.is_graphical?
+    # FIXME: once the GUI is finished, it should just be
+    # if Platform.is_graphical?
+    if Platform.is_windows? or (ENV['MAKECONF_GUI'] and Platform.is_graphical?)
       ui = Makeconf::GUI.new(project)
       ui.main_loop
     else
