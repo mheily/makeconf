@@ -26,6 +26,7 @@ class Project
     @build = []         # List of items to build
     @distribute = []    # List of items to distribute
     @install = []       # List of items to install
+    @target = []        # List of additional Makefile targets
     @test = []          # List of unit tests
     @decls = {}         # List of declarations discovered via check_decl()
     @funcs = {}         # List of functions discovered via check_func()
@@ -46,8 +47,9 @@ class Project
       end
     end
 
+    # Initialize missing variables to be empty Arrays 
     [:manpages, :headers, :libraries, :tests, :check_decls, :check_funcs,
-     :extra_dist].each do |k|
+     :extra_dist, :targets].each do |k|
        h[k] = [] unless h.has_key? k
        h[k] = [ h[k] ] if h[k].kind_of?(String)
     end
@@ -66,6 +68,8 @@ class Project
     h[:check_decls].each { |id,decl| check_decl(id,decl) }
     h[:check_funcs].each { |f| check_func(f) }
     h[:extra_dist].each { |f| distribute(f) }
+    h[:targets].each { |t| target(t) }
+
     yield self if block_given?
   end
 
@@ -105,6 +109,9 @@ class Project
     @distribute.each { |f| @makefile.distribute f }
     @build.each { |x| makefile.merge! @cc.build(x) }
     makefile.merge! @installer.to_make
+
+    # Add custom targets
+    @target.each { |t| makefile.add_target t }
 
     # Add unit tests
     @test.each do |x| 
@@ -280,6 +287,12 @@ class Project
       end
     end
     f.close
+  end
+
+  # Add an additional Makefile target
+  def target(t)
+    throw ArgumentError.new('Invalid data type') unless t.kind_of?(Target) 
+    @target.push t
   end
 
 #XXX fixme -- testing
