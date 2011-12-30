@@ -44,7 +44,9 @@ class Compiler
     ld = @ld.clone
     ldadd = h[:ldadd]
     cflags = h[:cflags]
+    cflags.concat default_flags
     ldflags = []
+    ldflags.concat @ld.default_flags
     ldflags.push h[:ldflags]
     ld.rpath = h[:rpath] if h[:rpath].length > 0
 
@@ -108,7 +110,7 @@ class Compiler
     f.flush
 
     cmd = [ @path, opt, '-c', f.path ].join(' ') + Platform.dev_null
-    system cmd
+    Platform.execute cmd
   end
 
   # Check if a header is available
@@ -132,7 +134,7 @@ class Compiler
 
     # Run the compiler
     cmd = command(:stage => stage, :sources => f.path, :output => objfile) + Platform.dev_null
-    rc = system cmd
+    rc = Platform.execute cmd
 
     File.unlink(objfile) if rc
     return rc
@@ -181,7 +183,7 @@ class Compiler
           end
         rescue ArgumentError
           # FIXME: should give more info about which file and line
-          warn "** WARNING: invalid multibyte sequence encountered in one of the source code files"
+          warn "** WARNING: invalid multibyte sequence encountered in one of the source code files:"
         end
       end
       b.sysdep[src].sort!.uniq!
@@ -240,6 +242,19 @@ class Compiler
     return makefile
   end
 
+  # Try to determine a usable default set of compiler flags
+  def default_flags
+    cflags = []
+
+    # GCC on Solaris 10 produces 32-bit code by default, so add -m64
+    # when running in 64-bit mode.
+    if Platform.is_solaris? and Platform.word_size == 64
+       cflags.push '-m64'
+    end
+
+    cflags
+  end
+
   private
 
   # Special initialization for MS Windows
@@ -284,7 +299,7 @@ class Compiler
     
     # Verify the command can be executed
     cmd = res + help + Platform.dev_null
-    unless system(cmd)
+    unless Platform.execute(cmd)
        puts "not found"
        print " -- tried: " + cmd
        raise
@@ -313,14 +328,6 @@ class CCompiler < Compiler
     super('C', '.c')
     printf "checking for a C compiler.. "
     @path = search(['cc', 'gcc', 'clang', 'cl.exe'])
-
-    # GCC on Solaris 10 produces 32-bit code by default, so add -m64
-    # when running in 64-bit mode.
-    if Platform.is_solaris? and Platform.word_size == 64
-       @cflags += ' -m64'
-       @ldflags += '-m64'
-       @ldflags += ' -R/usr/sfw/lib/amd64' if Platform.is_x86?
-    end
   end
 
 end

@@ -4,8 +4,8 @@ class Project
  
   require 'net/http'
 
-  attr_accessor :id, :version, :summary, :description, :license, :author,
-                :config_h
+  attr_accessor :id, :version, :summary, :description, 
+        :author, :license, :license_file, :config_h
 
   # KLUDGE: remove these if possible                
   attr_accessor :makefile, :installer, :packager
@@ -35,6 +35,17 @@ class Project
     @installer = nil
     @makefile = nil
 
+    # Determine the path to the license file
+    @license_file = h[:license_file]
+    if @license_file.nil?
+      %w{COPYING LICENSE}.each do |p|
+        if File.exists?(p)
+            @license_file = p
+            break
+        end
+      end
+    end
+
     [:manpages, :headers, :libraries, :tests, :check_decls, :check_funcs,
      :extra_dist].each do |k|
        h[k] = [] unless h.has_key? k
@@ -42,7 +53,6 @@ class Project
     end
 
     h[:manpages].each { |x| manpage(x) } 
-    h[:headers].each { |x| header(x) }   
     h[:headers].each { |x| header(x) }   
     h[:libraries].each do |id,buildable| 
        buildable[:id] = id

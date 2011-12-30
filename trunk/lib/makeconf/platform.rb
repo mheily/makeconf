@@ -145,6 +145,13 @@ class Platform
     is_windows? ? '.dll' : '.so'
   end
 
+  # Returns true if the current environment supports graphical display
+  def Platform.is_graphical?
+    return true if Platform.is_windows?
+    return true if ENV.has_key?('DISPLAY') and not ENV['DISPLAY'].empty?
+    return false
+  end
+
   # Emulate the which(1) command
   def Platform.which(command)
     return nil if is_windows?      # FIXME: STUB
@@ -162,5 +169,35 @@ class Platform
     else
       path
     end
+  end
+
+  # Run an external command. On Windows, the system() function uses
+  # cmd.exe which pops up an ugly DOS window.
+  def Platform.execute(cmd)
+    if is_windows?
+      # NEED INFO
+        #shell = WIN32OLE.new('Shell.Application')
+#shell.ShellExecute('cmd.exe', '', ,,
+
+# DOESNOT WORK
+#p = IO.popen(cmd)
+#        p.readlines
+#        return $?.exitstatus == 0 ? true : false
+
+
+        
+        # NOTE: requires Ruby 1.9
+#    pid = Process.spawn(cmd)
+#        pid, status = Process.waitpid2(pid)
+#        return status.exitstatus == 0 ? true : false
+
+        return system(cmd)
+    else
+        system(cmd)
+    end
+  end
+
+  if is_windows?
+    require 'win32ole'
   end
 end

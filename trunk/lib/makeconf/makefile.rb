@@ -6,7 +6,6 @@ class Makefile
   def initialize
     @vars = {}
     @targets = {}
-    @mkdir_list = []   # all directories that have been created so far
 
     %w[all check clean distclean install uninstall distdir].each do |x|
         add_target(x)
@@ -23,7 +22,6 @@ class Makefile
   def merge!(src)
     throw 'invalid argument' unless src.is_a?(Makefile)
     @vars.merge!(src.vars)
-    @mkdir_list.push(src.mkdir_list) 
     src.targets.each do |k,v|
       if targets.has_key?(k)
          targets[k].merge!(v)
@@ -75,35 +73,6 @@ class Makefile
     @targets[target].add_dependency(depends)
   end
 
-  # Add a file to be installed during 'make install'
-  def install(src,dst,opt = {})
-#FIXME:rename = opt.has_key?('rename') ? opt['rename'] : false
-    mode = opt.has_key?('mode') ? opt['mode'] : nil
-    mkdir = opt.has_key?('mkdir') ? opt['mkdir'] : true
-
-    # Determine the default mode based on the execute bit
-    if mode.nil?
-      mode = File.executable?(src) ? '755' : '644'
-    end
-
-    # Automatically create the destination directory, if needed
-    if mkdir and not @mkdir_list.include?(dst)
-       add_rule('install', "test -e $(DESTDIR)#{dst} || $(INSTALL) -d -m 755 $(DESTDIR)#{dst}")
-       @mkdir_list.push(dst)
-    end
-
-    add_rule('install', "$(INSTALL) -m #{mode} #{src} $(DESTDIR)#{dst}")
-    add_rule('uninstall', Platform.rm("$(DESTDIR)#{dst}/#{File.basename(src)}"))
-
-    # FIXME: broken
-#   if (rename) 
-#      add_rule('uninstall', Platform.rm('$(DESTDIR)' + dst))
-#    else 
-#      raise "FIXME"
-##add_rule('uninstall', Platform.rm('$(DESTDIR)' + $dst + '/' . basename($src)));
-#    end 
-  end
-
   def make_dist(project,version)
     distdir = project + '-' + version
     # XXX-FIXME this should come from the Project
@@ -113,7 +82,7 @@ class Makefile
     tg.add_rule("mkdir " + distdir)
     tg.add_rule('$(MAKE) distdir distdir=' + distdir)
     if Platform.is_windows? 
-       require 'zip/zip'
+
 # FIXME - Not implemented yet
 
     else
@@ -131,9 +100,6 @@ class Makefile
     @vars.sort.each { |x,y| res += x + y[0] + y[1] + "\n" }
     res += "\n\n"
     res += "default: all\n"
-#XXX   require 'pp'
-#XXX    puts '---------'
-#XXX   pp @targets
     targets.each { |x,y| throw "#{x} is broken" unless y.is_a? Target }
     @targets.sort.each { |x,y| res += y.to_s }
     res
@@ -148,5 +114,5 @@ class Makefile
 
   protected
 
-  attr_reader :vars, :targets, :mkdir_list
+  attr_reader :vars, :targets
 end

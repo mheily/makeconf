@@ -1,20 +1,32 @@
 class Makeconf::GUI
 
-  def initialize(project_list)
+  def initialize(project)
     require 'tk'
 
-    @project_list = project_list
+    @project = project
+    @page = [ 'intro_page', 
+              'license_page',
+# TODO:'install_prefix_page',
+              'build_page',
+              'outro_page',
+         ]
+    @pageIndex = 0
 
+    @mainTitle = TkVariable.new 
     @mainMessage = TkVariable.new 
-    @mainMessage.set_value 'hi'
 
     @root = TkRoot.new() { 
         title "Installation" 
     }
 
+    @mainTitleWidget = TkLabel.new(@root) {
+        pack('side' => 'top')
+    }
+    @mainTitleWidget.configure('textvariable', @mainTitle)
+
     @mainFrame = TkFrame.new(@root) {
-        height      400
-        width       400
+        height      600
+        width       600
         background  'white'
         borderwidth 5
         relief      'groove'
@@ -23,48 +35,132 @@ class Makeconf::GUI
         pack('side' => 'top')
     }
 
-    @mainText = TkLabel.new(@mainFrame) {
+    @mainLabel = TkLabel.new(@mainFrame) {
         background  'white'
-        place('relx'=>0.0, 'rely' => 0.0)
     }
-    @mainText.configure('textvariable', @mainMessage)
+    @mainLabel.configure('textvariable', @mainMessage)
+    
+    @mainText = TkText.new(@mainFrame) {
+        background  'white'
+    }
 
     @cancelButton = TkButton.new(@root) { 
         text "Cancel" 
         command proc {
             exit 1
         }
-        pack('side' => 'right')
+        pack('side' => 'left')
     }
 
     @nextButton = TkButton.new(@root) { 
         text "Next" 
         pack('side' => 'right')
     }
+    @nextButton.configure('command', method(:next_page))
 #nextButton.configure('command', proc { mainMessage.set_value 'You click it' })
 
     @backButton = TkButton.new(@root) { 
         text "Back" 
+        command proc { prev_page }
         pack('side' => 'right')
     }
+    @backButton.configure('command', method(:prev_page))
+
+    update_buttons
+  end
+
+  def next_page
+    eval "#{@page[@pageIndex]}(false)"
+    @pageIndex = @pageIndex + 1
+    eval "#{@page[@pageIndex]}(true)"
+    update_buttons
+  end
+
+  def prev_page
+    eval "#{@page[@pageIndex]}(false)"
+    @pageIndex = @pageIndex - 1
+    eval "#{@page[@pageIndex]}(true)"
+    update_buttons
+  end
+
+  # Update the Back and Next buttons based on the position in the pagelist
+  def update_buttons
+    if @pageIndex == 0
+      @backButton.configure('state', 'disabled')
+      @nextButton.configure('state', 'normal')
+      @nextButton.configure('text', 'Next')
+    elsif @pageIndex == @page.length - 1
+      @nextButton.configure('text', 'Finish')
+      @nextButton.configure('command', proc { exit 0 })
+      @backButton.configure('state', 'disabled')
+      @cancelButton.configure('state', 'disabled')
+    else
+      @nextButton.configure('text', 'Next')
+      @nextButton.configure('state', 'normal')
+      @backButton.configure('state', 'normal')
+    end
   end
 
   def main_loop
-    intro_page
+    eval "#{@page[0]}(true)"
     Tk.mainloop()
   end
 
-  def intro_page
-    @mainMessage.set_value "This will install #{@project_list.id} on your computer"
-    @backButton.configure('state', 'disabled')
-    @nextButton.configure('command', proc { 
-            @backButton.configure('state', 'normal')
-            license_page 
-            })
+  def intro_page(display)
+    if display
+      @mainTitle.set_value 'Welcome'
+      @mainLabel.place('relx'=>0.0, 'rely' => 0.0)
+      @mainMessage.set_value "This will install #{@project.id} on your computer"
+    else
+      TkPlace.forget(@mainLabel)
+    end
   end
 
-  def license_page
-    @mainMessage.set_value "Here is the license"
+  def license_page(display)
+    if display
+      @mainTitle.set_value 'License Agreement'
+      @mainText.insert('end', File.read(@project.license_file))
+      @mainText.place('relx'=>0.0, 'rely' => 0.0)
+    else
+      TkPlace.forget(@mainText)
+      @mainText.delete(1.0, 'end')
+    end
+  end
+
+  def install_prefix_page(display)
+    if display
+      @mainTitle.set_value 'Installation Path'
+      @mainText.insert('end', "choose an installation path")
+      @mainText.place('relx'=>0.0, 'rely' => 0.0)
+      Tk.getOpenFile
+    else
+      TkPlace.forget(@mainText)
+      @mainText.delete(1.0, 'end')
+    end
+  end
+
+  def build_page(display)
+    if display
+      @mainTitle.set_value 'Checking Configuration'
+      @mainText.delete(1.0, 'end')
+      @mainText.insert('end', "configuration OK")
+      @mainText.place('relx'=>0.0, 'rely' => 0.0)
+      Makeconf.configure_project @project 
+      system "make"
+    else
+      TkPlace.forget(@mainText)
+      @mainText.delete(1.0, 'end')
+    end
+  end
+
+  def outro_page(display)
+    if display
+      @mainTitle.set_value 'Installation Complete'
+      @mainLabel.place('relx'=>0.0, 'rely' => 0.0)
+      @mainMessage.set_value "Installation is complete."
+    else
+      TkPlace.forget(@mainLabel)
+    end
   end
 
 end
