@@ -88,11 +88,20 @@ class Installer
   end
 
   def to_make
+    mkdir_list = []   # all directories that have been created so far
+
     m = Makefile.new
     m.define_variable('INSTALL', '=', @path) unless @path.nil?
 
     # Add 'make install' rules
     @items.each do |i| 
+      # Automatically create the destination directory, if needed
+      destdir = expand_dir(i[:dest])
+      unless mkdir_list.include?(destdir)
+       m.add_rule('install', "test -e $(DESTDIR)#{destdir} || $(INSTALL) -d -m 755 $(DESTDIR)#{destdir}")
+       mkdir_list.push(destdir)
+      end
+
       m.add_rule('install', install_command(i)) 
       m.add_rule('uninstall', uninstall_command(i)) 
     end

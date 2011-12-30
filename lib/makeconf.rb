@@ -60,8 +60,7 @@ class Makeconf
 
   # Examine the operating environment and set configuration options
   def Makeconf.configure(project_list)
-    #TODO:if ENV['DISPLAY'] or Platform.is_windows?
-    if ENV['MAKECONF_GUI']
+    if ENV['MAKECONF_GUI'] and Platform.is_graphical?
       ui = Makeconf::GUI.new(project_list)
       ui.main_loop
     else

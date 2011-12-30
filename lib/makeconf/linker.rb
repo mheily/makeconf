@@ -28,7 +28,7 @@ class Linker
   # Override the normal search path for the dynamic linker
   def rpath=(dir)
     if Platform.is_solaris?
-      @flags.push ['-R', dir]
+      @flags.push ['R', dir]
     elsif Platform.is_linux?
       @flags.push ['-rpath', dir]
     elsif Platform.is_windows?
@@ -59,6 +59,20 @@ class Linker
     # windows: 'link.exe /DLL /OUT:$@ ' + deps.join(' '))
     # linux: 'cc ' .... (see Compiler::)
   throw 'stub'
+  end
+
+  # Try to determine a usable default set of linker flags
+  def default_flags
+    ldflags = []
+
+    # GCC on Solaris 10 produces 32-bit code by default, so add -m64
+    # when running in 64-bit mode.
+    if Platform.is_solaris? and Platform.word_size == 64
+       ldflags.push '-m64'
+       ldflags.push '-R', '/usr/sfw/lib/amd64' if Platform.is_x86?
+    end
+
+    ldflags
   end
 
 end
