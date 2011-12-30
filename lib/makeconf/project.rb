@@ -10,9 +10,6 @@ class Project
   # KLUDGE: remove these if possible                
   attr_accessor :makefile, :installer, :packager
 
-
-  require 'yaml'
-
   # Creates a new project
   def initialize(h = {})
     @id = h[:id] || 'myproject'
@@ -299,68 +296,6 @@ class Project
   def mount(uri,subdir)
     x = Net::HTTP.get(URI(uri))
     puts x.length
-  end
-
-  private
-
-  def parse(manifest)
-    default = {
-        'project' => 'myproject',
-        'version' => '0.1',
-        'author' => 'Unknown Author <nobody@nowhere.invalid>',
-        'license' => 'Unknown License',
-        'summary' => 'Unknown Project Summary',
-
-        'binaries' => [],
-        'data' => [],
-        'headers' => [],
-        'libraries' => [],
-        'manpages' => [],
-        'scripts' => [],
-        'tests' => [],
-        'extra_dist' => [],
-
-        'check_header' => [],
-    }
-    ast = YAML.load_file(manifest)
-    default.each do |k,v| 
-        if ast.has_key?(k)
-          if ast[k].is_a?(Float) and v.is_a?(String)
-            ast[k] = ast[k].to_i.to_s
-          elsif ast[k].is_a?(Integer) and v.is_a?(String)
-            ast[k] = ast[k].to_s
-          end
-        else
-          ast[k] = v
-        end
-    end
-    ast
-  end
-
-  # Add targets for distributing and installing ordinary non-compiled files,
-  # such as data or manpages.
-  #
-  def make_installable(ast,default_dest)
-    h = {}
-    if ast.is_a?(Array)
-      ast.each do |e|
-         h[e] = { 'dest' => default_dest }
-      end
-    elsif ast.is_a?(Hash)
-       h = ast
-    else
-       throw 'Unsupport AST type'
-    end
-
-    h.each do |k,v|
-        if v.is_a?(String)
-          v = { 'dest' => v }
-        end
-        Dir.glob(k).each do |f|
-          @makefile.distribute(f)
-          @makefile.install(f, v['dest'], v)
-       end
-    end
   end
 
 end
