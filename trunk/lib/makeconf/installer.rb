@@ -98,7 +98,7 @@ class Installer
       # Automatically create the destination directory, if needed
       destdir = expand_dir(i[:dest])
       unless mkdir_list.include?(destdir)
-       m.add_rule('install', "test -e $(DESTDIR)#{destdir} || $(INSTALL) -d -m 755 $(DESTDIR)#{destdir}")
+       m.add_rule('install', "/usr/bin/test -e $(DESTDIR)#{destdir} || $(INSTALL) -d -m 755 $(DESTDIR)#{destdir}")
        mkdir_list.push(destdir)
       end
 
