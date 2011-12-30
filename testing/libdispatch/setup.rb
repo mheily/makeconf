@@ -18,24 +18,10 @@ $LOAD_PATH << '../../lib'
 
 require 'makeconf'
 
-# FIXME: use arrays instead of strings for cflags and ldflags
-sources = [ 'src/*.c' ]
-cflags = '-Wall -Wextra -Werror -D_XOPEN_SOURCE=600 -D__EXTENSIONS__ -D_GNU_SOURCE -std=c99 -I./include -I./src'
-ldadd = []
-ldflags = ''
-if Platform.is_windows?
-  sources.push 'src/windows/*.c'
-  cflags += ' -mthreads'
-  ldadd.push '-mthreads'
-else
-  sources.push 'src/posix/*.c'
-  ldadd.push '-lpthread', '-lrt'
-end
-if Platform.is_solaris?
-  ldflags += ' -lumem'
-end
-
-Makeconf.new(
+mc = Makeconf.new
+p = Project.new(:id => 'libpthread_workqueue', :version => '0.8.2')
+p.mount 'http://mark.heily.com/sites/mark.heily.com/files/libpthread_workqueue-0.8.2.tar.gz', 'libpthread_workqueue'
+__END__
   :id => 'libpthread_workqueue',
   :version => '0.8.2',
   :license => 'BSD',
