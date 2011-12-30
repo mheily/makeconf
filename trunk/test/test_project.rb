@@ -20,4 +20,20 @@ EOF
       p.config_h = 'include/config.h'
     end
   end
+
+  def test_installable
+    Project.new do |p|
+      p.manpage('foo.3')
+      p.header('foo.h')
+      p.distribute('README')
+    end
+  end
+
+  def test_check_decl
+    Project.new { |p| p.check_decl('stdlib.h', 'exit') }
+  end
+
+  def test_check_func
+    Project.new { |p| p.check_func 'printf' }
+  end
 end
