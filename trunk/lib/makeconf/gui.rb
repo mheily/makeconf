@@ -58,13 +58,16 @@ class Makeconf::GUI
     }
     @nextButton.configure('command', method(:next_page))
 #nextButton.configure('command', proc { mainMessage.set_value 'You click it' })
+    @nextButtonEnable = true
 
     @backButton = TkButton.new(@root) { 
-        text "Back" 
+        text    "Back" 
         command proc { prev_page }
+        state   'disabled'
         pack('side' => 'right')
     }
     @backButton.configure('command', method(:prev_page))
+    @backButtonEnable = true
 
     update_buttons
   end
@@ -96,8 +99,8 @@ class Makeconf::GUI
       @cancelButton.configure('state', 'disabled')
     else
       @nextButton.configure('text', 'Next')
-      @nextButton.configure('state', 'normal')
-      @backButton.configure('state', 'normal')
+      @nextButton.configure('state', @nextButtonEnable ? 'normal' : 'disabled')
+      @backButton.configure('state', @backButtonEnable ? 'normal' : 'disabled')
     end
   end
 
@@ -141,12 +144,29 @@ class Makeconf::GUI
 
   def build_page(display)
     if display
+      @nextButtonEnable = false
+      update_buttons
       @mainTitle.set_value 'Checking Configuration'
       @mainText.delete(1.0, 'end')
-      @mainText.insert('end', "configuration OK")
       @mainText.place('relx'=>0.0, 'rely' => 0.0)
-      Makeconf.configure_project @project 
-      system "make"
+      Thread.new {
+          @mainText.insert('end', "Configuring.. ")
+          Makeconf.configure_project @project 
+          @mainText.insert('end', "done\n")
+
+          @mainText.insert('end', "Building.. ")
+          system "make"
+          @mainText.insert('end', "done\n")
+
+          @mainText.insert('end', "Installing.. ")
+          system "make install"
+          @mainText.insert('end', "done\n")
+
+          @mainText.insert('end', "\nAll tasks completed.")
+
+          @nextButtonEnable = true
+          update_buttons
+      }
     else
       TkPlace.forget(@mainText)
       @mainText.delete(1.0, 'end')
