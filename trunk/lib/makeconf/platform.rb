@@ -197,6 +197,16 @@ class Platform
     end
   end
 
+  # Returns true if the user is running as the superuser on Unix
+  # or has Administrator privileges on Windows.
+  def Platform.is_superuser?
+    if is_windows?
+      Process.euid == 0
+    else
+      system "reg query HKU\\S-1-5-19" + Platform.dev_null
+    end
+  end
+
   if is_windows?
     require 'win32ole'
   end
