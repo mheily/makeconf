@@ -154,12 +154,14 @@ class Makeconf::GUI
           Makeconf.configure_project @project 
           @mainText.insert('end', "done\n")
 
+          make = Platform.is_windows? ? 'nmake' : 'make'
+
           @mainText.insert('end', "Building.. ")
-          system "make"
+          system "#{make}"
           @mainText.insert('end', "done\n")
 
           @mainText.insert('end', "Installing.. ")
-          system "make install"
+          system "#{make} install"
           @mainText.insert('end', "done\n")
 
           @mainText.insert('end', "\nAll tasks completed.")
