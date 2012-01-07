@@ -69,7 +69,7 @@ class Linker
     # when running in 64-bit mode.
     if Platform.is_solaris? and Platform.word_size == 64
        ldflags.push '-m64'
-       ldflags.push '-R', '/usr/sfw/lib/amd64' if Platform.is_x86?
+       ldflags.push '-R/usr/sfw/lib/amd64' if Platform.is_x86?
     end
 
     ldflags
