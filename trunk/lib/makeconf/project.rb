@@ -46,10 +46,11 @@ class Project
 
     # Initialize missing variables to be empty Arrays 
     [:manpages, :headers, :libraries, :tests, :check_decls, :check_funcs,
-     :extra_dist, :targets].each do |k|
+     :extra_dist, :targets, :binaries].each do |k|
        h[k] = [] unless h.has_key? k
        h[k] = [ h[k] ] if h[k].kind_of?(String)
     end
+    h[:scripts] = {} unless h.has_key?(:scripts)
 
     h[:manpages].each { |x| manpage(x) } 
     h[:headers].each { |x| header(x) }   
@@ -58,10 +59,15 @@ class Project
        build SharedLibrary.new(buildable)
        build StaticLibrary.new(buildable)
     end
+    h[:binaries].each do |id,buildable| 
+       buildable[:id] = id + Platform.executable_extension
+       @build.push Binary.new(buildable)
+    end
     h[:tests].each do |id,buildable| 
        buildable[:id] = id
        test Binary.new(buildable)
     end
+    h[:scripts].each { |k,v| script(k,v) }
     h[:check_decls].each { |id,decl| check_decl(id,decl) }
     h[:check_funcs].each { |f| check_func(f) }
     h[:extra_dist].each { |f| distribute(f) }
@@ -104,7 +110,7 @@ class Project
     makefile.merge!(@packager.makefile)
     makefile.make_dist(@id, @version)
     @distribute.each { |f| @makefile.distribute f }
-    @build.each { |x| makefile.merge! @cc.build(x) }
+    @build.each { |x| makefile.merge!(@cc.build(x)) if x.enable }
     makefile.merge! @installer.to_make
 
     # Add custom targets
@@ -209,6 +215,17 @@ class Project
         :sources => path,
         :dest => (opt[:dest].nil? ? "$(MANDIR)/man#{section}" : opt[:dest]),
         :mode => '0644',
+        })
+  end
+
+  # Add a script to be installed
+  def script(id, opt = {})
+    throw ArgumentError, 'bad options' unless opt.kind_of? Hash
+    @install.push({ 
+        :sources => opt[:sources],
+        :dest => (opt[:dest].nil? ? "$(BINDIR)" : opt[:dest]),
+        :rename => opt[:rename],
+        :mode => '0755',
         })
   end
 
