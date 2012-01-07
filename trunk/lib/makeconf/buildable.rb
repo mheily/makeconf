@@ -2,12 +2,14 @@
 class Buildable
 
   attr_accessor :id, :installable, :distributable,
-        :localdep, :sysdep,
-        :output, :output_type, :sources, :cflags, :ldflags, :ldadd, :rpath
+        :localdep, :sysdep, :enable,
+        :output, :output_type, :sources, :cflags, :ldflags, :ldadd, :rpath,
+        :topdir
 
   def initialize(h, extra_options = {})
     default = {
         :id => nil,
+        :enable => true,
         :distributable => true,
         :installable => true,
         :extension => '',
@@ -16,6 +18,7 @@ class Buildable
         :ldadd => [],
         :rpath => '',
         :sources => [],
+        :topdir => '',
         :depends => [],
     }
     default.merge! extra_options
