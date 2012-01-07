@@ -1,0 +1,193 @@
+# An installer copies files from the current directory to an OS-wide location
+class Installer
+
+  attr_reader :dir
+  attr_accessor :package
+
+  def initialize
+    @items = []         # Items to be installed
+    @project = nil
+    @path = nil
+
+    # Set default installation paths
+    @dir = {
+        :prefix => '/usr/local',
+        :eprefix => '$(PREFIX)',    # this is --exec-prefix
+        :bindir => '$(EPREFIX)/bin',
+        :datarootdir => '$(PREFIX)/share',
+        :datadir => '$(DATAROOTDIR)',
+        :docdir => '$(DATAROOTDIR)/doc/$(PACKAGE)',
+        :includedir => '$(PREFIX)/include',
+        :infodir => '$(DATAROOTDIR)/info',
+        :libdir => '$(EPREFIX)/lib',
+        :libexecdir => '$(EPREFIX)/libexec',
+        :localedir => '$(DATAROOTDIR)/locale',
+        :localstatedir => '$(PREFIX)/var',
+        :mandir => '$(DATAROOTDIR)/man',
+        :oldincludedir => '/usr/include',
+        :sbindir => '$(EPREFIX)/sbin',
+        :sysconfdir => '$(PREFIX)/etc',
+        :sharedstatedir => '$(PREFIX)/com',
+
+        # Package-specific directories
+        :pkgincludedir => '$(INCLUDEDIR)/$(PACKAGE)',
+        :pkgdatadir => '$(DATADIR)/$(PACKAGE)',
+        :pkglibdir => '$(LIBDIR)/$(PACKAGE)',
+        
+        #TODO: document this
+        #DEPRECATED: htmldir, dvidir, pdfdir, psdir
+    }
+ 
+  end
+
+  # Examine the operating environment and set configuration options
+  def configure(project)
+    @project = project
+    printf 'checking for a BSD-compatible install.. '
+    if Platform.is_windows?
+       puts 'not found'
+    else
+       @path = search() or throw 'No installer found'
+       printf @path + "\n"
+    end
+  end
+
+  # Parse command line options.
+  # Should only be called from Makeconf.parse_options()
+  def parse_options(opts)
+    opts.separator ""
+    opts.separator "Installation options:"
+
+    # Convert symbols to strings
+    tmp = {}
+    @dir.each { |k,v| tmp[k.to_s] = v }
+
+    tmp.sort.each do |k, v|
+       opts.on('--' + k + ' [DIRECTORY]', "TODO describe this [#{v}]") do |arg|
+          @dir[k.to_sym] = arg
+       end
+    end
+
+  end
+
+  # Register a file to be copied during the 'make install' phase.
+  def install(src)
+    buf = {
+        :sources => nil,
+        :dest => nil,
+        :directory? => false,
+        :group => nil,
+        :user => nil,
+        :mode => '0755',
+    }
+#TODO: check for leading '/': raise ArgumentError, 'absolute path is required' unless src[:dest].index(0) == '/'
+    raise ArgumentError, ':dest is require' if src[:dest].nil?
+    raise ArgumentError, 'Cannot specify both directory and sources' \
+       if buf[:directory] == true and not buf[:sources].nil
+    @items.push buf.merge(src)
+  end
+
+  def to_make
+    mkdir_list = []   # all directories that have been created so far
+
+    m = Makefile.new
+    m.define_variable('INSTALL', '=', @path) unless @path.nil?
+
+    # Add 'make install' rules
+    @items.each do |i| 
+      # Automatically create the destination directory, if needed
+      destdir = expand_dir(i[:dest])
+      unless mkdir_list.include?(destdir)
+       m.add_rule('install', "/usr/bin/test -e $(DESTDIR)#{destdir} || $(INSTALL) -d -m 755 $(DESTDIR)#{destdir}")
+       mkdir_list.push(destdir)
+      end
+
+      m.add_rule('install', install_command(i)) 
+      m.add_rule('uninstall', uninstall_command(i)) 
+    end
+
+    return m
+  end
+
+  private
+
+  # Expand makefile variables related to installation directories
+  def expand_dir(s)
+    buf = s
+
+    throw 'FIXME -- handle $(PACKAGE)' if buf =~ /\$\(PACKAGE\)/
+    while buf =~ /\$/
+      old = buf.dup
+      @dir.each do |k,v|
+        buf.gsub!(/\$\(#{k.to_s.upcase}\)/, v)
+      end
+      # Prevent infinite loops if the macro doesn't exist
+      if old == buf and buf =~ /\$/
+        throw 'Unable to expand a directory macro'
+      end
+    end
+
+    buf
+  end
+
+  # Translate an @item into the equivalent shell command(s)
+  def install_command(h)
+    res = []
+
+    # TODO: more sanity checks (e.g. !h[:directory] && h[:sources])
+
+    if Platform.is_windows?
+      # XXX-this is not fully implemented, need mode/owner/group
+      if h[:directory]
+        res.push 'mkdir $(DESTDIR)' + expand_dir(h[:dest])
+      else
+        res.push "copy" 
+        res.push h[:sources]
+        res.push '$(DESTDIR)' + expand_dir(h[:dest])
+      end
+    else
+      res.push '$(INSTALL)'
+      res.push '-d' if h[:directory]
+      res.push('-m', h[:mode]) if h[:mode]
+      res.push('-o', h[:owner]) if h[:owner]
+      res.push('-g', h[:group]) if h[:group]
+      res.push h[:sources] if h[:sources]
+      res.push '$(DESTDIR)' + expand_dir(h[:dest])
+    end
+
+    res.join(' ')
+  end
+
+  # Translate an @item into the equivalent uninstallation shell command(s)
+  def uninstall_command(h)
+    res = []
+
+    h[:sources] = [ h[:sources] ] if h[:sources].kind_of?(String)
+
+    # TODO: use Platform abstractions instead of duplicate logic
+    if Platform.is_windows?
+      unless h[:sources]
+        res.push 'del', '$(DESTDIR)' + h[:dest]
+      else
+        res.push 'del', h[:sources].map { |x| '$(DESTDIR)' + h[:dest] + '/' + x }
+      end
+    else
+      unless h[:sources]
+        res.push 'rmdir', '$(DESTDIR)' + h[:dest]
+      else
+        res.push 'rm', '-f', h[:sources].map { |x| '$(DESTDIR)' + h[:dest] + '/' + x }
+      end
+    end
+
+    res.join(' ')
+  end
+
+  def search()
+    [ ENV['INSTALL'], '/usr/ucb/install', '/usr/bin/install' ].each do |x|
+        if !x.nil? and File.exists?(x)
+         return x
+        end
+    end
+  end
+
+end
