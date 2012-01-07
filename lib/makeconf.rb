@@ -101,7 +101,7 @@ class Makeconf
     makefile.add_rule('distclean', Platform.rm('Makefile'))
 
     # Prepare the destination tree for 'make install'
-    makefile.add_rule('install', 'test -e $(DESTDIR)')
+    makefile.add_rule('install', '/usr/bin/test -e $(DESTDIR)')
 
     # Distribute Makeconf with 'make distdir'
     makefile.distribute(['setup.rb', 'configure', 'makeconf/*.rb'])
