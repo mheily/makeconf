@@ -76,6 +76,7 @@ class Installer
     buf = {
         :sources => nil,
         :dest => nil,
+        :rename => nil,
         :directory? => false,
         :group => nil,
         :user => nil,
@@ -160,7 +161,9 @@ class Installer
       h[:sources].each do |src|
         res.push Platform.pathspec(src)
       end
-      res.push '$(DESTDIR)' + expand_dir(h[:dest])
+      dst = '$(DESTDIR)' + expand_dir(h[:dest])
+      dst += '/' + h[:rename] if h.has_key? :rename
+      res.push '$(DESTDIR)' + expand_dir(dst)
     end
 
     res.join(' ')
