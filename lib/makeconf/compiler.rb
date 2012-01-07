@@ -41,6 +41,7 @@ class Compiler
     end
 
     cc = h[:cc] || @path
+    topdir = h[:topdir] || ''
     ld = @ld.clone
     ldadd = h[:ldadd]
     cflags = h[:cflags]
@@ -85,7 +86,7 @@ class Compiler
 
     inputs = h[:sources]
     inputs = [ inputs ] if inputs.is_a? String
-    inputs = inputs.map { |x| Platform.pathspec x }
+    inputs = inputs.map { |x| Platform.pathspec(topdir + x) }
     throw 'One or more sources are required' unless inputs.count
 
     if h[:stage] == :compile
@@ -153,6 +154,7 @@ class Compiler
                 :stage => :compile,
                 :output => '-', 
                 :sources => src, 
+                :topdir => b.topdir,
                 :cflags => cflags
               ) + Platform.dev_null_stderr
 
@@ -214,6 +216,7 @@ class Compiler
               :stage => :compile,
               :output => obj, 
               :sources => src, 
+              :topdir => b.topdir,
               :cflags => cflags
               )
       makefile.add_target(obj, [src, b.localdep[src]].flatten, cmd)
@@ -229,6 +232,7 @@ class Compiler
               :stage => :link,
               :output => b.output, 
               :sources => objs, 
+              :topdir => b.topdir,
               :ldflags => b.ldflags,
               :ldadd => b.ldadd,
               :rpath => b.rpath
