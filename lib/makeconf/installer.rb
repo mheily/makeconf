@@ -11,7 +11,7 @@ class Installer
 
     # Set default installation paths
     @dir = {
-        :prefix => Platform.is_superuser? ? '/usr' : '/usr/local',
+        :prefix => '/usr/local',
         :eprefix => '$(PREFIX)',    # this is --exec-prefix
         :bindir => '$(EPREFIX)/bin',
         :datarootdir => '$(PREFIX)/share',
@@ -37,8 +37,7 @@ class Installer
         #TODO: document this
         #DEPRECATED: htmldir, dvidir, pdfdir, psdir
     }
-
-    @dir[:prefix] = ENV['SystemDrive'] + @dir[:prefix] if Platform.is_windows?
+ 
   end
 
   # Examine the operating environment and set configuration options
@@ -99,9 +98,7 @@ class Installer
       # Automatically create the destination directory, if needed
       destdir = expand_dir(i[:dest])
       unless mkdir_list.include?(destdir)
-       m.add_rule('install', Platform.is_windows? ?
-               "dir $(DESTDIR)#{destdir} >NUL 2>NUL || mkdir $(DESTDIR)#{destdir}" : 
-               "/usr/bin/test -e $(DESTDIR)#{destdir} || $(INSTALL) -d -m 755 $(DESTDIR)#{destdir}")
+       m.add_rule('install', "/usr/bin/test -e $(DESTDIR)#{destdir} || $(INSTALL) -d -m 755 $(DESTDIR)#{destdir}")
        mkdir_list.push(destdir)
       end
 
@@ -130,13 +127,12 @@ class Installer
       end
     end
 
-    Platform.pathspec(buf)
+    buf
   end
 
   # Translate an @item into the equivalent shell command(s)
   def install_command(h)
     res = []
-    h[:sources] = [ h[:sources] ] if h[:sources].kind_of? String
 
     # TODO: more sanity checks (e.g. !h[:directory] && h[:sources])
 
@@ -146,9 +142,7 @@ class Installer
         res.push 'mkdir $(DESTDIR)' + expand_dir(h[:dest])
       else
         res.push "copy" 
-        h[:sources].each do |src|
-          res.push Platform.pathspec(src)
-        end
+        res.push h[:sources]
         res.push '$(DESTDIR)' + expand_dir(h[:dest])
       end
     else
@@ -157,9 +151,7 @@ class Installer
       res.push('-m', h[:mode]) if h[:mode]
       res.push('-o', h[:owner]) if h[:owner]
       res.push('-g', h[:group]) if h[:group]
-      h[:sources].each do |src|
-        res.push Platform.pathspec(src)
-      end
+      res.push h[:sources] if h[:sources]
       res.push '$(DESTDIR)' + expand_dir(h[:dest])
     end
 
@@ -175,11 +167,9 @@ class Installer
     # TODO: use Platform abstractions instead of duplicate logic
     if Platform.is_windows?
       unless h[:sources]
-        res.push 'del', Platform.pathspec('$(DESTDIR)' + h[:dest])
+        res.push 'del', '$(DESTDIR)' + h[:dest]
       else
-        h[:sources].each do |src|
-          res.push 'del', Platform.pathspec('$(DESTDIR)' + h[:dest] + '/' + File.basename(src) )
-        end
+        res.push 'del', h[:sources].map { |x| '$(DESTDIR)' + h[:dest] + '/' + x }
       end
     else
       unless h[:sources]

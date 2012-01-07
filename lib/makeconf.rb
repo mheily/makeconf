@@ -64,7 +64,7 @@ class Makeconf
 
     # FIXME: once the GUI is finished, it should just be
     # if Platform.is_graphical?
-    if ENV['MAKECONF_GUI'] and Platform.is_graphical?
+    if Platform.is_windows? or (ENV['MAKECONF_GUI'] and Platform.is_graphical?)
       ui = Makeconf::GUI.new(project)
       ui.main_loop
     else
@@ -101,9 +101,7 @@ class Makeconf
     makefile.add_rule('distclean', Platform.rm('Makefile'))
 
     # Prepare the destination tree for 'make install'
-    makefile.add_rule('install', Platform.is_windows? ?
-            'dir $(DESTDIR)' + Platform.dev_null :
-            'test -e $(DESTDIR)')
+    makefile.add_rule('install', 'test -e $(DESTDIR)')
 
     # Distribute Makeconf with 'make distdir'
     makefile.distribute(['setup.rb', 'configure', 'makeconf/*.rb'])
