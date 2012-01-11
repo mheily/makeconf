@@ -125,10 +125,9 @@ class Installer
       @dir.each do |k,v|
         buf.gsub!(/\$\(#{k.to_s.upcase}\)/, v)
       end
-      # Prevent infinite loops if the macro doesn't exist
-      if old == buf and buf =~ /\$/
-        throw 'Unable to expand a directory macro'
-      end
+      # Crude way of bailing out when there are undefined variables
+      # like $(DESTDIR)
+      break if old == buf and buf =~ /\$\(/
     end
 
     Platform.pathspec(buf)
@@ -162,7 +161,7 @@ class Installer
         res.push Platform.pathspec(src)
       end
       dst = '$(DESTDIR)' + expand_dir(h[:dest])
-      dst += '/' + h[:rename] if h.has_key? :rename
+      dst += '/' + h[:rename] unless h[:rename].nil?
       res.push '$(DESTDIR)' + expand_dir(dst)
     end
 
