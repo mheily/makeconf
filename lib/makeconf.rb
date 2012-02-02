@@ -36,13 +36,17 @@ class Makeconf
   @@makefile = Makefile.new
 
   def Makeconf.parse_options(args = ARGV)
-     x = OptionParser.new do |opts|
+    reject_unknown_options = true
+
+    x = OptionParser.new do |opts|
        opts.banner = 'Usage: configure [options]'
 
        @@installer.parse_options(opts)
 
        opts.separator ''
        opts.separator 'Common options:'
+
+       opts.on_tail('--disable-option-checking') {}     # NOOP
 
        opts.on_tail('-h', '--help', 'Show this message') do
          puts opts
@@ -55,7 +59,28 @@ class Makeconf
        end
     end
 
-    x.parse!(args)
+    # Special case: This must be processed prior to all other options
+    if args.include? '--disable-option-checking' 
+      reject_unknown_options = false
+    end
+
+    # Parse all options, and gracefully resume when an invalid option 
+    # is provided.
+    #
+    loop do
+      begin
+        x.parse!(args)
+        rescue OptionParser::InvalidOption => e
+           if reject_unknown_options 
+             warn '*** ERROR *** ' + e.to_s
+             exit 1
+           else
+             warn 'WARNING: ' + e.to_s
+             next
+           end
+        end
+      break
+    end
   end
 
   # Examine the operating environment and set configuration options
