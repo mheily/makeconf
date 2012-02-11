@@ -1,7 +1,16 @@
-default: all
+VERSION=0.1.0
 
-all:
+.PHONY: gem check
+
+default: clean check gem
+
+gem: makeconf-$(VERSION).gem
+
+makeconf-$(VERSION).gem: test
 	gem build makeconf.gemspec
+
+check:
+	rake test
 
 distclean clean:
 	rm -f *.gem
