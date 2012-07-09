@@ -2,9 +2,22 @@
 #
 class Linker
 
+  attr_accessor :output
+  attr_reader :path
+
   def initialize
     @flags = []
-    @cflags = [] # KLUDGE: passed to the compiler w/o the '-Wl,' prefix
+    @output = nil
+
+    # Determine the path to the linker executable
+    @path = nil
+#TODO: support using Clang/GCC on windows
+#if vendor == 'Microsoft'
+    if Platform.is_windows?
+      @path = 'LINK.EXE'
+    else
+      @path = 'cc' #XXX-FIXME horrible
+    end
   end
 
   def clone
@@ -37,13 +50,26 @@ class Linker
     else
       throw 'Unsupported OS'
     end
-    @cflags.push ['-L', dir]
+    @flags.push ['-L', dir]
   end
 
   # Returns the linker flags suitable for passing to the compiler
-  def to_s
+  def flags
      tok = []
-     tok.push @cflags
+    
+
+    # Set the output path
+    throw 'Output pathname is required' if @output.nil?
+    if Platform.is_windows?
+      tok.push "/OUT:\"#{@output}"
+    else
+      tok.push '-o', @output
+    end
+
+    # Assume that we want to link with shared libraries
+    # built within this project
+    tok.push '-L', '.'
+
      @flags.each do |f|
         if f.kind_of?(Array)
           tok.push '-Wl,-' + f[0] + ',' + f[1]
@@ -59,6 +85,17 @@ class Linker
     # windows: 'link.exe /DLL /OUT:$@ ' + deps.join(' '))
     # linux: 'cc ' .... (see Compiler::)
   throw 'stub'
+  end
+
+  def flags=(tok)
+    @flags = default_flags
+    if tok.kind_of?(Array)
+      @flags.concat tok
+    elsif tok.kind_of?(String)
+      @flags.push tok.split(' ') #XXX-broken, will not handle things like '-rpath /foo'
+    else
+      throw 'Invalid flag type'
+    end
   end
 
   # Try to determine a usable default set of linker flags

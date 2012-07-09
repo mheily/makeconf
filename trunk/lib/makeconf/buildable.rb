@@ -6,9 +6,9 @@ class Buildable
         :output, :output_type, :sources, :cflags, :ldflags, :ldadd, :rpath,
         :topdir
 
-  def initialize(h, extra_options = {})
+  def initialize(id)
     default = {
-        :id => nil,
+        :id => id,
         :enable => true,
         :distributable => true,
         :installable => true,
@@ -21,18 +21,9 @@ class Buildable
         :topdir => '',
         :depends => [],
     }
-    default.merge! extra_options
     default.each do |k,v| 
-      x = h.has_key?(k) ? h[k] : v
-      raise ArgumentError.new("Missing argument: `#{k}'") \
-          if x.nil?
-      instance_variable_set('@' + k.to_s, x)
+      instance_variable_set('@' + k.to_s, v)
     end
-    h.each do |k,v|
-      raise ArgumentError.new("Invalid argument: `#{k}'") \
-          unless default.has_key?(k)
-    end
-    @cflags = [ @cflags.split(' ') ] if @cflags.is_a? String
     @output = id
     @output_type = nil      # filled in by the derived class
 
@@ -41,9 +32,17 @@ class Buildable
     @localdep = {}
     @sysdep = {}
 
+    # Filled in by sources=()
+    @sources = []
+    @source_code = {}
+  end
+
+  def sources=(x)
+    raise ArgumentError('Wrong type') unless x.is_a? Array
+
     # Use glob(3) to expand the list of sources
     buf = []
-    @sources.each { |src| buf << Dir.glob(src) }
+    x.each { |src| buf << Dir.glob(src) }
     @sources = buf.flatten
 
     # Ensure that all source files exist
@@ -54,7 +53,32 @@ class Buildable
     # Read all source code into a single array
     @source_code = {}
     @sources.each { |x| @source_code[x] = File.readlines(x) }
+  end
 
+  def cflags=(x)
+    case x.is_a?
+    when String
+      @cflags = [ x.split(' ') ]
+    when Array
+      @cflags = s
+    else
+      raise ArgumentError
+    end
+  end
+
+  def parse(yaml)
+    %w{name enable distributable installable extension
+       topdir rpath}.each do |k|
+       v = yaml[k]
+       instance_variable_set('@' + k, v) unless v.nil?
+    end
+
+    # Parse simple textual child elements
+    %w{cflags ldflags ldadd depends sources}.each do |k|
+      instance_variable_set('@' + k, yaml[k]) if yaml.has_key? k
+    end
+
+    self
   end
 
   def library?

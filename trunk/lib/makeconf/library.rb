@@ -13,19 +13,19 @@
 
 class SharedLibrary < Buildable
 
-  def initialize(h)
-    super(h, {
-        :abi_major => '0',
-        :abi_minor => '0',
-    })
-    @output = @id + Platform.shared_library_extension
+  def initialize(id)
+    raise ArgumentError if id.nil?
+
+    super(id)
+    @abi_major = 0
+    @abi_minor = 0
+    @output = id + Platform.shared_library_extension
     @output_type = 'shared library'
     if Platform.is_windows?
       @ldflags.push '/DLL'
     else
-      @cflags.push '-fpic'
-      @ldflags.push('-shared')
-      @ldflags.push('-Wl,-export-dynamic') unless Platform.is_solaris?
+      @cflags.push '-fpic', '-shared'
+      @ldflags.push('-export-dynamic') unless Platform.is_solaris?
     end
   end
 
