@@ -84,8 +84,8 @@ class Makeconf
   end
 
   # Examine the operating environment and set configuration options
-  def Makeconf.configure(project)
-    project = Project.new(project) if project.kind_of?(Hash)
+  def Makeconf.configure()
+    project = Project.new
 
     # FIXME: once the GUI is finished, it should just be
     # if Platform.is_graphical?
@@ -98,7 +98,6 @@ class Makeconf
   end
 
   private
-
 
   # Examine the operating environment and set configuration options
   def Makeconf.configure_project(project)

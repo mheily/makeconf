@@ -1,0 +1,11 @@
+project: hello_world
+version: 1.0
+libraries:
+  hello:
+    cflags: -Wall -Werror -g -O2 -std=c99 -D_XOPEN_SOURCE=600
+    sources: library.c
+    manpage: libhello.2
+binaries:
+  hello:
+    sources: [ main.c, extra.c ]
+    ldadd: -lhello

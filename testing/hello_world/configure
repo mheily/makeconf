@@ -19,28 +19,31 @@ $LOAD_PATH << '../../lib'
 
 require 'makeconf'
 
-Makeconf.configure(
-    :project => 'hello_world',
-    :version => '0.1',
-    :libraries => {
-      'libhello' => {
-        :cflags => '-Wall -Werror -g -O2 -std=c99 -D_XOPEN_SOURCE=600',
-        :sources => [ 'library.c' ],
-        },
-    },
-    :binaries => {
-       'hello' => {
-            :sources => [ 'main.c', 'extra.c' ],
-            :ldflags => '-L . -rpath .',
-        :ldadd => '-lhello',
-        :depends => [ 'libhello.so.0.0' ],
-#        install => {
-#            '$(LIBDIR)' => [ '-m 644', 'libhello.so' ],
-#            '$(BINDIR)' => [ '-m 755', 'hello' ], 
+Makeconf.configure 
+
+#DEADWOOD
+#Makeconf.configure(
+#    :project => 'hello_world',
+#    :version => '0.1',
+#    :libraries => {
+#      'libhello' => {
+#        :cflags => '-Wall -Werror -g -O2 -std=c99 -D_XOPEN_SOURCE=600',
+#        :sources => [ 'library.c' ],
 #        },
-        },
-    }
-)
+#    },
+#    :binaries => {
+#       'hello' => {
+#            :sources => [ 'main.c', 'extra.c' ],
+#            :ldflags => '-L . -rpath .',
+#        :ldadd => '-lhello',
+#        :depends => [ 'libhello.so.0.0' ],
+##        install => {
+##            '$(LIBDIR)' => [ '-m 644', 'libhello.so' ],
+##            '$(BINDIR)' => [ '-m 755', 'hello' ], 
+##        },
+#        },
+#    }
+#)
 
 # TODO:
 #check_header: [ stdlib.h, stdio.h, string.h, does-not-exist.h ]

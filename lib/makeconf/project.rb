@@ -2,6 +2,7 @@
 #
 class Project
  
+  require 'yaml'
   require 'net/http'
 
   attr_accessor :id, :version, :summary, :description, 
@@ -11,14 +12,14 @@ class Project
   attr_accessor :makefile, :installer, :packager
 
   # Creates a new project
-  def initialize(h = {})
-    @id = h[:id] || 'myproject'
-    @version = h[:version] || '0.1'
-    @summary = h[:summary] || 'Undefined project summary'
-    @description = h[:description] || 'Undefined project description'
-    @license = h[:license] || 'Unknown license'
-    @author = h[:author] || 'Unknown author'
-    @config_h = h[:config_h] || 'config.h'
+  def initialize(manifest = 'config.yaml')
+    @id = 'myproject'
+    @version = '0.1'
+    @summary = 'Undefined project summary'
+    @description = 'Undefined project description'
+    @license = 'Unknown license'
+    @author = 'Unknown author'
+    @config_h = 'config.h'
     @header = {}        # Hash of system header availablity
     @build = []         # List of items to build
     @distribute = []    # List of items to distribute
@@ -33,8 +34,10 @@ class Project
     @installer = nil
     @makefile = nil
 
+    @manifest = YAML.load_file(manifest)
+
     # Determine the path to the license file
-    @license_file = h[:license_file]
+    @license_file = @manifest['license_file']
     if @license_file.nil?
       %w{COPYING LICENSE}.each do |p|
         if File.exists?(p)
@@ -44,34 +47,58 @@ class Project
       end
     end
 
-    # Initialize missing variables to be empty Arrays 
-    [:manpages, :headers, :libraries, :tests, :check_decls, :check_funcs,
-     :extra_dist, :targets, :binaries].each do |k|
-       h[k] = [] unless h.has_key? k
-       h[k] = [ h[k] ] if h[k].kind_of?(String)
-    end
-    h[:scripts] = {} unless h.has_key?(:scripts)
+#    # Initialize missing variables to be empty Arrays 
+#    [:manpages, :headers, :libraries, :tests, :check_decls, :check_funcs,
+#     :extra_dist, :targets, :binaries].each do |k|
+#       h[k] = [] unless h.has_key? k
+#       h[k] = [ h[k] ] if h[k].kind_of?(String)
+#    end
+#    h[:scripts] = {} unless h.has_key?(:scripts)
 
-    h[:manpages].each { |x| manpage(x) } 
-    h[:headers].each { |x| header(x) }   
-    h[:libraries].each do |id,buildable| 
-       buildable[:id] = id
-       build SharedLibrary.new(buildable)
-       build StaticLibrary.new(buildable)
-    end
-    h[:binaries].each do |id,buildable| 
-       buildable[:id] = id + Platform.executable_extension
-       @build.push Binary.new(buildable)
-    end
-    h[:tests].each do |id,buildable| 
-       buildable[:id] = id
-       test Binary.new(buildable)
-    end
-    h[:scripts].each { |k,v| script(k,v) }
-    h[:check_decls].each { |id,decl| check_decl(id,decl) }
-    h[:check_funcs].each { |f| check_func(f) }
-    h[:extra_dist].each { |f| distribute(f) }
-    h[:targets].each { |t| target(t) }
+     # Generate a hash containing all the different element types
+     #items = {}
+     #%w{manpage header library binary test check_decl check_func extra_dist targets}.each do |k|
+     #  items[k] = xml.elements[k] || []
+     #end
+
+     @manifest.each do |key,val|
+        #p "key=#{key} val=#{val}"
+       case key
+       when 'project'
+         @id = val
+       when 'version'
+         @version = val.to_s
+       when 'binary', 'binaries' 
+         val.each do |id, e|
+           id += Platform.executable_extension
+           @build.push Binary.new(id).parse(e)
+         end
+       when 'library', 'libraries'
+         val.each do |id, e|
+           build SharedLibrary.new(id).parse(e)
+           build StaticLibrary.new(id).parse(e)
+         end
+       when 'tests'
+         val.each do |id, e|
+           test Binary.new(id).parse(e)
+         end
+       when 'manpage'
+          manpage(val)  
+       when 'header'
+          header(val)  
+       when 'extra_dist'
+          distribute val 
+       when 'targets'
+          target val
+       when 'script', 'check_decl', 'check_func'
+          throw 'FIXME'
+            #items['script'].each { |k,v| script(k,v) }
+            #items['check_decl'].each { |id,decl| check_decl(id,decl) }
+#items['check_func'].each { |f| check_func(f) }
+       else
+          throw "Unrecognized entry in manifest -- #{key}: #{val}"
+       end
+     end
 
     yield self if block_given?
   end

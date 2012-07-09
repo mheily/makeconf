@@ -33,10 +33,10 @@ class Compiler
     throw 'Invalid linker' unless @ld.is_a?(Linker)
     throw ArgumentError.new unless h.is_a? Hash
     throw ArgumentError.new unless h.has_key? :output
-    [:cflags, :ldflags, :ldadd].each do |x|
+    [:cflags, :ldadd].each do |x|
       h[x] = [] unless h.has_key? x
     end
-    [:rpath, :stage].each do |x|
+    [:rpath, :ldflags, :stage].each do |x|
       h[x] = '' unless h.has_key? x
     end
 
@@ -46,17 +46,9 @@ class Compiler
     ldadd = h[:ldadd]
     cflags = h[:cflags]
     cflags.concat default_flags
-    ldflags = []
-    ldflags.concat @ld.default_flags
-    ldflags.push h[:ldflags]
+    ld.flags = h[:ldflags]
+    ld.output = Platform.pathspec(h[:output])
     ld.rpath = h[:rpath] if h[:rpath].length > 0
-
-    # Set the path to the linker
-    if vendor == 'Microsoft'
-      linker_path = 'LINK.EXE'
-    else
-      linker_path = cc
-    end
 
     # Set the output path
     outfile = Platform.pathspec(h[:output])
@@ -64,10 +56,8 @@ class Compiler
       cflags.push '"-IC:\Program Files\Microsoft Visual Studio 10.0\VC\include"' # XXX-HARDCODED
       cflags.push '/Fo' + outfile
       cflags.push '/MD'
-      ldflags.push "/OUT:\"#{outfile}\""
     else
       cflags.push '-o', Platform.pathspec(h[:output])
-      ldflags.push '-o', outfile
     end
 
     # KLUDGE: remove things that CL.EXE doesn't understand
@@ -92,7 +82,7 @@ class Compiler
     if h[:stage] == :compile
       res = [ @path, '-c', cflags, inputs ]
     elsif h[:stage] == :link
-      res = [ linker_path, ldflags, ld.to_s, inputs, ldadd ]
+      res = [ ld.path, ld.flags, inputs, ldadd ]
     elsif h[:stage] == :combined
       res = [ @path, cflags, ldflags, inputs, ldadd ]
     else
