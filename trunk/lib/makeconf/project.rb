@@ -11,6 +11,10 @@ class Project
   # KLUDGE: remove these if possible                
   attr_accessor :makefile, :installer, :packager
 
+  def log
+    Makeconf.logger
+  end
+
   # Creates a new project
   def initialize(manifest = 'config.yaml')
     @id = 'myproject'
@@ -29,12 +33,14 @@ class Project
     @decls = {}         # List of declarations discovered via check_decl()
     @funcs = {}         # List of functions discovered via check_func()
     @packager = Packager.new(self)
+    @cc = CCompiler.new
 
     # Provided by the parent Makeconf object
     @installer = nil
     @makefile = nil
 
     @manifest = YAML.load_file(manifest)
+    log.debug manifest + ' parsed: ' + @manifest.pretty_inspect
 
     # Determine the path to the license file
     @license_file = @manifest['license_file']
@@ -71,16 +77,16 @@ class Project
        when 'binary', 'binaries' 
          val.each do |id, e|
            id += Platform.executable_extension
-           @build.push Binary.new(id).parse(e)
+           @build.push Binary.new(id, @cc.clone).parse(e)
          end
        when 'library', 'libraries'
          val.each do |id, e|
-           build SharedLibrary.new(id).parse(e)
-           build StaticLibrary.new(id).parse(e)
+           build SharedLibrary.new(id, @cc.clone).parse(e)
+           build StaticLibrary.new(id, @cc.clone).parse(e)
          end
        when 'tests'
          val.each do |id, e|
-           test Binary.new(id).parse(e)
+           test Binary.new(id, @cc.clone).parse(e)
          end
        when 'manpage'
           manpage(val)  
@@ -106,12 +112,12 @@ class Project
   # Examine the operating environment and set configuration options
   def configure
 
-    @cc ||= CCompiler.new() #FIXME: stop this
+    Makeconf.logger.info 'hi'
 
     # Build a list of local headers
     local_headers = []
     @build.each do |x| 
-      local_headers.concat @cc.makedepends(x)
+      local_headers.concat x.makedepends
     end
     local_headers.sort!.uniq!
 
@@ -134,10 +140,11 @@ class Project
     makefile.add_dependency('dist', distfile)
     makefile.distclean(distfile)
     makefile.distclean(@config_h)
+    makefile.merge!(@cc.makefile)
     makefile.merge!(@packager.makefile)
     makefile.make_dist(@id, @version)
     @distribute.each { |f| @makefile.distribute f }
-    @build.each { |x| makefile.merge!(@cc.build(x)) if x.enable }
+    @build.each { |x| makefile.merge!(x.build) if x.enable }
     makefile.merge! @installer.to_make
 
     # Add custom targets

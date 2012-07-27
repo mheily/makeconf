@@ -18,6 +18,7 @@
 class Makeconf
   require 'optparse'
   require 'pp'
+  require 'logger'
 
   require 'makeconf/buildable'
   require 'makeconf/binary'
@@ -34,6 +35,16 @@ class Makeconf
 
   @@installer = Installer.new
   @@makefile = Makefile.new
+
+  
+  @@logger = Logger.new(STDOUT)
+  #TODO:@@logger = Logger.new('config.log')
+  @@logger.datetime_format = ''
+  @@logger.level = Logger::WARN
+
+  def Makeconf.logger
+    @@logger
+  end
 
   def Makeconf.parse_options(args = ARGV)
     reject_unknown_options = true
@@ -87,6 +98,7 @@ class Makeconf
   def Makeconf.configure()
     project = Project.new
 
+    @@logger.info 'Configuring the project'
     # FIXME: once the GUI is finished, it should just be
     # if Platform.is_graphical?
     if ENV['MAKECONF_GUI'] == 'yes' and Platform.is_graphical?

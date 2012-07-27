@@ -93,7 +93,7 @@ class Installer
     mkdir_list = []   # all directories that have been created so far
 
     m = Makefile.new
-    m.define_variable('INSTALL', '=', @path) unless @path.nil?
+    m.define_variable('INSTALL', '?=', @path) unless @path.nil?
 
     # Add 'make install' rules
     @items.each do |i| 
