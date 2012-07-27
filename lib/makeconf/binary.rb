@@ -1,16 +1,17 @@
 # An executable binary file
 class Binary < Buildable
 
-  def initialize(h)
-    super(h)
+  def initialize(h, cc)
+    super(h, cc)
     @output_type = 'binary'
   end
 
-  def build
+  def DEADWOOD_build
     binfile = @id + Platform.executable_extension
     cc = @compiler.clone
     cc.is_library = false
     cc.sources = @sources
+    cc.output = binfile
 
 #XXX-BROKEN cc.add_targets(@makefile)
 

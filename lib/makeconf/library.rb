@@ -13,28 +13,24 @@
 
 class SharedLibrary < Buildable
 
-  def initialize(id)
+  def initialize(id, cc)
     raise ArgumentError if id.nil?
 
-    super(id)
+    super(id, cc)
     @abi_major = 0
     @abi_minor = 0
     @output = id + Platform.shared_library_extension
     @output_type = 'shared library'
-    if Platform.is_windows?
-      @ldflags.push '/DLL'
-    else
-      @cflags.push '-fpic', '-shared'
-      @ldflags.push('-export-dynamic') unless Platform.is_solaris?
-    end
+    @cc.shared_library = true
+#FIXME: @cc.ld.flags.push('-export-dynamic') unless Platform.is_solaris?
   end
 
 end
 
 class StaticLibrary < Buildable
 
-  def initialize(h)
-    super(h)
+  def initialize(h, cc)
+    super(h, cc)
     @output = @id + Platform.static_library_extension
     @output_type = 'static library'
 

@@ -101,7 +101,7 @@ class Makefile
 
   def to_s
     res = ''
-    @vars.sort.each { |x,y| res += x + y[0] + y[1] + "\n" }
+    @vars.sort.each { |x,y| res += [x, y[0], y[1]].join(' ') + "\n" }
     res += "\n\n"
     res += "default: all\n"
     targets.each { |x,y| throw "#{x} is broken" unless y.is_a? Target }

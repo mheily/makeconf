@@ -4,13 +4,34 @@ class Compiler
 
   require 'tempfile'
 
-  attr_accessor :ld
+  attr_reader :ld
 
   def initialize(language, extension)
     @language = language
     @extension = extension
     @ld = Linker.new()
     windows_init if Platform.is_windows?
+    @flags = []
+    @sources = []     # List of input files
+    @quiet = false          # If true, output will be suppressed
+
+    # TODO:
+    # If true, all source files will be passed to the compiler at one time.
+    # This will also combine the link and compilation phases.
+    # See: the -combine option in GCC
+    #@combine = false
+
+  end
+
+  def sources=(a)
+    a = [ a ] if a.kind_of?(String)
+    throw 'Array input required' unless a.kind_of?(Array)
+    @sources = a
+    @ld.objects = a.map { |x| x.sub(/\.c$/, '.o') } #FIXME: hardcoded to C
+  end
+
+  def cflags
+    @flags
   end
 
   def clone
@@ -26,42 +47,68 @@ class Compiler
     res
   end
 
+  def quiet=(b)
+    ld.quiet = b
+    @quiet = b
+  end
+
+  def output=(s)
+    @output = s
+    ld.output = s
+  end
+
+  def makefile
+    m = Makefile.new
+    m.define_variable('CC', ':=', @path)
+    m.define_variable('LD', ':=', @ld.path)
+    return m
+  end
+
+  # Return the command formatted as a Makefile rule
+  def rule
+    [ '$(CC)', '-c', flags, '$(CFLAGS)', @sources ].flatten.join(' ')
+  end
+
   # Return the complete command line to compile an object
-  def command(h)
-    res = []
+  def command
+    log.debug self.pretty_inspect
 
     throw 'Invalid linker' unless @ld.is_a?(Linker)
-    throw ArgumentError.new unless h.is_a? Hash
-    throw ArgumentError.new unless h.has_key? :output
-    [:cflags, :ldadd].each do |x|
-      h[x] = [] unless h.has_key? x
-    end
-    [:rpath, :ldflags, :stage].each do |x|
-      h[x] = '' unless h.has_key? x
-    end
+    throw 'One or more source files are required' unless @sources.length > 0
+#      cflags = default_flags
+#      cflags.concat @flags
+#    end
+#    throw cflags
 
-    cc = h[:cc] || @path
-    topdir = h[:topdir] || ''
-    ld = @ld.clone
-    ldadd = h[:ldadd]
-    cflags = h[:cflags]
-    cflags.concat default_flags
-    ld.flags = h[:ldflags]
-    ld.output = Platform.pathspec(h[:output])
-    ld.rpath = h[:rpath] if h[:rpath].length > 0
+#    topdir = h[:topdir] || ''
+#    ld = @ld.clone
+#    ldadd = h[:ldadd]
+#    ld.flags = h[:ldflags]
+#    ld.output = Platform.pathspec(h[:output])
+#    ld.rpath = h[:rpath] if h[:rpath].length > 0
 
-    # Set the output path
-    outfile = Platform.pathspec(h[:output])
-    if vendor == 'Microsoft'
-      cflags.push '"-IC:\Program Files\Microsoft Visual Studio 10.0\VC\include"' # XXX-HARDCODED
-      cflags.push '/Fo' + outfile
-      cflags.push '/MD'
-    else
-      cflags.push '-o', Platform.pathspec(h[:output])
-    end
+#    inputs = h[:sources]
+#    inputs = [ inputs ] if inputs.is_a? String
+#    inputs = inputs.map { |x| Platform.pathspec(topdir + x) }
+#    throw 'One or more sources are required' unless inputs.count
 
-    # KLUDGE: remove things that CL.EXE doesn't understand
-    # DEADWOOD: do this somewhere else
+#TODO:if @combine
+# return [ @path, cflags, '-combine', ldflags, inputs, ldadd ].flatten.join(' ')
+#
+    
+    cmd = [ @path, '-c', flags, @sources ].flatten.join(' ')
+
+    cmd += Platform.dev_null if @quiet
+
+    log.debug "Compiler command: #{cmd}"
+
+    cmd
+  end
+
+  def flags
+    tok = []
+
+   # KLUDGE: remove things that CL.EXE doesn't understand
 #    if @path.match(/cl.exe$/i)
 #      cflags += ' '
 #      cflags.gsub!(/ -Wall /, ' ') #  /Wall generates too much noise
@@ -74,22 +121,48 @@ class Compiler
 #      cflags.gsub!(/ -pedantic /, ' ')
 #    end
 
-    inputs = h[:sources]
-    inputs = [ inputs ] if inputs.is_a? String
-    inputs = inputs.map { |x| Platform.pathspec(topdir + x) }
-    throw 'One or more sources are required' unless inputs.count
-
-    if h[:stage] == :compile
-      res = [ @path, '-c', cflags, inputs ]
-    elsif h[:stage] == :link
-      res = [ ld.path, ld.flags, inputs, ldadd ]
-    elsif h[:stage] == :combined
-      res = [ @path, cflags, ldflags, inputs, ldadd ]
-    else
-      throw 'invalid stage'
+    # Set the output path
+    unless @output.nil?
+      outfile = Platform.pathspec(@output)
+      if vendor == 'Microsoft'
+        tok.push '"-IC:\Program Files\Microsoft Visual Studio 10.0\VC\include"' # XXX-HARDCODED
+        tok.push '/Fo' + outfile
+        tok.push '/MD'
+      else
+        tok.push '-o', outfile
+      end
     end
 
-    res.flatten.join(' ')
+    if @ld.shared_library 
+      if Platform.is_windows?
+        throw 'FIXME'
+      else
+        tok.push '-fpic' 
+      end
+    end
+
+    tok.join(' ')
+  end
+
+  def flags=(s)
+    @flags = s
+  end
+
+  # Enable compiler and linker options to create a shared library
+  def shared_library=(b)
+    case b
+    when true
+      if Platform.is_windows?
+        # noop
+      else
+        @flags.push '-fpic'
+        @ld.shared_library = true
+      end
+    when false
+      throw 'FIXME - STUB'
+    else
+      throw 'Invalid value'
+    end
   end
 
   # Test if the compiler supports a command line option
@@ -114,6 +187,14 @@ class Compiler
     test_compile(code, :combined)
   end
 
+  # Run the compilation command
+  def compile
+    cmd = self.command
+    log.debug "Invoking the compiler"
+    rc = Platform.execute cmd
+    log.debug "Compilation complete; rc=#{rc.to_s}"
+  end
+
   # Compile a test program
   def test_compile(code, stage = :compile)
 
@@ -121,121 +202,20 @@ class Compiler
     f = Tempfile.new(['testprogram', '.' + @extension]);
     f.print code
     f.flush
-    objfile = f.path + '.out'
+###objfile = f.path + '.out'
 
     # Run the compiler
-    cmd = command(:stage => stage, :sources => f.path, :output => objfile) + Platform.dev_null
-    rc = Platform.execute cmd
+    cc = self.clone
+    cc.sources = f.path
+###    cc.output = objfile
+    cc.quiet = true
+    rc = cc.compile
 
-    File.unlink(objfile) if rc
+###    File.unlink(objfile) if rc
     return rc
   end
 
-  
-  # Return a hash containing Makefile dependencies
-  def makedepends(b)
-    res = []
-    raise ArgumentError unless b.kind_of? Buildable
-
-    # Generate the targets and rules for each translation unit
-    b.sources.each do |src|
-      cflags = [ b.cflags, '-E' ]
-      cmd = command(
-                :stage => :compile,
-                :output => '-', 
-                :sources => src, 
-                :topdir => b.topdir,
-                :cflags => cflags
-              ) + Platform.dev_null_stderr
-
-      # TODO: do b.sysdep also
-      b.localdep[src] = []
-      IO.popen(cmd).each do |x|
-        if x =~ /^# \d+ "([^\/<].*\.h)"/
-          b.localdep[src].push $1
-        end
-      end
-      b.localdep[src].sort!.uniq!
-      res.concat b.localdep[src]
-
-      # Generate a list of system header dependencies
-      # FIXME: does a lot of duplicate work reading files in..
-      buf = []
-      b.sysdep[src] = []
-      buf.concat File.readlines(src)
-      b.localdep[src].each do |x|
-        if File.exist? x
-          buf.concat File.readlines(x)
-        end
-      end
-      buf.each do |x|
-        begin
-          if x =~ /^#\s*include\s+<(.*?)>/
-            b.sysdep[src].push $1
-          end
-        rescue ArgumentError
-          # FIXME: should give more info about which file and line
-          warn "** WARNING: invalid multibyte sequence encountered in one of the source code files:"
-        end
-      end
-      b.sysdep[src].sort!.uniq!
-
-    end
-    res
-  end
-
-  # Return a hash containing Makefile rules and targets
-  def build(b)
-    raise ArgumentError unless b.kind_of? Buildable
-    makefile = Makefile.new
-    objs = []
-
-    # Generate the targets and rules for each translation unit
-    b.sources.each do |src|
-      object_suffix = ''
-      cflags = [ b.cflags ]
-      if b.library? 
-        if b.library_type == :shared
-          cflags.push '-fpic'
-        else
-          object_suffix = '-static'
-        end
-      end
-      obj = src.sub(/.c$/, object_suffix + Platform.object_extension)
-      cmd = command(
-              :stage => :compile,
-              :output => obj, 
-              :sources => src, 
-              :topdir => b.topdir,
-              :cflags => cflags
-              )
-      makefile.add_target(obj, [src, b.localdep[src]].flatten, cmd)
-      makefile.clean(obj)
-      objs.push obj
-    end
-
-    # Generate the targets and rules for the link stage
-    if b.library? and b.library_type == :static
-       cmd = Platform.archiver(b.output, objs)
-    else
-      cmd = command(
-              :stage => :link,
-              :output => b.output, 
-              :sources => objs, 
-              :topdir => b.topdir,
-              :ldflags => b.ldflags,
-              :ldadd => b.ldadd,
-              :rpath => b.rpath
-              )
-    end
-    makefile.add_target(b.output, objs, cmd)
-    makefile.add_dependency('all', b.output)
-    makefile.clean(b.output)
-    makefile.distribute(b.sources) if b.distributable
-
-    return makefile
-  end
-
+ 
   # Try to determine a usable default set of compiler flags
   def default_flags
     cflags = []
@@ -316,12 +296,19 @@ end
 class CCompiler < Compiler
 
   attr_accessor :output_type
+  attr_reader :path
 
   def initialize
     @output_type = nil
     super('C', '.c')
     printf "checking for a C compiler.. "
     @path = search(['cc', 'gcc', 'clang', 'cl.exe'])
+  end
+
+private
+
+  def log
+    Makeconf.logger
   end
 
 end

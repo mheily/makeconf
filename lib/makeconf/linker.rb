@@ -2,12 +2,16 @@
 #
 class Linker
 
-  attr_accessor :output
+  attr_accessor :output, :objects, :quiet, :shared_library
   attr_reader :path
 
   def initialize
     @flags = []
+    @objects = []
     @output = nil
+    @shared_library = false
+    @ldadd = []
+    @quiet = false          # If true, output will be suppressed
 
     # Determine the path to the linker executable
     @path = nil
@@ -56,7 +60,6 @@ class Linker
   # Returns the linker flags suitable for passing to the compiler
   def flags
      tok = []
-    
 
     # Set the output path
     throw 'Output pathname is required' if @output.nil?
@@ -66,25 +69,49 @@ class Linker
       tok.push '-o', @output
     end
 
+    # Enable shared library output
+    if @shared_library
+      if Platform.is_windows?
+        tok.push '/DLL'
+      else
+        tok.push '-shared'
+        tok.push '-fpic'        # TODO: sometimes -fPIC is needed
+      end
+    end
+
     # Assume that we want to link with shared libraries
     # built within this project
     tok.push '-L', '.'
 
-     @flags.each do |f|
-        if f.kind_of?(Array)
-          tok.push '-Wl,-' + f[0] + ',' + f[1]
-        else
-          tok.push '-Wl,-' + f
-        end
-     end
-     return ' ' + tok.join(' ')
+    @flags.each do |f|
+       if f.kind_of?(Array)
+         tok.push '-Wl,-' + f[0] + ',' + f[1]
+       else
+         tok.push '-Wl,-' + f
+       end
+    end
+
+    return ' ' + tok.join(' ')
   end
 
-  # TODO - not used yet
   def command
     # windows: 'link.exe /DLL /OUT:$@ ' + deps.join(' '))
     # linux: 'cc ' .... (see Compiler::)
-  throw 'stub'
+    cmd = [ @path, flags, @objects, @ldadd ].flatten.join(' ')
+    cmd += Platform.dev_null if @quiet
+    log.debug "Linker command = `#{cmd}'"
+
+    return cmd
+  end
+
+  # Return the command formatted as a Makefile rule
+  def rule
+     ['$(LD)', flags, '$(LDFLAGS)', @objects, @ldadd, '$(LDADD)'].flatten.join(' ')
+  end
+
+  # Execute the linker command
+  def link
+    throw 'STUB'
   end
 
   def flags=(tok)
@@ -92,7 +119,7 @@ class Linker
     if tok.kind_of?(Array)
       @flags.concat tok
     elsif tok.kind_of?(String)
-      @flags.push tok.split(' ') #XXX-broken, will not handle things like '-rpath /foo'
+      @flags.concat tok.split(' ') #XXX-broken, will not handle things like '-rpath /foo'
     else
       throw 'Invalid flag type'
     end
@@ -110,6 +137,25 @@ class Linker
     end
 
     ldflags
+  end
+
+  # Add one or more libraries to the list of files to link
+  def library(lib)
+    case lib.class.to_s
+    when 'Array'
+      tok = lib
+    when 'String'
+      tok = lib.split(' ')
+    else
+      throw "Invalid value: #{lib.class}"
+    end
+    @ldadd.concat tok
+  end
+
+private
+
+  def log
+    Makeconf.logger
   end
 
 end
