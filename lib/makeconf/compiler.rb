@@ -146,6 +146,7 @@ class Compiler
 
   def flags=(s)
     @flags = s
+    @flags = @flags.split(' ') if @flags.kind_of?(String)
   end
 
   # Enable compiler and linker options to create a shared library

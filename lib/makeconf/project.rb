@@ -2,11 +2,12 @@
 #
 class Project
  
-  require 'yaml'
   require 'net/http'
 
   attr_accessor :id, :version, :summary, :description, 
         :author, :license, :license_file, :config_h
+
+  attr_reader :cc
 
   # KLUDGE: remove these if possible                
   attr_accessor :makefile, :installer, :packager
@@ -16,7 +17,8 @@ class Project
   end
 
   # Creates a new project
-  def initialize(manifest = 'config.yaml')
+  def initialize(options)
+    raise ArgumentError unless options.kind_of?(Hash)
     @id = 'myproject'
     @version = '0.1'
     @summary = 'Undefined project summary'
@@ -39,11 +41,7 @@ class Project
     @installer = nil
     @makefile = nil
 
-    @manifest = YAML.load_file(manifest)
-    log.debug manifest + ' parsed: ' + @manifest.pretty_inspect
-
     # Determine the path to the license file
-    @license_file = @manifest['license_file']
     if @license_file.nil?
       %w{COPYING LICENSE}.each do |p|
         if File.exists?(p)
@@ -67,18 +65,13 @@ class Project
      #  items[k] = xml.elements[k] || []
      #end
 
-     @manifest.each do |key,val|
+     options.each do |key,val|
         #p "key=#{key} val=#{val}"
        case key
-       when 'project'
+       when :id
          @id = val
-       when 'version'
+       when :version
          @version = val.to_s
-       when 'binary', 'binaries' 
-         val.each do |id, e|
-           id += Platform.executable_extension
-           @build.push Binary.new(id, @cc.clone).parse(e)
-         end
        when 'library', 'libraries'
          val.each do |id, e|
            build SharedLibrary.new(id, @cc.clone).parse(e)
@@ -102,7 +95,7 @@ class Project
             #items['check_decl'].each { |id,decl| check_decl(id,decl) }
 #items['check_func'].each { |f| check_func(f) }
        else
-          throw "Unrecognized entry in manifest -- #{key}: #{val}"
+          throw "Unknown option -- #{key}: #{val}"
        end
      end
 
@@ -111,8 +104,6 @@ class Project
 
   # Examine the operating environment and set configuration options
   def configure
-
-    Makeconf.logger.info 'hi'
 
     # Build a list of local headers
     local_headers = []
@@ -194,6 +185,26 @@ class Project
         @funcs[x] = @cc.test_link "void *#{x}();\nint main() { void *p;\np = &#{x}; }"
         puts @funcs[x] ? 'yes' : 'no'
       end
+  end
+
+  def add_binary(options)
+    options[:cc] ||= @cc
+    id = options[:id] + Platform.executable_extension
+    build Binary.new(options)
+  end
+
+  def add(obj)
+    p obj.inspect
+    if obj.kind_of?(Library)
+        obj.buildable.each do |e|
+           add(e)
+        end
+    else
+      obj.project = self
+      build(obj)
+#    else
+#      raise ArgumentError, "Unsupported object type #{obj.kind_of?}"
+    end
   end
 
   # Add item(s) to build

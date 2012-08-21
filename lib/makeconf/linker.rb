@@ -116,11 +116,13 @@ class Linker
 
   def flags=(tok)
     @flags = default_flags
+    return if tok.nil?
     if tok.kind_of?(Array)
       @flags.concat tok
     elsif tok.kind_of?(String)
       @flags.concat tok.split(' ') #XXX-broken, will not handle things like '-rpath /foo'
     else
+      log.error tok.pretty_inspect
       throw 'Invalid flag type'
     end
   end
