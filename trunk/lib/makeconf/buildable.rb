@@ -1,23 +1,24 @@
 # A buildable object like a library or executable
 class Buildable
 
-  attr_accessor :id, :installable, :distributable,
+  attr_accessor :id, :project,
+        :installable, :distributable,
         :localdep, :sysdep, :enable,
         :output, :output_type, :sources, :cflags, :rpath,
         :topdir
 
-  def initialize(id, cc)
-    @cc = cc
-    @ld = cc.ld
+  def initialize(options)
+    raise ArgumentError unless options.kind_of?(Hash)
     default = {
-        :id => id,
+        :id => options[:id],
         :enable => true,
         :distributable => true,
         :installable => true,
         :extension => '',
         :cflags => [],
+        :ldflags => [],
+        :ldadd => [],
         :rpath => '',
-        :sources => [],
         :topdir => '',
         :depends => [],
     }
@@ -35,6 +36,45 @@ class Buildable
     # Filled in by sources=()
     @sources = []
     @source_code = {}
+
+    # Parse options
+
+    # FIXME- consider adding support for:
+    #%w{name enable distributable installable extension
+#   topdir rpath}
+
+    log.debug "Buildable options: " + options.pretty_inspect
+      
+    options.each do |k,v|
+      log.debug "k=#{k} v=#{v.to_s}"
+      case k
+      when :id
+        @id = v
+      when :cc
+        @cc = v.clone
+      when :cflags
+        @cflags = v
+      when :ldflags
+        @ldflags = v
+      when :ldadd
+        @ldadd = v
+      when :project
+        @project = v
+      when :sources
+        v = [ v ] if v.kind_of?(String)
+        @sources = expand_sources(v)
+      else
+        throw "Unrecognized option -- #{k}: #{v}"
+      end
+    end
+    log.debug "Buildable parsed as: " + self.pretty_inspect
+
+#FIXME: move some of these to the switch statement
+#    # Parse simple textual child elements
+#    %w{cflags ldflags ldadd depends sources}.each do |k|
+#      instance_variable_set('@' + k, yaml[k]) if yaml.has_key? k
+#    end
+
   end
 
   def expand_sources(x)
@@ -57,40 +97,6 @@ class Buildable
 #    @source_code = {}
 #    @sources.each { |x| @source_code[x] = File.readlines(x) }
 
-  end
-
-  def parse(yaml)
-    # FIXME- consider adding support for:
-    #%w{name enable distributable installable extension
-#   topdir rpath}
-
-    log.debug "Buildable YAML: " + yaml.pretty_inspect
-      
-    yaml.each do |k,v|
-      log.debug "k=#{k} v=#{v.to_s}"
-      case k
-      when 'cflags'
-        @cc.flags = v
-      when 'ldflags'
-        @ld.flags = v
-      when 'ldadd'
-        @ld.library v
-      when 'sources'
-        v = [ v ] if v.kind_of?(String)
-        @cc.sources = @sources = expand_sources(v)
-      else
-        throw "Unrecognized option -- #{k}: #{v}"
-      end
-    end
-    log.debug "Buildable parsed as: " + self.pretty_inspect
-
-#FIXME: move some of these to the switch statement
-#    # Parse simple textual child elements
-#    %w{cflags ldflags ldadd depends sources}.each do |k|
-#      instance_variable_set('@' + k, yaml[k]) if yaml.has_key? k
-#    end
-
-    self
   end
 
   def library?
@@ -137,10 +143,17 @@ class Buildable
         end
       end
       obj = src.sub(/.c$/, object_suffix + Platform.object_extension)
-      cc = @cc.clone
+      cc = @project.cc.clone
+      cc.shared_library = true if library? and library_type == :shared
+      cc.flags = @cflags
       cc.output = obj
       cc.sources = src
       #TODO: cc.topdir = @topdir
+
+      ld = cc.ld
+      ld.flags = @ldflags
+      @ldadd.each { |lib| ld.library lib }
+
       makefile.add_target(obj, [src, localdep[src]].flatten, cc.rule)
       makefile.clean(obj)
       objs.push obj
@@ -150,8 +163,12 @@ class Buildable
     if library? and library_type == :static
        cmd = Platform.archiver(output, objs)
     else
-      @cc.ld.output = @output
-      cmd = @cc.ld.rule 
+      cc = @project.cc.clone
+      cc.shared_library = true
+      cc.flags = @cflags
+      cc.sources = @sources
+      cc.ld.output = @output
+      cmd = cc.ld.rule 
 #    cmd = @cc.command(
 #              :stage => :link,
 #              :output => output, 
@@ -172,9 +189,14 @@ class Buildable
   def makedepends
     res = []
 
+    if @sources.nil?
+       log.error self.to_s
+       raise 'Missing sources'
+    end
+
     # Generate the targets and rules for each translation unit
     @sources.each do |src|
-      cc = @cc.clone
+      cc = @project.cc.clone
       cc.flags = [ @cflags, '-E' ]
       cc.output = '-'
       cc.sources = src

@@ -1,27 +1,27 @@
-# TODO: Have a generic Library class that builds both shared and static
-#
-#class Library < Buildable
-#
-#  def initialize(h)
-#    super(h, {
-#        :abi_major => '0',
-#        :abi_minor => '0',
-#    })
-#  end
-#
-#end
+# A generic Library class that builds both shared and static
+
+class Library < Buildable
+
+  attr_reader :buildable
+
+  def initialize(options)
+    raise ArgumentError unless options.kind_of?(Hash)
+    @buildable = [SharedLibrary.new(options), StaticLibrary.new(options)]
+  end
+
+end
 
 class SharedLibrary < Buildable
 
-  def initialize(id, cc)
-    raise ArgumentError if id.nil?
+  def initialize(options)
+    raise ArgumentError unless options.kind_of?(Hash)
+    id = options[:id]
 
-    super(id, cc)
+    super(options)
     @abi_major = 0
     @abi_minor = 0
     @output = id + Platform.shared_library_extension
     @output_type = 'shared library'
-    @cc.shared_library = true
 #FIXME: @cc.ld.flags.push('-export-dynamic') unless Platform.is_solaris?
   end
 
@@ -29,9 +29,11 @@ end
 
 class StaticLibrary < Buildable
 
-  def initialize(h, cc)
-    super(h, cc)
-    @output = @id + Platform.static_library_extension
+  def initialize(options)
+    raise ArgumentError unless options.kind_of?(Hash)
+    id = options[:id]
+    super(options)
+    @output = id + Platform.static_library_extension
     @output_type = 'static library'
 
 # FIXME: clashes with shared objects

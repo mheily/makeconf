@@ -1,8 +1,9 @@
 # An executable binary file
 class Binary < Buildable
 
-  def initialize(h, cc)
-    super(h, cc)
+  def initialize(options)
+    raise ArgumentError unless options.kind_of?(Hash)
+    super(options)
     @output_type = 'binary'
   end
 

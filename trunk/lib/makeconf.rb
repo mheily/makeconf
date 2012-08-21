@@ -40,7 +40,7 @@ class Makeconf
   @@logger = Logger.new(STDOUT)
   #TODO:@@logger = Logger.new('config.log')
   @@logger.datetime_format = ''
-  @@logger.level = Logger::WARN
+  @@logger.level = Logger::DEBUG
 
   def Makeconf.logger
     @@logger
@@ -95,8 +95,7 @@ class Makeconf
   end
 
   # Examine the operating environment and set configuration options
-  def Makeconf.configure()
-    project = Project.new
+  def Makeconf.configure(project)
 
     @@logger.info 'Configuring the project'
     # FIXME: once the GUI is finished, it should just be
