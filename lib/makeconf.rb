@@ -40,7 +40,11 @@ class Makeconf
   @@logger = Logger.new(STDOUT)
   #TODO:@@logger = Logger.new('config.log')
   @@logger.datetime_format = ''
-  @@logger.level = Logger::DEBUG
+  if ENV['MAKECONF_DEBUG'] == 'yes'
+    @@logger.level = Logger::DEBUG
+  else
+    @@logger.level = Logger::WARN
+  end
 
   def Makeconf.logger
     @@logger
