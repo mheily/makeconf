@@ -24,6 +24,7 @@ class Project
     @summary = 'Undefined project summary'
     @description = 'Undefined project description'
     @license = 'Unknown license'
+    @license_file = nil
     @author = 'Unknown author'
     @config_h = 'config.h'
     @header = {}        # Hash of system header availablity
@@ -40,16 +41,6 @@ class Project
     # Provided by the parent Makeconf object
     @installer = nil
     @makefile = nil
-
-    # Determine the path to the license file
-    if @license_file.nil?
-      %w{COPYING LICENSE}.each do |p|
-        if File.exists?(p)
-            @license_file = p
-            break
-        end
-      end
-    end
 
 #    # Initialize missing variables to be empty Arrays 
 #    [:manpages, :headers, :libraries, :tests, :check_decls, :check_funcs,
@@ -72,6 +63,8 @@ class Project
          @id = val
        when :version
          @version = val.to_s
+       when :license_file
+         @license_file = val
        when 'library', 'libraries'
          val.each do |id, e|
            build SharedLibrary.new(id, @cc.clone).parse(e)
@@ -98,6 +91,16 @@ class Project
           throw "Unknown option -- #{key}: #{val}"
        end
      end
+
+    # Determine the path to the license file
+    if @license_file.nil?
+      %w{COPYING LICENSE}.each do |p|
+        if File.exists?(p)
+            @license_file = p
+            break
+        end
+      end
+    end
 
     yield self if block_given?
   end
