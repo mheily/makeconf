@@ -93,7 +93,7 @@ class Makeconf
              warn 'WARNING: ' + e.to_s
              next
            end
-        end
+      end
       break
     end
   end
