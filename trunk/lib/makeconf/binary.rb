@@ -4,6 +4,7 @@ class Binary < Buildable
   def initialize(options)
     raise ArgumentError unless options.kind_of?(Hash)
     super(options)
+    @output = @id + Platform.executable_extension
     @output_type = 'binary'
   end
 

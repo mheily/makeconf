@@ -20,7 +20,7 @@ class SharedLibrary < Buildable
     super(options)
     @abi_major = 0
     @abi_minor = 0
-    @output = id + Platform.shared_library_extension
+    @output = 'lib' + id + Platform.shared_library_extension
     @output_type = 'shared library'
 #FIXME: @cc.ld.flags.push('-export-dynamic') unless Platform.is_solaris?
   end
