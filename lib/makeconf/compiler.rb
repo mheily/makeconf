@@ -170,11 +170,12 @@ class Compiler
   def has_option(opt)
 
     # Create a simple test file
-    f = Tempfile.new(['testprogram', @extension]);
+    f = Tempfile.new(['test_has_option', @extension]);
     f.puts 'int main() { }'
     f.flush
 
-    cmd = [ @path, opt, '-c', f.path ].join(' ') + Platform.dev_null
+#FIXME: /dev/null not portable
+    cmd = [ @path, opt, '-o /dev/null', '-c', f.path ].join(' ') + Platform.dev_null
     Platform.execute cmd
   end
 
@@ -200,7 +201,7 @@ class Compiler
   def test_compile(code, stage = :compile)
 
     # Write the code to a temporary source file
-    f = Tempfile.new(['testprogram', '.' + @extension]);
+    f = Tempfile.new(['test_compile', '.' + @extension]);
     f.print code
     f.flush
 ###objfile = f.path + '.out'
@@ -209,6 +210,7 @@ class Compiler
     cc = self.clone
     cc.sources = f.path
 ###    cc.output = objfile
+    cc.flags += '-o /dev/null' #FIXME: /dev/null not portable
     cc.quiet = true
     rc = cc.compile
 
