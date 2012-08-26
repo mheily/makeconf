@@ -13,6 +13,7 @@ class Compiler
     windows_init if Platform.is_windows?
     @flags = []
     @sources = []     # List of input files
+    @output = nil
     @quiet = false          # If true, output will be suppressed
 
     # TODO:
