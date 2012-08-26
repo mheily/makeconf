@@ -193,16 +193,16 @@ class Project
     build Binary.new(options)
   end
 
-  def add(obj)
-    if obj.kind_of?(Library)
+  def add(*objs)
+    objs.each do |obj|
+      if obj.kind_of?(Library)
         obj.buildable.each do |e|
            add(e)
         end
-    else
-      obj.project = self
-      build(obj)
-#    else
-#      raise ArgumentError, "Unsupported object type #{obj.kind_of?}"
+      else
+        obj.project = self
+        build(obj)
+      end
     end
   end
 
