@@ -144,7 +144,7 @@ class Buildable
       end
       obj = src.sub(/.c$/, object_suffix + Platform.object_extension)
       cc = @project.cc.clone
-      cc.shared_library = true if library? and library_type == :shared
+      cc.shared_library = library? and library_type == :shared
       cc.flags = @cflags
       cc.output = obj
       cc.sources = src
@@ -165,18 +165,11 @@ class Buildable
        cmd = Platform.archiver(output, objs)
     else
       cc = @project.cc.clone
-      cc.shared_library = true
+      cc.shared_library = library? and library_type == :shared
       cc.flags = @cflags
       cc.sources = @sources
       cc.ld.output = @output
       cmd = cc.ld.rule 
-#    cmd = @cc.command(
-#              :stage => :link,
-#              :output => output, 
-#              :sources => objs, 
-#              :topdir => topdir,
-#              :rpath => rpath
-#              )
     end
     makefile.add_target(output, objs, cmd)
     makefile.add_dependency('all', output)

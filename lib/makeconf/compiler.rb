@@ -160,7 +160,7 @@ class Compiler
         @ld.shared_library = true
       end
     when false
-      throw 'FIXME - STUB'
+      # noop
     else
       throw 'Invalid value'
     end
