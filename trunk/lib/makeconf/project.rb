@@ -194,7 +194,6 @@ class Project
   end
 
   def add(obj)
-    p obj.inspect
     if obj.kind_of?(Library)
         obj.buildable.each do |e|
            add(e)
