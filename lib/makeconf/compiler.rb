@@ -106,7 +106,7 @@ class Compiler
   end
 
   def flags
-    tok = []
+    tok = @flags
 
    # KLUDGE: remove things that CL.EXE doesn't understand
 #    if @path.match(/cl.exe$/i)
