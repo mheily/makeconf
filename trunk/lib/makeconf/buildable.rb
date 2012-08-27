@@ -58,7 +58,7 @@ class Buildable
       when :ldflags
         @ldflags = v
       when :ldadd
-        @ldadd = v
+        @ldadd.push(v).flatten!
       when :project
         @project = v
       when :sources
@@ -169,6 +169,8 @@ class Buildable
       cc.shared_library = library? and library_type == :shared
       cc.flags = @cflags
       cc.sources = @sources
+      @ldadd = [ @ldadd ] if @ldadd.kind_of?(String)
+      @ldadd.each { |lib| cc.ld.library lib }
       cc.ld.output = @output
       cmd = cc.ld.rule 
     end

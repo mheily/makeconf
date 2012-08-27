@@ -22,6 +22,13 @@ class Linker
     else
       @path = 'cc' #XXX-FIXME horrible
     end
+
+    if ENV['CC']
+      @path = ENV['CC']
+    end
+    if ENV['LD']
+      @path = ENV['LD']
+    end
   end
 
   def clone
