@@ -214,7 +214,7 @@ class Project
         :sources => x.output,
         :dest => dest,
         :mode => '0755',
-        })
+        }) if x.installable
     end
   end
 
