@@ -32,7 +32,6 @@ class Project
     @distribute = []    # List of items to distribute
     @install = []       # List of items to install
     @target = []        # List of additional Makefile targets
-    @test = []          # List of unit tests
     @decls = {}         # List of declarations discovered via check_decl()
     @funcs = {}         # List of functions discovered via check_func()
     @packager = Packager.new(self)
@@ -69,10 +68,6 @@ class Project
          val.each do |id, e|
            build SharedLibrary.new(id, @cc.clone).parse(e)
            build StaticLibrary.new(id, @cc.clone).parse(e)
-         end
-       when 'tests'
-         val.each do |id, e|
-           test Binary.new(id, @cc.clone).parse(e)
          end
        when 'manpage'
           manpage(val)  
@@ -143,12 +138,6 @@ class Project
 
     # Add custom targets
     @target.each { |t| makefile.add_target t }
-
-    # Add unit tests
-    @test.each do |x| 
-      makefile.add_dependency('check', x.id)
-      makefile.add_rule('check', './' + x.id)
-    end
 
     makefile
   end
@@ -274,29 +263,6 @@ class Project
         :rename => opt[:rename],
         :mode => '0755',
         })
-  end
-
-  # Add item(s) to test
-  def test(*arg)
-    arg.each do |x|
-      throw ArgumentError.new('Invalid argument') unless x.respond_to?('build')
-        x.installable = false
-        x.distributable = false
-
-        # Assume that unit tests should be debuggable
-        x.cflags.push('-g', '-O0') unless Platform.is_windows?
-
-        # Assume that the unit tests may require headers and libraries
-        # in the current working directory. To be sure, we should check
-        # the project to see if we are actually building libraries.
-        x.cflags.push('-I.')
-        x.cflags.push('-I./include') if File.directory?('./include')
-        x.rpath = '$$PWD'
-
-        # FIXME: @makefile.add_target('check', deps, deps.map { |d| './' + d })
-        @build.push x
-        @test.push x
-    end
   end
 
   # Return the compiler associated with the project

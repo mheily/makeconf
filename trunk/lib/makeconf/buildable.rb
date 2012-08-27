@@ -54,6 +54,7 @@ class Buildable
         @cc = v.clone
       when :cflags
         @cflags = v
+        @cflags = [ @cflags ] if @cflags.kind_of?(String)
       when :ldflags
         @ldflags = v
       when :ldadd
