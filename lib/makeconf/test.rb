@@ -11,19 +11,14 @@ class Test < Binary
     @cflags.push('-g', '-O0') unless Platform.is_windows?
   end
 
-# FIXME: NEED to_make() overrides
-#    # Add unit tests
-#    @test.each do |x| 
-#      makefile.add_dependency('check', x.id)
-#      makefile.add_rule('check', './' + x.id)
-#    end
 
   def build
-        # FIXME: @makefile.add_target('check', deps, deps.map { |d| './' + d })
-#    @build.push x
-#        @test.push x
-#    end
-    super()
+    makefile = super()
+
+    makefile.add_dependency('check', @id)
+    makefile.add_rule('check', './' + @id)
+
+    return makefile
   end
 
 end
