@@ -32,6 +32,7 @@ class Makeconf
   require 'makeconf/platform'
   require 'makeconf/project'
   require 'makeconf/target'
+  require 'makeconf/test'
 
   @@installer = Installer.new
   @@makefile = Makefile.new
