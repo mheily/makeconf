@@ -35,7 +35,7 @@ class Project
     @decls = {}         # List of declarations discovered via check_decl()
     @funcs = {}         # List of functions discovered via check_func()
     @packager = Packager.new(self)
-    @cc = CCompiler.new
+    @cc = nil
 
     # Provided by the parent Makeconf object
     @installer = nil
@@ -62,6 +62,8 @@ class Project
          @id = val
        when :version
          @version = val.to_s
+       when :cc
+         @cc = val
        when :license_file
          @license_file = val
        when 'library', 'libraries'
@@ -96,6 +98,8 @@ class Project
         end
       end
     end
+
+    @cc ||= CCompiler.new 
 
     yield self if block_given?
   end
