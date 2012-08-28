@@ -267,7 +267,7 @@ class Compiler
         res = 'cl.exe'
     end
 
-    throw 'No compiler found' if res.nil? || res == ''
+    throw 'No suitable compiler found' if res.nil? || res == ''
 
     if Platform.is_windows? && res.match(/cl.exe/i)
         help = ' /? <NUL'
@@ -302,11 +302,12 @@ class CCompiler < Compiler
   attr_accessor :output_type
   attr_reader :path
 
-  def initialize
+  def initialize(options = {})
+    @search_list = options.has_key?(:search) ? options[:search] : [ 'cc', 'gcc', 'clang', 'cl.exe']
     @output_type = nil
     super('C', '.c')
     printf "checking for a C compiler.. "
-    @path = search(['cc', 'gcc', 'clang', 'cl.exe'])
+    @path = search(@search_list)
   end
 
 private
