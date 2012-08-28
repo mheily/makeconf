@@ -146,7 +146,12 @@ class Makeconf
             '/usr/bin/test -e $(DESTDIR)')
 
     # Distribute Makeconf with 'make distdir'
-    makefile.distribute(['setup.rb', 'configure', 'makeconf/*.rb'])
+    makefile.distribute([
+            'setup.rb', 
+            'configure', 
+            'makeconf/*.rb',
+            'makeconf/makeconf/*.rb',
+     ])
   end
 
 end
