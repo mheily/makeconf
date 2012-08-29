@@ -24,6 +24,7 @@ class Makeconf
   require 'makeconf/binary'
   require 'makeconf/compiler'
   require 'makeconf/gui'
+  require 'makeconf/header'
   require 'makeconf/installer'
   require 'makeconf/library'
   require 'makeconf/linker'
