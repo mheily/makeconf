@@ -35,6 +35,12 @@ class Makeconf
   require 'makeconf/target'
   require 'makeconf/test'
 
+  # System types
+  # FIXME: detect these properly
+  @@build = 'unknown'
+  @@host = 'unknown'
+  @@target = 'unknown'
+
   @@installer = Installer.new
   @@makefile = Makefile.new
 
@@ -59,6 +65,20 @@ class Makeconf
        opts.banner = 'Usage: configure [options]'
 
        @@installer.parse_options(opts)
+
+       # Cross-compilation options
+       opts.separator ''
+       opts.separator 'System types:'
+
+       opts.on('--build BUILD', 'set the system type for building') do |arg|
+         @@build = arg
+       end
+       opts.on('--host HOST', 'cross-compile programs to run on a different system type') do |arg|
+         @@host = arg
+       end
+       opts.on('--target TARGET', 'build a compiler for cross-compiling') do |arg|
+         @@target = arg
+       end
 
        opts.separator ''
        opts.separator 'Common options:'
