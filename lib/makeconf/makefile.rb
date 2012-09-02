@@ -19,6 +19,10 @@ class Makefile
     @vars[lval] = [ op, rval ]
   end
 
+  def target(object)
+    @targets[object]
+  end
+
   def merge!(src)
     throw 'invalid argument' unless src.is_a?(Makefile)
     @vars.merge!(src.vars)

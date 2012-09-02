@@ -23,6 +23,7 @@ class Makeconf
   require 'makeconf/buildable'
   require 'makeconf/binary'
   require 'makeconf/compiler'
+  require 'makeconf/externalproject'
   require 'makeconf/gui'
   require 'makeconf/header'
   require 'makeconf/installer'
@@ -32,15 +33,11 @@ class Makeconf
   require 'makeconf/packager'
   require 'makeconf/platform'
   require 'makeconf/project'
+  require 'makeconf/systemtype'
   require 'makeconf/target'
   require 'makeconf/test'
 
-  # System types
-  # FIXME: detect these properly
-  @@build = 'unknown'
-  @@host = 'unknown'
-  @@target = 'unknown'
-
+  @@project = nil
   @@installer = Installer.new
   @@makefile = Makefile.new
 
@@ -65,6 +62,7 @@ class Makeconf
        opts.banner = 'Usage: configure [options]'
 
        @@installer.parse_options(opts)
+       @@project.parse_options(opts)
 
        # Cross-compilation options
        opts.separator ''
@@ -138,21 +136,22 @@ class Makeconf
 
   # Examine the operating environment and set configuration options
   def Makeconf.configure_project(project)
-     parse_options
+    @@project = project
+    parse_options
 
-     makefile = Makefile.new
-     toplevel_init(makefile)
+    makefile = Makefile.new
+    toplevel_init(makefile)
 
-     @@installer.configure(project)
-     project.makefile = @@makefile
-     project.installer = @@installer
-     project.configure
-     project.finalize 
-     project.write_config_h
-     makefile.merge! project.to_make
+    @@installer.configure(project)
+    project.makefile = @@makefile
+    project.installer = @@installer
+    project.configure
+    project.finalize 
+    project.write_config_h
+    makefile.merge! project.to_make
 
-     puts 'creating Makefile'
-     makefile.write('Makefile')
+    puts 'creating Makefile'
+    makefile.write('Makefile')
   end
 
   # Add rules and targets used in the top-level Makefile
