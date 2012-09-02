@@ -11,7 +11,6 @@ class AndroidProject < BaseProject
   def parse_options(opts)
     super(opts)
 
-    throw 'crap'
     opts.separator ""
     opts.separator "Android options:"
 
@@ -22,6 +21,7 @@ class AndroidProject < BaseProject
        @sdk_path = arg
     end
 
+#FIXME: this will break --help
     printf 'checking for the Android NDK.. '
     throw 'Unable to locate the NDK. Please set the --with-ndk variable to the correct path' if @ndk_path.nil?
     puts @ndk_path
