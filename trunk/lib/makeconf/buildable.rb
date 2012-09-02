@@ -4,7 +4,7 @@ class Buildable
   attr_accessor :id, :project,
         :installable, :distributable,
         :localdep, :sysdep, :enable,
-        :output, :output_type, :sources, :cflags, :rpath,
+        :output, :output_type, :sources, :cflags, :ldadd, :rpath,
         :topdir
 
   def initialize(options)

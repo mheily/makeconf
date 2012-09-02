@@ -1,7 +1,8 @@
 # A target is a section in a Makefile
 class Target
 
-  attr_reader :objs, :deps, :rules
+  attr_reader :objs
+  attr_accessor :deps, :rules
 
   def initialize(objs, deps = [], rules = [])
       deps = [ deps ] if deps.kind_of?(String)
