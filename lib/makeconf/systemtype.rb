@@ -3,7 +3,7 @@
 class SystemType
 
   # FIXME: detect 'build' properly
-  @@build = nil
+  @@build = RbConfig::CONFIG['host_os']
   @@host = nil
   @@target = nil
 

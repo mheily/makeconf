@@ -2,15 +2,34 @@ class AndroidProject < BaseProject
 
   def initialize(options)
     super(options)
-    p 'TODO - extra android init'
+    @ndk_path = nil
+    @sdk_path = nil
   end
 
   # Parse ARGV options
   # Should only be called from Makeconf.parse_options()
   def parse_options(opts)
     super(opts)
+
+    throw 'crap'
     opts.separator ""
     opts.separator "Android options:"
+
+    opts.on('--with-ndk=DIRECTORY', "Path to the Android NDK") do |arg|
+       @ndk_path = arg
+    end
+    opts.on('--with-sdk=DIRECTORY', "Path to the Android SDK") do |arg|
+       @sdk_path = arg
+    end
+
+    printf 'checking for the Android NDK.. '
+    throw 'Unable to locate the NDK. Please set the --with-ndk variable to the correct path' if @ndk_path.nil?
+    puts @ndk_path
+
+    printf 'checking for the Android SDK.. '
+    throw 'Unable to locate the SDK. Please set the --with-sdk variable to the correct path' if @sdk_path.nil?
+    puts @sdk_path
+
   end
 
   def to_make
@@ -18,7 +37,10 @@ class AndroidProject < BaseProject
     write_application_mk
 
     mf = super
-    mf.target('all').rules = [ 'ndk-build V=1 NDK_DEBUG=1 NDK_PROJECT_PATH=.' ]
+    mf.define_variable('NDK', '?=', @ndk_path)
+    mf.define_variable('NDK', '?=', @sdk_path)
+    mf.define_variable('ADB', '?=', @sdk_path + '/platform-tools/adb')
+    mf.target('all').rules = [ '$(NDK)/ndk-build V=1 NDK_DEBUG=1 NDK_PROJECT_PATH=.' ]
     mf
   end
 
@@ -103,4 +125,17 @@ private
      buf += 'LOCAL_STATIC_LIBRARIES := ' + static_libs.join(' ') if static_libs
      buf
   end
+
+private
+
+  # Determine the path to the Android NDK
+  def find_ndk()
+    [ ENV['NDK'] ].each do |x|
+      if !x.nil? and File.exists?(x)
+        return x
+      end
+    end
+    nil
+  end
+
 end
