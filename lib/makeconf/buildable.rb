@@ -129,6 +129,9 @@ class Buildable
     makefile = Makefile.new
     objs = []
 
+    # Allow ndk-build to create the object, for Android
+    return makefile if SystemType.host =~ /-androideabi$/
+
     log.debug 'buildable = ' + self.pretty_inspect
 
     raise 'One or more source files are required' if @sources.empty?
