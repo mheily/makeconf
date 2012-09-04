@@ -11,6 +11,9 @@ class ExternalProject < Buildable
     # KLUDGE - parent constructor will barf otherwise
     @uri = options[:uri]
     options.delete :uri
+    @configure = options[:configure]  # options passed to ./configure 
+    options.delete :configure
+    @configure = '' if @configure.nil?
 
     super(options)
 
@@ -23,14 +26,24 @@ class ExternalProject < Buildable
     printf "checking for external project #{@id}... "
     if File.exists?(@id)
        puts "yes"
-       puts "*** Configuring #{@id}"
-       system "cd #{@id} && ./configure" \
-           or throw "Unable to configure #{@id}"
-       puts "*** Done"
     else
        puts "no"
        download
     end
+
+    # KLUDGE: passthrough certain options
+    passthru = []
+    Makeconf.original_argv.each do |x|
+      passthru.push x if x =~ /^--(host|with-ndk|with-sdk)/
+      warn x
+    end
+    @configure += passthru.join ' '
+
+    # Run the autoconf-style ./configure script
+    puts "*** Configuring #{@id} using ./configure #{@configure}"
+    system "cd #{@id} && ./configure #{@configure}" \
+        or throw "Unable to configure #{@id}"
+    puts "*** Done"
   end
 
   def build
@@ -41,6 +54,7 @@ class ExternalProject < Buildable
              "cd #{@id} && make",
              "touch #{@id}-build-stamp",
              ])
+     makefile.add_rule('clean', Platform.rm("#{@id}-build-stamp"))
      makefile
   end
 

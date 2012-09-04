@@ -40,7 +40,7 @@ class Makeconf
   @@project = nil
   @@installer = Installer.new
   @@makefile = Makefile.new
-
+  @@original_argv = ARGV.clone   # OptionParser seems to clobber this..
   
   @@logger = Logger.new(STDOUT)
   #TODO:@@logger = Logger.new('config.log')
@@ -49,6 +49,10 @@ class Makeconf
     @@logger.level = Logger::DEBUG
   else
     @@logger.level = Logger::WARN
+  end
+
+  def Makeconf.original_argv
+    @@original_argv.clone
   end
 
   def Makeconf.logger
