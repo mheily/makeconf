@@ -21,26 +21,26 @@ class AndroidProject < BaseProject
        @sdk_path = arg
     end
 
-#FIXME: this will break --help
-    printf 'checking for the Android NDK.. '
-    throw 'Unable to locate the NDK. Please set the --with-ndk variable to the correct path' if @ndk_path.nil?
-    puts @ndk_path
-
-    printf 'checking for the Android SDK.. '
-    throw 'Unable to locate the SDK. Please set the --with-sdk variable to the correct path' if @sdk_path.nil?
-    puts @sdk_path
-
   end
 
   def to_make
+
+### FIXME: this belongs in a validate_opts() stage after parse_opts()
+    printf 'checking for the Android NDK.. '
+    throw 'Unable to locate the NDK. Please set the --with-ndk variable to the correct path' if @ndk_path.nil?
+    puts @ndk_path
+    printf 'checking for the Android SDK.. '
+    throw 'Unable to locate the SDK. Please set the --with-sdk variable to the correct path' if @sdk_path.nil?
+    puts @sdk_path
+###
     write_android_mk
     write_application_mk
 
     mf = super
     mf.define_variable('NDK', '?=', @ndk_path)
-    mf.define_variable('NDK', '?=', @sdk_path)
-    mf.define_variable('ADB', '?=', @sdk_path + '/platform-tools/adb')
-    mf.target('all').rules = [ '$(NDK)/ndk-build V=1 NDK_DEBUG=1 NDK_PROJECT_PATH=.' ]
+    mf.define_variable('SDK', '?=', @sdk_path)
+    mf.define_variable('ADB', '?=', '$(SDK)/platform-tools/adb')
+    mf.target('all').rules.push '$(NDK)/ndk-build V=1 NDK_DEBUG=1 NDK_PROJECT_PATH=.'
     mf
   end
 
@@ -57,6 +57,7 @@ private
 
     @build.each do |obj|
       next if obj.kind_of? Header
+      next if obj.kind_of? ExternalProject 
       buf.push 'include $(CLEAR_VARS)',
             '';
 
@@ -101,7 +102,7 @@ private
       'APP_OPTIM        := debug',
     ]
 
-    Dir.mkdir 'jni' unless Dir.exists?('jni')
+    Dir.mkdir 'jni' unless File.exists?('jni')
     puts 'creating ' + ofile
     f = File.open(ofile, 'w')
     buf.each do |str|

@@ -7,16 +7,17 @@ class SystemType
   @@host = nil
   @@target = nil
 
-  if ARGV.grep(/^--build=(.*)$/)
-    @@build = $1
-  end
-
-  if ARGV.grep(/^--host=(.*)$/)
-    @@host = $1
-  end
-
-  if ARGV.grep(/^--target=(.*)$/)
-    @@target = $1
+  ARGV.each do |arg|
+    case arg
+    when /^--build=(.*)$/
+      @@build = $1
+      puts "determining build system type.. #{@@build}"
+    when /^--host=(.*)$/
+      @@host = $1
+      puts "determining host system type.. #{@@host}"
+    when /^--target=(.*)$/
+      @@target = $1
+    end
   end
 
   def SystemType.build
