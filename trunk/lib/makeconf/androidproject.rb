@@ -1,7 +1,11 @@
 class AndroidProject < BaseProject
 
+  attr_accessor :ndk_toolchain_version 
+
   def initialize(options)
     super(options)
+
+    @ndk_toolchain_version = nil
     @ndk_path = nil
     @sdk_path = nil
   end
@@ -54,6 +58,10 @@ private
       'LOCAL_PATH := $(call my-dir)',
       '',
     ]
+
+    unless @ndk_toolchain_version.nil?
+      buf.push "NDK_TOOLCHAIN_VERSION := #{@ndk_toolchain_version}"
+    end
 
     @build.each do |obj|
       next if obj.kind_of? Header
