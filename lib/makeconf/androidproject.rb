@@ -40,11 +40,17 @@ class AndroidProject < BaseProject
     write_android_mk
     write_application_mk
 
+    # Generate the ndk-build command
+    ndk_build = '$(NDK)/ndk-build V=1 NDK_DEBUG=1 NDK_PROJECT_PATH=.'
+    unless @ndk_toolchain_version.nil?
+      ndk_build += " NDK_TOOLCHAIN_VERSION=#{@ndk_toolchain_version}"
+    end
+
     mf = super
     mf.define_variable('NDK', '?=', @ndk_path)
     mf.define_variable('SDK', '?=', @sdk_path)
     mf.define_variable('ADB', '?=', '$(SDK)/platform-tools/adb')
-    mf.target('all').rules.push '$(NDK)/ndk-build V=1 NDK_DEBUG=1 NDK_PROJECT_PATH=.'
+    mf.target('all').rules.push ndk_build
     mf
   end
 
@@ -58,10 +64,6 @@ private
       'LOCAL_PATH := $(call my-dir)',
       '',
     ]
-
-    unless @ndk_toolchain_version.nil?
-      buf.push "NDK_TOOLCHAIN_VERSION := #{@ndk_toolchain_version}"
-    end
 
     @build.each do |obj|
       next if obj.kind_of? Header
