@@ -209,7 +209,7 @@ class BaseProject
            add(e)
         end
       else
-        obj.project = self
+        obj.project = self if obj.kind_of?(Buildable)
         build(obj)
       end
     end
@@ -218,6 +218,13 @@ class BaseProject
   # Add item(s) to build
   def build(*arg)
     arg.each do |x|
+
+      # Add a custom Makefile target
+      if x.kind_of? Target
+          @target.push x
+          next
+      end
+
       throw ArgumentError.new('Invalid argument') unless x.kind_of? Buildable
 
       if x.kind_of?(SharedLibrary) or x.kind_of?(StaticLibrary)
