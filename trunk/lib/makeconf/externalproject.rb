@@ -54,6 +54,7 @@ class ExternalProject < Buildable
              "cd #{@id} && make",
              "touch #{@id}-build-stamp",
              ])
+     makefile.add_rule('check', [ "cd #{@id} && make check" ])
      makefile.add_rule('clean', Platform.rm("#{@id}-build-stamp"))
      makefile
   end
