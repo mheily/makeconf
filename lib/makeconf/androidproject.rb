@@ -54,7 +54,6 @@ class AndroidProject < BaseProject
 
     # Generate the 'make check' target
     mf.target('check').deps = []        # FIXME: should depend on 'all'
-    mf.target('check').rules = []
     @build.each do |obj|
       if obj.kind_of?(Test)
         mf.target('check').rules.push([
