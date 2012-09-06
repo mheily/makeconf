@@ -5,7 +5,7 @@ class AndroidProject < BaseProject
   def initialize(options)
     super(options)
 
-    @ndk_toolchain_version = nil
+    @ndk_toolchain_version = '4.6'
     @ndk_path = nil
     @sdk_path = nil
   end
@@ -47,6 +47,19 @@ class AndroidProject < BaseProject
     end
 
     mf = super
+
+    #FIXME -overwrites @cc as set by Compiler
+# XXX-hardcoded to ARM, linux-x86
+    mf.define_variable('CC', ':=', @ndk_path +
+       '/toolchains/arm-linux-androideabi-' +
+       @ndk_toolchain_version +
+       '/prebuilt/linux-x86/bin/arm-linux-androideabi-gcc'
+            ) 
+
+    # XXX-hardcoded ARM, android-14
+    mf.define_variable('NDK_LIBDIR', ':=', 
+            '$(NDK)/platforms/android-14/arch-arm/usr/lib/')
+
     mf.define_variable('NDK', '?=', @ndk_path)
     mf.define_variable('SDK', '?=', @sdk_path)
     mf.define_variable('ADB', '?=', '$(SDK)/platform-tools/adb')
@@ -86,7 +99,6 @@ private
 
       id = obj.id
       id += '_static' if obj.kind_of? StaticLibrary
-      id += '_shared' if obj.kind_of? SharedLibrary
       buf.push "LOCAL_MODULE    := #{id}"
       buf.push "LOCAL_SRC_FILES := " + obj.sources.join(' ')
       buf.push "LOCAL_CFLAGS    := " + obj.cflags.join(' ')
