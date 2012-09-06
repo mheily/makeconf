@@ -51,6 +51,20 @@ class AndroidProject < BaseProject
     mf.define_variable('SDK', '?=', @sdk_path)
     mf.define_variable('ADB', '?=', '$(SDK)/platform-tools/adb')
     mf.target('all').rules.push ndk_build
+
+    # Generate the 'make check' target
+    mf.target('check').deps = []        # FIXME: should depend on 'all'
+    mf.target('check').rules = []
+    @build.each do |obj|
+      if obj.kind_of?(Test)
+        mf.target('check').rules.push([
+          '$(ADB) push libs/armeabi/' + obj.output + ' /data',
+          '$(ADB) shell /data/' + obj.output
+          ])
+        mf.target('clean').rules.push('$(ADB) shell rm /data/' + obj.output)
+      end
+    end
+
     mf
   end
 
