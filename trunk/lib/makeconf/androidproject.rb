@@ -71,7 +71,7 @@ class AndroidProject < BaseProject
       if obj.kind_of?(Test)
         mf.target('check').rules.push([
           '$(ADB) push libs/armeabi/' + obj.output + ' /data/local/tmp',
-          '$(ADB) shell chmod 751 /data/local/tmp/' + obj.output
+          '$(ADB) shell chmod 751 /data/local/tmp/' + obj.output,
           '$(ADB) shell /data/local/tmp/' + obj.output
           ])
         mf.target('clean').rules.push('$(ADB) shell rm /data/local/tmp/' + obj.output)
