@@ -171,6 +171,7 @@ private
     @build.each do |obj|
     # TODO: shared libs
       obj.ldadd.each do |item|
+        next if provides?(item)
         prebuilt = File.basename(item).sub(/\.a$/, '-prebuilt')
         if item =~ /\.a$/ and item =~ /\// and not @prebuilt_libs.include? prebuilt
            # FIXME: assumes it is a prebuilt library in a different path
@@ -193,10 +194,10 @@ private
      # TODO: shared libs
      ldadd.each do |item|
        if item =~ /\.a$/ 
-          if item =~ /\//
-            static_libs.push File.basename(item).sub(/\.a$/, '-prebuilt')
-          else
+          if provides?(item)
             static_libs.push File.basename(item).sub(/\.a$/, '-static')
+          else
+            static_libs.push File.basename(item).sub(/\.a$/, '-prebuilt')
           end
        end
      end
