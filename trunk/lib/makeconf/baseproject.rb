@@ -352,4 +352,16 @@ class BaseProject
     puts x.length
   end
 
+  # Test if the project will build a library with a given pathname.
+  # This is used for inter-dependency analysis
+  def provides?(path)
+    fn = File.basename(path)
+    @build.each do |obj|
+       if obj.respond_to?(:output)
+         return true if obj.output == fn
+       end
+    end
+    return false
+  end    
+
 end
