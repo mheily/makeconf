@@ -117,8 +117,18 @@ class BaseProject
   # Examine the operating environment and set configuration options
   def configure
 
+    preconfigure if respond_to? 'preconfigure'
+
+    # Run each buildable object's preconfigure() method
+    @build.each { |x| x.preconfigure if x.respond_to? 'preconfigure' }
+
     # Run each buildable object's configure() method
     @build.each { |x| x.configure if x.respond_to? 'configure' }
+
+    postconfigure if respond_to? 'postconfigure'
+
+    # Run each buildable object's postconfigure() method
+    @build.each { |x| x.postconfigure if x.respond_to? 'postconfigure' }
 
     # Build a list of local headers
     local_headers = []

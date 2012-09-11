@@ -4,16 +4,21 @@
 class ExternalProject < Buildable
  
   require 'net/http'
+  require 'uri'
 
-  attr_accessor :uri
+  attr_accessor :uri, :patch
 
   def initialize(options)
-    # KLUDGE - parent constructor will barf otherwise
+    # KLUDGE - parent constructor will barf unless we delete our 
+    #       custom options
     @uri = options[:uri]
     options.delete :uri
     @configure = options[:configure]  # options passed to ./configure 
     options.delete :configure
-    @configure = '' if @configure.nil?
+    @configure = './configure' if @configure.nil?
+    @patch = options[:patch]
+    options.delete :patch
+    @patch = [] if @patch.nil?
 
     super(options)
 
@@ -27,27 +32,39 @@ class ExternalProject < Buildable
     if File.exists?(@id)
        puts "yes"
     else
-       puts "no"
-       download
+      puts "no"
+      download
+
+      # Apply patches
+      @patch.each do |p|
+        system "cd #{@id} && patch -p0 -N < ../#{p}" \
+            or throw "failed to apply patch: ../#{p}"
+      end
     end
 
     # KLUDGE: passthrough certain options
     passthru = []
     Makeconf.original_argv.each do |x|
       passthru.push x if x =~ /^--(host|with-ndk|with-sdk)/
-      warn x
     end
-    @configure += passthru.join ' '
+    @configure += ' ' + passthru.join(' ') unless passthru.empty?
+
+    # Always regenerate the Autotools files
+    if File.exists?(@id + '/configure.ac')
+      system "cd #{@id} && autoreconf -fvi" \
+          or throw "autoreconf failed"
+    end
 
     # Run the autoconf-style ./configure script
-    puts "*** Configuring #{@id} using ./configure #{@configure}"
-    system "cd #{@id} && ./configure #{@configure}" \
+    puts "*** Configuring #{@id} using #{@configure}"
+    system "cd #{@id} && #{@configure}" \
         or throw "Unable to configure #{@id}"
     puts "*** Done"
   end
 
   def build
      makefile = Makefile.new
+     return makefile unless @buildable
      makefile.add_dependency('all', "#{@id}-build-stamp")
      makefile.add_target("#{@id}-build-stamp", [], 
              [
@@ -68,15 +85,18 @@ private
 #example for tarball
 #    x = Net::HTTP.get(URI(uri))
 #  end
-  puts "downloading #{@uri}.. "
+    uri = URI(@uri)
 
-  if @uri =~ /^svn/
-    system "svn co #{@uri} #{@id}" or throw "Unable to checkout working copy"
-
-  else
-    throw "Unsupported URI scheme #{@uri}"
-  end
-
+    case uri.scheme
+    when 'svn'
+      puts "downloading #{@uri}.. "
+      system "svn co #{@uri} #{@id}" or throw "Unable to checkout working copy"
+    when 'file'
+      puts "unpacking #{uri.host}.. "
+      system "tar zxf #{uri.host}" or throw "Unable to unpack #{uri.host}"
+    else
+      throw "Unsupported URI scheme #{@uri}"
+    end
   end
 
   def log

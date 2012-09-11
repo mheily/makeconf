@@ -4,6 +4,7 @@ class Compiler
 
   require 'tempfile'
 
+  attr_accessor :sysroot
   attr_reader :ld
 
   def initialize(language, extension)
@@ -14,6 +15,7 @@ class Compiler
     @flags = []
     @sources = []     # List of input files
     @output = nil
+    @sysroot = nil
     @quiet = false          # If true, output will be suppressed
 
     # TODO:
@@ -142,6 +144,8 @@ class Compiler
       end
     end
 
+    tok.push '--sysroot=' + @sysroot unless @sysroot.nil?
+
     tok.join(' ')
   end
 
@@ -255,7 +259,7 @@ class Compiler
       res = ENV['CC']
     else
       compilers.each do |command|
-         if Platform.which(command)
+         if (command =~ /^\// and File.exists?(command)) or Platform.which(command)
            res = command
            break
          end
@@ -304,6 +308,7 @@ class CCompiler < Compiler
 
   def initialize(options = {})
     @search_list = options.has_key?(:search) ? options[:search] : [ 'cc', 'gcc', 'clang', 'cl.exe']
+    @search_list = [ @search_list ] unless @search_list.kind_of?(Array)
     @output_type = nil
     super('C', '.c')
     printf "checking for a C compiler.. "
