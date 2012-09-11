@@ -88,7 +88,7 @@ private
     uri = URI(@uri)
 
     case uri.scheme
-    when 'svn'
+    when 'svn', 'svn+ssh'
       puts "downloading #{@uri}.. "
       system "svn co #{@uri} #{@id}" or throw "Unable to checkout working copy"
     when 'file'
