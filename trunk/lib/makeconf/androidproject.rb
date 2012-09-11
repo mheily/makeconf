@@ -1,6 +1,9 @@
 class AndroidProject < BaseProject
 
-  attr_accessor :ndk_toolchain_version, :target_arch_abi, :target_platform
+  attr_accessor :ndk_toolchain_version, 
+                :target_arch,
+                :target_arch_abi, 
+                :target_platform
 
   def initialize(options)
     super(options)
@@ -8,16 +11,40 @@ class AndroidProject < BaseProject
     # Public
     @ndk_toolchain_version = '4.6'
     @target_platform = 'android-14'
+    @target_arch = 'arm'
     @target_arch_abi = 'armeabi'
     @ndk_path = nil
     @sdk_path = nil
 
     # Private
     @prebuilt_libs = []
+
+    # KLUDGE: We need to know the NDK and SDK paths very early on.
+    # Peek at the original ARGV to find them.
+    Makeconf.original_argv.each do |arg|
+      if arg =~ /^--with-ndk=(.*)/
+         @ndk_path = $1
+      end
+      if arg =~ /^--with-sdk=(.*)/
+         @sdk_path = $1
+      end
+    end
+
+    # XXX-hardcoded to linux-x86
+    ndk_cc = @ndk_path +
+            '/toolchains/'+ @target_arch + '-linux-androideabi-' +
+            @ndk_toolchain_version +
+            '/prebuilt/linux-x86/bin/' + @target_arch + '-linux-androideabi-gcc' 
+    #FIXME -overwrites previous Compiler object
+    @cc = CCompiler.new(
+            :search => ndk_cc
+            ) 
+    @cc.sysroot = ndk_sysroot
   end
 
   # Parse ARGV options
   # Should only be called from Makeconf.parse_options()
+  # Note that ndk_path and sdk_path are previously parsed during initialize()
   def parse_options(opts)
     super(opts)
 
@@ -33,16 +60,18 @@ class AndroidProject < BaseProject
 
   end
 
-  def to_make
+  def preconfigure
 
-### FIXME: this belongs in a validate_opts() stage after parse_opts()
     printf 'checking for the Android NDK.. '
     throw 'Unable to locate the NDK. Please set the --with-ndk variable to the correct path' if @ndk_path.nil?
     puts @ndk_path
     printf 'checking for the Android SDK.. '
     throw 'Unable to locate the SDK. Please set the --with-sdk variable to the correct path' if @sdk_path.nil?
     puts @sdk_path
-###
+  end
+
+  def to_make
+
     write_android_mk
     write_application_mk
 
@@ -54,18 +83,7 @@ class AndroidProject < BaseProject
 
     mf = super
 
-    #FIXME -overwrites @cc as set by Compiler
-# XXX-hardcoded to ARM, linux-x86
-    mf.define_variable('CC', ':=', @ndk_path +
-       '/toolchains/arm-linux-androideabi-' +
-       @ndk_toolchain_version +
-       '/prebuilt/linux-x86/bin/arm-linux-androideabi-gcc'
-            ) 
-
-    # XXX-hardcoded ARM
-    mf.define_variable('NDK_LIBDIR', ':=', 
-            '$(NDK)/platforms/' + @target_platform + '/arch-arm/usr/lib/')
-
+    mf.define_variable('NDK_LIBDIR', ':=', ndk_libdir)
     mf.define_variable('NDK', '?=', @ndk_path)
     mf.define_variable('SDK', '?=', @sdk_path)
     mf.define_variable('ADB', '?=', '$(SDK)/platform-tools/adb')
@@ -88,6 +106,16 @@ class AndroidProject < BaseProject
     end
 
     mf
+  end
+
+  # Return the path to the Android NDK system root
+  def ndk_sysroot
+     @ndk_path + '/platforms/' + @target_platform + '/arch-' + @target_arch
+  end
+
+  # Return the path to the Android NDK /usr/lib 
+  def ndk_libdir
+     ndk_sysroot + '/usr/lib/'
   end
 
 private

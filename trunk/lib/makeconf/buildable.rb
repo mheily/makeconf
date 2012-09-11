@@ -2,7 +2,7 @@
 class Buildable
 
   attr_accessor :id, :project,
-        :installable, :distributable,
+        :buildable, :installable, :distributable,
         :localdep, :sysdep, :enable,
         :output, :output_type, :sources, :cflags, :ldadd, :rpath,
         :topdir
@@ -12,6 +12,7 @@ class Buildable
     default = {
         :id => options[:id],
         :enable => true,
+        :buildable => true,
         :distributable => true,
         :installable => true,
         :extension => '',
@@ -61,6 +62,8 @@ class Buildable
         @ldadd.push(v).flatten!
       when :project
         @project = v
+      when :buildable
+        @buildable = v
       when :sources
         v = [ v ] if v.kind_of?(String)
         @sources = expand_sources(v)
@@ -128,6 +131,9 @@ class Buildable
   def build
     makefile = Makefile.new
     objs = []
+
+    # Don't do anything if we aren't going to be built
+    return makefile unless @buildable
 
     # Allow ndk-build to create the object, for Android
     return makefile if SystemType.host =~ /-androideabi$/
