@@ -1,7 +1,6 @@
 class AndroidProject < BaseProject
 
-  attr_accessor :ndk_toolchain_version, 
-                :target_arch,
+  attr_accessor :target_arch,
                 :target_arch_abi, 
                 :target_platform
 
@@ -9,7 +8,6 @@ class AndroidProject < BaseProject
     super(options)
 
     # Public
-    @ndk_toolchain_version = '4.6'
     @target_platform = 'android-14'
     @target_arch = 'arm'
     @target_arch_abi = 'armeabi'
@@ -30,16 +28,7 @@ class AndroidProject < BaseProject
       end
     end
 
-    # XXX-hardcoded to linux-x86
-    ndk_cc = @ndk_path +
-            '/toolchains/'+ @target_arch + '-linux-androideabi-' +
-            @ndk_toolchain_version +
-            '/prebuilt/linux-x86/bin/' + @target_arch + '-linux-androideabi-gcc' 
-    #FIXME -overwrites previous Compiler object
-    @cc = CCompiler.new(
-            :search => ndk_cc
-            ) 
-    @cc.sysroot = ndk_sysroot
+    self.ndk_toolchain_version = '4.6'
   end
 
   # Parse ARGV options
@@ -58,6 +47,26 @@ class AndroidProject < BaseProject
        @sdk_path = arg
     end
 
+  end
+
+  def ndk_toolchain_version
+    @ndk_toolchain_version
+  end
+
+  def ndk_toolchain_version=(version)
+    @ndk_toolchain_version = version
+
+    # XXX-hardcoded to linux-x86
+    ndk_cc = @ndk_path +
+            '/toolchains/'+ @target_arch + '-linux-androideabi-' +
+            @ndk_toolchain_version +
+            '/prebuilt/linux-x86/bin/' + @target_arch + '-linux-androideabi-gcc' 
+
+    #FIXME -overwrites previous Compiler object
+    @cc = CCompiler.new(
+            :search => ndk_cc
+            ) 
+    @cc.sysroot = ndk_sysroot
   end
 
   def preconfigure
