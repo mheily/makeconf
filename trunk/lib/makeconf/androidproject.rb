@@ -56,11 +56,21 @@ class AndroidProject < BaseProject
   def ndk_toolchain_version=(version)
     @ndk_toolchain_version = version
 
-    # XXX-hardcoded to linux-x86
+    # Determine the type of prebuilt compiler to use
+    if RbConfig::CONFIG['host_os'] =~ /linux/
+      build_os = 'linux-x86';
+    elsif RbConfig::CONFIG['host_os'] =~ /darwin/
+      build_os = 'darwin-x86';
+    else
+      throw 'Unknown build OS: ' + RbConfig::CONFIG['host_os']
+    end
+
     ndk_cc = @ndk_path +
             '/toolchains/'+ @target_arch + '-linux-androideabi-' +
             @ndk_toolchain_version +
-            '/prebuilt/linux-x86/bin/' + @target_arch + '-linux-androideabi-gcc' 
+            '/prebuilt/' +
+            build_os +
+            '/bin/' + @target_arch + '-linux-androideabi-gcc' 
 
     #FIXME -overwrites previous Compiler object
     @cc = CCompiler.new(
