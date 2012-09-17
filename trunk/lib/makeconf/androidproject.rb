@@ -111,6 +111,31 @@ class AndroidProject < BaseProject
       end
     end
 
+    # Run a $(BINARY) under the Android debugger
+    # see: http://www.kandroid.org/online-pdk/guide/debugging_gdb.html
+    mf.add_target('debug', [], [
+         '$(ADB) forward tcp:5039 tcp:5039',
+         '$(ADB) push $(BINARY) /data/local/tmp',
+         '$(ADB) shell chmod 751 /data/local/tmp/`basename $(BINARY)`',
+         '$(ADB) shell gdbserver :5039 /data/local/tmp/`basename $(BINARY)` &',
+         'sleep 2', # give gdbserver time to start
+  
+          # Pull things from the device that are needed for debugging
+          '$(ADB) pull /system/bin/linker obj/local/armeabi/linker',
+          '$(ADB) pull /system/lib/libc.so obj/local/armeabi/libc.so',
+          '$(ADB) pull /system/lib/libm.so obj/local/armeabi/libm.so',
+          '$(ADB) pull /system/lib/libstdc++.so obj/local/armeabi/libstdc++.so',
+  
+         'echo "set solib-search-path obj/local/armeabi" > .gdb-commands',
+         'echo "target remote :5039" >> .gdb-commands',
+         '$(GDB) -x .gdb-commands $(BINARY)',
+         'rm .gdb-commands',
+         ])
+  
+    # Connect to the device and run a shell
+    # TODO: add to makeconf
+    mf.add_target('shell', [], [ '$(ADB) shell' ])
+
     mf
   end
 
