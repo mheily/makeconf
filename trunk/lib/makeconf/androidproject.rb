@@ -56,21 +56,7 @@ class AndroidProject < BaseProject
   def ndk_toolchain_version=(version)
     @ndk_toolchain_version = version
 
-    # Determine the type of prebuilt compiler to use
-    if RbConfig::CONFIG['host_os'] =~ /linux/
-      build_os = 'linux-x86';
-    elsif RbConfig::CONFIG['host_os'] =~ /darwin/
-      build_os = 'darwin-x86';
-    else
-      throw 'Unknown build OS: ' + RbConfig::CONFIG['host_os']
-    end
-
-    ndk_cc = @ndk_path +
-            '/toolchains/'+ @target_arch + '-linux-androideabi-' +
-            @ndk_toolchain_version +
-            '/prebuilt/' +
-            build_os +
-            '/bin/' + @target_arch + '-linux-androideabi-gcc' 
+    ndk_cc = toolchain_binary('gcc')
 
     #FIXME -overwrites previous Compiler object
     @cc = CCompiler.new(
@@ -105,6 +91,7 @@ class AndroidProject < BaseProject
     mf.define_variable('NDK_LIBDIR', ':=', ndk_libdir)
     mf.define_variable('NDK', '?=', @ndk_path)
     mf.define_variable('SDK', '?=', @sdk_path)
+    mf.define_variable('GDB', '?=', toolchain_binary('gdb'))
     mf.define_variable('ADB', '?=', '$(SDK)/platform-tools/adb')
     mf.target('all').rules.push ndk_build
 
@@ -253,6 +240,7 @@ private
      buf += 'LOCAL_STATIC_LIBRARIES := ' + static_libs.join(' ') if static_libs
      buf
   end
+
   # Determine the path to the Android NDK
   def find_ndk()
     [ ENV['NDK'] ].each do |x|
@@ -261,6 +249,27 @@ private
       end
     end
     nil
+  end
+
+  # Return the full path to a prebuilt binary in the toolchain
+  #
+  def toolchain_binary(file)
+
+    # Determine the type of prebuilt binary to use
+    if RbConfig::CONFIG['host_os'] =~ /linux/
+      build_os = 'linux-x86';
+    elsif RbConfig::CONFIG['host_os'] =~ /darwin/
+      build_os = 'darwin-x86';
+    else
+      throw 'Unknown build OS: ' + RbConfig::CONFIG['host_os']
+    end
+
+    @ndk_path +
+       '/toolchains/'+ @target_arch + '-linux-androideabi-' +
+       @ndk_toolchain_version +
+       '/prebuilt/' +
+       build_os +
+            '/bin/' + @target_arch + '-linux-androideabi-' + file
   end
 
 end
