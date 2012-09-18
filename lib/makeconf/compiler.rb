@@ -206,7 +206,7 @@ class Compiler
   def test_compile(code, stage = :compile)
 
     # Write the code to a temporary source file
-    f = Tempfile.new(['test_compile', '.' + @extension]);
+    f = Tempfile.new(['test_compile', @extension]);
     f.print code
     f.flush
 ###objfile = f.path + '.out'
@@ -219,7 +219,10 @@ class Compiler
     cc.quiet = true
     rc = cc.compile
 
-###    File.unlink(objfile) if rc
+    # Delete the object file
+    objfile = File.basename( f.path.sub(@extension, '.o') )
+    File.unlink(objfile) if File.exist? objfile
+
     return rc
   end
 
