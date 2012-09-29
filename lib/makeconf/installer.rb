@@ -162,7 +162,7 @@ class Installer
       end
       dst = '$(DESTDIR)' + expand_dir(h[:dest])
       dst += '/' + h[:rename] unless h[:rename].nil?
-      res.push '$(DESTDIR)' + expand_dir(dst)
+      res.push dst
     end
 
     res.join(' ')
