@@ -38,6 +38,13 @@ project.add(
     :cflags => '-Dabc=def',
     :sources => %w{main.c extra.c},
     :ldadd => '-lhello'
+  ),
+
+  Test.new(
+    :id => 'check-hello', 
+    :cflags => '-Dabc=def',
+    :sources => %w{main.c extra.c},
+    :ldadd => '-lhello'
   )
 )
 
