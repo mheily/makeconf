@@ -4,7 +4,11 @@ class Header < Buildable
 
   def initialize(options)
     raise ArgumentError unless options.kind_of?(Hash)
-    @sources = []
+
+    # KLUDGE - parent constructor will barf unless we delete our 
+    #       custom options
+    @namespace = options[:namespace]
+    options.delete :namespace
 
     super(options)
   end
@@ -14,13 +18,20 @@ class Header < Buildable
 
     mk.distribute(@sources)
 
+    dest = '$(INCLUDEDIR)'
+    dest += '/' + @namespace unless @namespace.nil?
+
     @project.installer.install(
         :sources => @sources,
-        :dest => '$(INCLUDEDIR)',  #XXX- should be PKGincludedir
+        :dest => dest,
         :mode => '644' 
      ) 
 
     return mk
+  end
+
+  def makedepends
+    []
   end
 
 end
