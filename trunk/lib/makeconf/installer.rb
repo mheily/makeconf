@@ -64,7 +64,7 @@ class Installer
     @dir.each { |k,v| tmp[k.to_s] = v }
 
     tmp.sort.each do |k, v|
-       opts.on('--' + k + 'DIRECTORY', "TODO describe this [#{v}]") do |arg|
+       opts.on('--' + k + ' [DIRECTORY]', "TODO describe this [#{v}]") do |arg|
           @dir[k.to_sym] = arg
        end
     end
