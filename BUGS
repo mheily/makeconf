@@ -1,0 +1,3 @@
+ * Android generates output files in obj/local/$arch. A symlink needs to 
+   be created to these files from the top-level, so referencing
+   libfoo.so -> obj/local/armeabi/libfoo.so (for example).
