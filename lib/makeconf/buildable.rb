@@ -178,6 +178,7 @@ class Buildable
       cc.shared_library = library? and library_type == :shared
       cc.flags = @cflags
       cc.sources = @sources
+      cc.ld.flags = @ldflags
       @ldadd = [ @ldadd ] if @ldadd.kind_of?(String)
       @ldadd.each { |lib| cc.ld.library lib }
       cc.ld.output = @output
