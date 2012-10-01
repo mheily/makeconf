@@ -226,6 +226,7 @@ class BaseProject
   end
 
   # Add item(s) to build
+  # FIXME: this violates OOP encapsulation
   def build(*arg)
     arg.each do |x|
 
@@ -242,12 +243,17 @@ class BaseProject
       else
         dest = '$(BINDIR)'
       end
+      sources = x.output
+      mode = '0755'
 
       @build.push x
+
+      next if x.kind_of?(Header) #ugly
+
       @install.push({ 
-        :sources => x.output,
+        :sources => sources,
         :dest => dest,
-        :mode => '0755',
+        :mode => mode,
         }) if x.installable
     end
   end
