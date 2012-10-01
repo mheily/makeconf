@@ -66,7 +66,7 @@ class Buildable
         @buildable = v
       when :sources
         v = [ v ] if v.kind_of?(String)
-        @sources = expand_sources(v)
+        @sources = v
       else
         throw "Unrecognized option -- #{k}: #{v}"
       end
@@ -131,6 +131,7 @@ class Buildable
   def build
     makefile = Makefile.new
     objs = []
+    sources = expand_sources(@sources)
 
     # Don't do anything if we aren't going to be built
     return makefile unless @buildable
@@ -140,10 +141,10 @@ class Buildable
 
     log.debug 'buildable = ' + self.pretty_inspect
 
-    raise 'One or more source files are required' if @sources.empty?
+    raise 'One or more source files are required' if sources.empty?
 
     # Generate the targets and rules for each translation unit
-    @sources.each do |src|
+    sources.each do |src|
       object_suffix = ''
       if library? 
         if library_type == :shared
@@ -177,7 +178,7 @@ class Buildable
       cc = @project.cc.clone
       cc.shared_library = library? and library_type == :shared
       cc.flags = @cflags
-      cc.sources = @sources
+      cc.sources = sources
       cc.ld.flags = @ldflags
       @ldadd = [ @ldadd ] if @ldadd.kind_of?(String)
       @ldadd.each { |lib| cc.ld.library lib }
@@ -202,7 +203,7 @@ class Buildable
     end
 
     # Generate the targets and rules for each translation unit
-    @sources.each do |src|
+    expand_sources(@sources).each do |src|
       cc = @project.cc.clone
       cc.flags = [ @cflags, '-E' ]
       cc.output = '-'
