@@ -174,7 +174,7 @@ private
 
       buf.push "LOCAL_MODULE    := #{id}"
       buf.push "LOCAL_MODULE_FILENAME := #{obj.id}" if obj.kind_of? StaticLibrary
-      buf.push "LOCAL_SRC_FILES := " + obj.sources.join(' ')
+      buf.push "LOCAL_SRC_FILES := " + obj.expand_sources(obj.sources).join(' ')
       buf.push "LOCAL_CFLAGS    := " + obj.cflags.join(' ')
       buf.push translate_ldadd(obj.ldadd) if obj.ldadd
       buf.push ''
