@@ -94,6 +94,13 @@ class AndroidProject < BaseProject
     mf.define_variable('GDB', '?=', toolchain_binary('gdb'))
     mf.define_variable('ADB', '?=', '$(SDK)/platform-tools/adb')
     mf.target('all').rules.push ndk_build
+    
+    # Copy objects from obj/ to the top level, to match the behavior
+    # of non-Android platforms
+    # FIXME: this is very crude and should use the actual :output filenames
+    #        also, it will only copy libraries and not executables
+    #
+    mf.target('all').rules.push 'cp obj/local/*/*.a obj/local/*/*.so .'
 
     # Generate the 'make clean' target
     mf.target('clean').rules = [ ndk_build + ' clean' ]
