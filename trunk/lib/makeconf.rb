@@ -93,7 +93,7 @@ class Makeconf
        end
 
        opts.on_tail('-V', '--version', 'Display version information and exit') do
-         puts "Makeconf $Id: $"
+         puts "Makeconf $Id$"
          exit
        end
     end
