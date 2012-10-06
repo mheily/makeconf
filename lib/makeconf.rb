@@ -93,7 +93,7 @@ class Makeconf
        end
 
        opts.on_tail('-V', '--version', 'Display version information and exit') do
-         puts OptionParser::Version.join('.')
+         puts "Makeconf $Id$"
          exit
        end
     end
