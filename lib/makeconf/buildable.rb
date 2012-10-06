@@ -103,6 +103,11 @@ class Buildable
 
   end
 
+  # Return the list of intermediate object files
+  def objects
+     expand_sources(@sources).map { |x| x.gsub(/\.c$/, '.o') }
+  end
+
   def library?
     @output_type == 'shared library' or @output_type == 'static library'
   end
