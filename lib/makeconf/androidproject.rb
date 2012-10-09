@@ -2,6 +2,7 @@ class AndroidProject < BaseProject
 
   attr_accessor :target_arch,
                 :target_arch_abi, 
+                :target_abi, 
                 :target_platform
 
   def initialize(options)
@@ -11,6 +12,7 @@ class AndroidProject < BaseProject
     @target_platform = 'android-14'
     @target_arch = 'arm'
     @target_arch_abi = 'armeabi'
+    @target_abi = 'armeabi-v7a'
     @ndk_path = nil
     @sdk_path = nil
 
@@ -217,6 +219,7 @@ private
       'APP_PROJECT_PATH := .',
       'APP_BUILD_SCRIPT := $(APP_PROJECT_PATH)/Android.mk',
       'APP_PLATFORM     := ' + @target_platform,
+      'APP_ABI          := ' + @target_abi,
       'APP_OPTIM        := debug',
     ]
 
