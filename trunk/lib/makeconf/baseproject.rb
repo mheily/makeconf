@@ -236,7 +236,10 @@ class BaseProject
           next
       end
 
-      throw ArgumentError.new('Invalid argument') unless x.kind_of? Buildable
+      unless x.respond_to?(:build)
+        pp x
+        throw ArgumentError.new('Invalid argument') 
+      end
 
       if x.kind_of?(SharedLibrary) or x.kind_of?(StaticLibrary)
         dest = '$(LIBDIR)'

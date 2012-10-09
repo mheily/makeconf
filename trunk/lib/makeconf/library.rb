@@ -41,3 +41,49 @@ class StaticLibrary < Buildable
   end
 
 end
+
+class UnionLibrary < Library
+
+  def initialize(options)
+    raise ArgumentError unless options.kind_of?(Hash)
+    @buildable = []
+    options[:sources].each do |x|
+      x.buildable.each do |y|
+        @buildable.push y if y.kind_of?(StaticLibrary)
+      end
+    end
+    @buildable.flatten!
+#pp @buildable
+#    throw 'mmm'
+
+    # Build a list of all source files within each component library
+    sources = []
+    @buildable.each { |x| sources.push x.sources }
+    sources.flatten!
+    sources.each { |x| x.gsub!(/\.c$/, '.o') }
+#pp sources
+#    throw 'mmm'
+
+    @buildable.push StaticLibrary.new(
+            :id => options[:id],
+            :sources => sources
+            )
+  end
+
+  def build
+    makefile = super()
+
+    objs = []
+    @buildable.each { |b| objs.push b.objects }
+    pp objs
+    throw 'ii'
+
+#makefile.add_target('foo', [src, localdep[src]].flatten, cc.rule)
+#    makefile.clean(obj)
+    makefile
+  end
+
+end
+
+class UnionStaticLibrary < StaticLibrary
+end

@@ -87,7 +87,13 @@ class Buildable
 
     # Use glob(3) to expand the list of sources
     buf = []
-    x.each { |src| buf << Dir.glob(src) }
+    x.each do |src| 
+      if src =~ /\*/
+        buf << Dir.glob(src)
+      else
+        buf.push src
+      end
+    end
     buf.flatten
 
 # TODO: elsewhere
@@ -146,7 +152,10 @@ class Buildable
 
     log.debug 'buildable = ' + self.pretty_inspect
 
-    raise 'One or more source files are required' if sources.empty?
+    if sources.empty?
+      pp self
+      raise 'One or more source files are required' if sources.empty?
+    end
 
     # Generate the targets and rules for each translation unit
     sources.each do |src|
@@ -209,6 +218,7 @@ class Buildable
 
     # Generate the targets and rules for each translation unit
     expand_sources(@sources).each do |src|
+      next if src =~ /\.o$/
       cc = @project.cc.clone
       cc.flags = [ @cflags, '-E' ]
       cc.output = '-'
