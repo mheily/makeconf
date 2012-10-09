@@ -42,6 +42,11 @@ class StaticLibrary < Buildable
 
 end
 
+#
+# UnionLibrary - combine multiple static libraries into a single library.
+#
+#   The :sources for this library should be an array of Library objects
+#
 class UnionLibrary < Library
 
   def initialize(options)
@@ -53,37 +58,15 @@ class UnionLibrary < Library
       end
     end
     @buildable.flatten!
-#pp @buildable
-#    throw 'mmm'
 
     # Build a list of all source files within each component library
     sources = []
     @buildable.each { |x| sources.push x.sources }
     sources.flatten!
-    sources.each { |x| x.gsub!(/\.c$/, '.o') }
-#pp sources
-#    throw 'mmm'
 
     @buildable.push StaticLibrary.new(
             :id => options[:id],
             :sources => sources
             )
   end
-
-  def build
-    makefile = super()
-
-    objs = []
-    @buildable.each { |b| objs.push b.objects }
-    pp objs
-    throw 'ii'
-
-#makefile.add_target('foo', [src, localdep[src]].flatten, cc.rule)
-#    makefile.clean(obj)
-    makefile
-  end
-
-end
-
-class UnionStaticLibrary < StaticLibrary
 end
