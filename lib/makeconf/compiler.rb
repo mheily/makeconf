@@ -140,7 +140,7 @@ class Compiler
       if Platform.is_windows?
         throw 'FIXME'
       else
-        tok.push '-fpic' 
+        tok.push '-fpic' unless is_mingw?
       end
     end
 
@@ -316,6 +316,11 @@ class CCompiler < Compiler
     super('C', '.c')
     printf "checking for a C compiler.. "
     @path = search(@search_list)
+  end
+
+  # Returns true if the compiler is MinGW
+  def is_mingw?
+    @path =~ /mingw/        # Kludge
   end
 
 private
