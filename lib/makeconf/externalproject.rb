@@ -49,11 +49,14 @@ class ExternalProject < Buildable
     end
     @configure += ' ' + passthru.join(' ') unless passthru.empty?
 
-    # Always regenerate the Autotools files
-    if File.exists?(@id + '/configure.ac')
-      system "cd #{@id} && autoreconf -fvi" \
-          or throw "autoreconf failed"
-    end
+    # FIXME: this works, but autotools differ widely across host systems.
+    #        make this an optional step that can be done
+    #
+    # Regenerate the Autotools files
+    #if File.exists?(@id + '/configure.ac')
+    #      system "cd #{@id} && autoreconf -fvi" \
+    #          or throw "autoreconf failed"
+    #    end
 
     # Run the autoconf-style ./configure script
     puts "*** Configuring #{@id} using #{@configure}"
