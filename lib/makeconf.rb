@@ -171,7 +171,6 @@ class Makeconf
 
     # Distribute Makeconf with 'make distdir'
     makefile.distribute([
-            'setup.rb', 
             'configure', 
             'makeconf/*.rb',
             'makeconf/makeconf/*.rb',
