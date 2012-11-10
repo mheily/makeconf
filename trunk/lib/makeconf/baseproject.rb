@@ -332,7 +332,7 @@ class BaseProject
 
   # Returns the filename of the source code distribution archive
   def distfile
-    @id + '-' + @version + '.tar.gz'
+    @id + '-' + @version.to_s + '.tar.gz'
   end
 
   # Generate the config.h header file

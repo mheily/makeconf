@@ -82,9 +82,9 @@ class Makefile
   end
 
   def make_dist(project,version)
-    distdir = project + '-' + version
+    distdir = project + '-' + version.to_s
     # XXX-FIXME this should come from the Project
-    distfile = project + '-' + version + '.tar.gz'
+    distfile = project + '-' + version.to_s + '.tar.gz'
     tg = Target.new(distfile)
     tg.add_rule(Platform.rmdir(distdir))
     tg.add_rule("mkdir " + distdir)

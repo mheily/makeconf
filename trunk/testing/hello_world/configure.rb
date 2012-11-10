@@ -19,18 +19,16 @@ $VERBOSE = true
 
 require 'makeconf'
 
-project = Project.new(
-  :id => 'testing',
-  :version => '1.0'
-)
+mc = Makeconf.new :minimum_version => 0.1
 
-project.add(
-  Library.new(
-      :id => 'hello', 
+mc.project = Project.new :id => 'testing', 
+    :version => 1.0
+
+mc.project.add Library.new :id => 'hello', 
       :cflags => '-Wall -Werror -g -O2 -std=c99 -D_XOPEN_SOURCE=600',
       :sources => 'library.c'
-      ),
 
+mc.project.add(
   Binary.new(
     :id => 'hello', 
     :cflags => '-Dabc=def',
@@ -46,7 +44,7 @@ project.add(
   )
 )
 
-Makeconf.configure(project)
+mc.configure
 
 #DEADWOOD
 #Makeconf.configure(

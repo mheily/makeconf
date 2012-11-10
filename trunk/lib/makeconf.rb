@@ -16,6 +16,9 @@
 #
 
 class Makeconf
+
+  Makeconf_Version = 0.1
+
   require 'optparse'
   require 'pp'
   require 'logger'
@@ -37,7 +40,6 @@ class Makeconf
   require 'makeconf/target'
   require 'makeconf/test'
 
-  @@project = nil
   @@installer = Installer.new
   @@makefile = Makefile.new
   @@original_argv = ARGV.clone   # OptionParser seems to clobber this..
@@ -123,17 +125,48 @@ class Makeconf
   end
 
   # Examine the operating environment and set configuration options
-  def Makeconf.configure(project)
+  def configure
 
     @@logger.info 'Configuring the project'
     # FIXME: once the GUI is finished, it should just be
     # if Platform.is_graphical?
     if ENV['MAKECONF_GUI'] == 'yes' and Platform.is_graphical?
-      ui = Makeconf::GUI.new(project)
+      ui = Makeconf::GUI.new(@project)
       ui.main_loop
     else
-      Makeconf.configure_project(project)
+      Makeconf.configure_project(@project)
     end
+  end
+
+  def initialize(options)
+    raise ArgumentError unless options.kind_of?(Hash)
+    options.each do |k,v|
+      case k
+      when :minimum_version
+        send(k.to_s + '=',v)
+      else
+        raise ArgumentError, "Unknown argument #{k}"
+      end
+    end
+
+    @project = Project.new :id => 'default'
+  end
+
+  # Check if the current version is equal to or greater than the minimum required version
+  def minimum_version=(version)
+    if version > 0.1
+      throw "This version of Makeconf is too old. Please upgrade to version #{version} or newer"
+    end
+  end
+
+  # TODO: support multiple projects
+  def project(id = 'default')
+    @project
+  end
+
+  def project=(obj)
+    #raise ArgumentError unless options.kind_of?(Project)
+    @project = obj
   end
 
   private
