@@ -1,4 +1,5 @@
 #!/bin/sh
 
-echo a $*
+export CFLAGS
+
 RUBYLIB=../../lib ../../bin/configure.sh $*
