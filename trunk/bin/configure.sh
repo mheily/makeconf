@@ -21,7 +21,14 @@ if [ ! -x "$ruby" ] ; then
   echo 'no'
   die 'Ruby was not found' 'Please install Ruby from http://www.ruby-lang.org/'
 fi
-echo $ruby
+
+if [ "$RUBYLIB" != "" ] ; then
+  echo "$ruby (RUBYLIB=$RUBYLIB)"  
+  export RUBYLIB
+else
+  echo $ruby
+fi
+
 
 printf 'checking for makeconf.. '
 ruby -e "require 'makeconf'" > /dev/null 2>&1
@@ -31,4 +38,4 @@ if [ $? -ne 0 ] ; then
 fi
 echo 'yes'
 
-exec $ruby ./configure.rb
+exec $ruby ./configure.rb $*
