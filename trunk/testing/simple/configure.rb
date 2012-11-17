@@ -29,6 +29,7 @@ p.add Binary.new \
 
 p.check_header 'stdio.h'
 p.check_header 'does-not-exist.h'
+p.check_decl 'pthread_create', :include => 'pthread.h'
 p.check_decl 'exit'
 p.check_decl 'symbol_that_does_not_exist'
 p.check_function 'read'

@@ -195,20 +195,19 @@ class BaseProject
   end
 
   # Check if a system header declares a macro or symbol
-  def check_decl(decl, header = 'stdlib.h')
-      throw ArgumentError unless header.kind_of? String
+  def check_decl(decl, opt = { :include => 'stdlib.h' })
       decl = [ decl ] if decl.kind_of? String
       throw ArgumentError unless decl.kind_of? Array
-
-#opt=[] #TODO
-#      includes = opt[:include].nil? ? "" : "#include <#{opt[:include]}>"
-
-      # @cc ||= CCompiler.new() #FIXME: stop this
 
       decl.each do |x|
         next if @decls.has_key? x
         printf "checking whether #{x} is declared... "
-        @decls[x] = @cc.test_compile "#define _GNU_SOURCE\n#include <#{header}>\nint main() { #{x}; }"
+        source = [
+         "#define _GNU_SOURCE",
+         "#include <#{opt[:include]}>",
+         "int main() { #{x}; }"
+         ].join("\n")
+        @decls[x] = @cc.test_compile(source)
         puts @decls[x] ? 'yes' : 'no'
       end
   end
