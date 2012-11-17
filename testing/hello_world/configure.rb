@@ -19,16 +19,14 @@ $VERBOSE = true
 
 require 'makeconf'
 
-mc = Makeconf.new :minimum_version => 0.1
-
-mc.project = Project.new :id => 'testing', 
+project = Project.new :id => 'testing', 
     :version => 1.0
 
-mc.project.add Library.new :id => 'hello', 
+project.add Library.new :id => 'hello', 
       :cflags => '-Wall -Werror -g -O2 -std=c99 -D_XOPEN_SOURCE=600',
       :sources => 'library.c'
 
-mc.project.add(
+project.add(
   Binary.new(
     :id => 'hello', 
     :cflags => '-Dabc=def',
@@ -44,7 +42,13 @@ mc.project.add(
   )
 )
 
-mc.configure
+project.check_header %w{ stdlib.h stdio.h string.h does-not-exist.h }
+project.check_decl %w{ O_DOES_NOT_EXIST O_RDWR}, :include => 'fcntl.h'
+project.check_function %w{ pthread_fakefunc pthread_exit}, :include => 'fcntl.h'
+project.check_header('openssl/newshiny.h') or project.define('USE_OPENSSL', '0')
+
+mc = Makeconf.new :minimum_version => 0.1
+mc.configure project
 
 #DEADWOOD
 #Makeconf.configure(
@@ -70,9 +74,3 @@ mc.configure
 #    }
 #)
 
-# TODO:
-#check_header: [ stdlib.h, stdio.h, string.h, does-not-exist.h ]
-#check_symbol:
-#    fcntl.h: [ O_DOES_NOT_EXIST, O_RDWR ]
-#    pthread.h: [ pthread_exit ]
-#        )
