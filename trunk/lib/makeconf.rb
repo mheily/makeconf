@@ -201,13 +201,6 @@ class Makeconf
     makefile.add_rule('install', Platform.is_windows? ?
             'dir $(DESTDIR)' + Platform.dev_null :
             '/usr/bin/test -e $(DESTDIR)')
-
-    # Distribute Makeconf with 'make distdir'
-    makefile.distribute([
-            'configure', 
-            'makeconf/*.rb',
-            'makeconf/makeconf/*.rb',
-     ])
   end
 
 end
