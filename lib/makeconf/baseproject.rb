@@ -434,12 +434,11 @@ class BaseProject
     cpp_define = 'HAVE_' + func.upcase.gsub(%r[/.-], '_')
     @config_h_rules.push \
         "@printf 'checking for #{func}.. '",
-        "@echo 'void #{func}();' >> conftest.c",
-        "@echo 'int main() { void (*p)() = &#{func}; }' >> conftest.c",
+        "@printf 'void *#{func}();\\nint main() { void *p;\\np = &#{func}; exit(p > 1); }\\n' >> conftest.c",
         "@cat -n conftest.c >> config.log",
         "@echo \"+ $(CC) $(CFLAGS) -c -o /dev/null conftest.c\" >> config.log",
         "@$(CC) $(CFLAGS) -c -o conftest.o conftest.c >>config.log 2>&1 || true",
-        "@$(LD) -o /dev/null conftest.o >>config.log 2>&1 && ( echo 'yes' ; echo '#define #{cpp_define} 1' >> config.h.tmp ) || ( echo 'no' ; echo '/* #undef #{cpp_define} */' >> config.h.tmp )",
+        "@$(LD) -o /dev/null conftest.o $(LDADD) >>config.log 2>&1 && ( echo 'yes' ; echo '#define #{cpp_define} 1' >> config.h.tmp ) || ( echo 'no' ; echo '/* #undef #{cpp_define} */' >> config.h.tmp )",
         "@rm -f conftest.c conftest.o 2>/dev/null"
   end
 end
