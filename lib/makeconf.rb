@@ -124,8 +124,14 @@ class Makeconf
     end
   end
 
+  # Adjust the log level to increase debugging output
+  def log_level=(level)
+    @@logger.level = level
+  end
+
   # Examine the operating environment and set configuration options
-  def configure
+  def configure(project = nil)
+    @project = project unless project.nil?
 
     @@logger.info 'Configuring the project'
     # FIXME: once the GUI is finished, it should just be
@@ -142,7 +148,7 @@ class Makeconf
     raise ArgumentError unless options.kind_of?(Hash)
     options.each do |k,v|
       case k
-      when :minimum_version
+      when :minimum_version, :log_level
         send(k.to_s + '=',v)
       else
         raise ArgumentError, "Unknown argument #{k}"

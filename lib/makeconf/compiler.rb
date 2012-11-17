@@ -4,7 +4,7 @@ class Compiler
 
   require 'tempfile'
 
-  attr_accessor :sysroot
+  attr_accessor :sysroot, :output
   attr_reader :ld
 
   def initialize(language, extension)
@@ -53,11 +53,6 @@ class Compiler
   def quiet=(b)
     ld.quiet = b
     @quiet = b
-  end
-
-  def output=(s)
-    @output = s
-    ld.output = s
   end
 
   def makefile
@@ -197,31 +192,49 @@ class Compiler
   # Run the compilation command
   def compile
     cmd = self.command
+#puts ' + ' + cmd
     log.debug "Invoking the compiler"
     rc = Platform.execute cmd
     log.debug "Compilation complete; rc=#{rc.to_s}"
+    rc
+  end
+
+  # Run the link command
+  def link
+    throw 'Invalid linker' unless @ld.is_a?(Linker)
+    throw 'One or more source files are required' unless @sources.length > 0
+    cmd = @ld.command
+    log.debug "Invoking the linker: " + cmd
+    rc = Platform.execute cmd
+    log.debug "Linking complete; rc=#{rc.to_s}"
+    rc
   end
 
   # Compile a test program
   def test_compile(code, stage = :compile)
+    log.debug "Testing compilation of:\n" + code
 
     # Write the code to a temporary source file
     f = Tempfile.new(['test_compile', @extension]);
     f.print code
     f.flush
-###objfile = f.path + '.out'
 
     # Run the compiler
     cc = self.clone
     cc.sources = f.path
-###    cc.output = objfile
-    cc.flags += '-o /dev/null' #FIXME: /dev/null not portable
+    cc.output = f.path.sub(/\.c$/, '.o')
     cc.quiet = true
     rc = cc.compile
 
-    # Delete the object file
-    objfile = File.basename( f.path.sub(@extension, '.o') )
-    File.unlink(objfile) if File.exist? objfile
+    # (Optional) Run the linker
+    if (rc == true and stage == :combined)
+      cc.ld.quiet = true
+      rc = cc.link
+      File.unlink(cc.ld.output) if File.exist? cc.ld.output
+    end
+
+    # Delete the output file(s)
+    File.unlink(cc.output) if File.exist? cc.output
 
     return rc
   end

@@ -187,13 +187,23 @@ class BaseProject
     @install.each { |x| @installer.install x }
   end
 
+  # Check if a system header file is available
+  def check_header(header)
+      printf "checking for #{header}... "
+      @header[header] = @cc.check_header(header)
+      puts @header[header] ? 'yes' : 'no'
+  end
+
   # Check if a system header declares a macro or symbol
-  def check_decl(header,decl)
+  def check_decl(decl, header = 'stdlib.h')
       throw ArgumentError unless header.kind_of? String
       decl = [ decl ] if decl.kind_of? String
       throw ArgumentError unless decl.kind_of? Array
 
-       @cc ||= CCompiler.new() #FIXME: stop this
+#opt=[] #TODO
+#      includes = opt[:include].nil? ? "" : "#include <#{opt[:include]}>"
+
+      # @cc ||= CCompiler.new() #FIXME: stop this
 
       decl.each do |x|
         next if @decls.has_key? x
@@ -205,7 +215,7 @@ class BaseProject
 
   # Check if a function is available in the standard C library
   # TODO: probably should add :ldadd when checking..
-  def check_func(func)
+  def check_function(func, *arg)
       func = [ func ] if func.kind_of? String
       throw ArgumentError unless func.kind_of? Array
 
@@ -349,29 +359,26 @@ class BaseProject
 
   # Generate the config.h header file
   def write_config_h
-    File.unlink @config_h if File.exist? @config_h
+    ofile = @config_h
+    buf = {}
 
-# DEADWOOD 
-###    ofile = @config_h
-###    buf = {}
-###
-###    @header.keys.sort.each { |k| buf["HAVE_#{k}".upcase] = @header[k] }
-###    @decls.keys.sort.each { |x| buf["HAVE_DECL_#{x}".upcase] = @decls[x] }
-###    @funcs.keys.sort.each { |x| buf["HAVE_#{x}".upcase] = @funcs[x] }
-###
-###    puts 'creating ' + ofile
-###    f = File.open(ofile, 'w')
-###    f.print "/* AUTOMATICALLY GENERATED -- DO NOT EDIT */\n"
-###    buf.keys.sort.each do |k|
-###      v = buf[k]
-###      id = k.upcase.gsub(%r{[/.-]}, '_')
-###      if v == true
-###        f.printf "#define #{id} 1\n"
-###      else
-###        f.printf "#undef  #{id}\n" 
-###      end
-###    end
-###    f.close
+    @header.keys.sort.each { |k| buf["HAVE_#{k}".upcase] = @header[k] }
+    @decls.keys.sort.each { |x| buf["HAVE_DECL_#{x}".upcase] = @decls[x] }
+    @funcs.keys.sort.each { |x| buf["HAVE_#{x}".upcase] = @funcs[x] }
+
+    puts 'creating ' + ofile
+    f = File.open(ofile, 'w')
+    f.print "/* AUTOMATICALLY GENERATED -- DO NOT EDIT */\n"
+    buf.keys.sort.each do |k|
+      v = buf[k]
+      id = k.upcase.gsub(%r{[/.-]}, '_')
+      if v == true
+        f.printf "#define #{id} 1\n"
+      else
+        f.printf "#undef  #{id}\n" 
+      end
+    end
+    f.close
   end
 
   # Add an additional Makefile target
@@ -397,19 +404,6 @@ class BaseProject
     end
     return false
   end    
-
-  # Similar to AC_CHECK_HEADER
-  def ac_check_header(file, includes = '')
-    cpp_define = 'HAVE_' + file.upcase.gsub(/[\/.-]/, '_')
-
-    @config_h_rules.push \
-        "@printf 'checking for #{file}.. '",
-        "@echo '#include <#{file}>' > conftest.c",
-        "@cat -n conftest.c >> config.log",
-        "@echo \"+ $(CC) $(CFLAGS) -c -o /dev/null conftest.c\" >> config.log",
-        "@$(CC) $(CFLAGS) -c -o /dev/null conftest.c >/dev/null 2>&1 && ( echo 'yes' ; echo '#define #{cpp_define} 1' >> config.h.tmp ) || ( echo 'no' ; echo '/* #undef #{cpp_define} */ ' >> config.h.tmp )",
-        "@rm -f conftest.c conftest.o 2>/dev/null"
-  end
 
   # Similar to AC_CHECK_DECL
   def ac_check_decl(symbol, opt = {})
