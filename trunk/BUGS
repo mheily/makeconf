@@ -1,0 +1,3 @@
+ * Android needs to copy gdbserver from the SDK/NDK to the device and
+   run it from /data/local/tmp. 
+

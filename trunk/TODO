@@ -1,0 +1,8 @@
+ * Create a :requires option to each buildable object to establish a 
+   dependency chain. In the example of OpenGCD, the chain looks like:
+
+      libdispatch -> libpwq, libkqueue, libBlocksRuntime -> clang toolchain
+
+   The Makefile should be structured so that the running the ./configure 
+   scripts is deferred until after their dependency has been built.
+   
