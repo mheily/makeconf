@@ -180,7 +180,7 @@ class Buildable
       @ldadd = [ @ldadd ] if @ldadd.kind_of?(String)
       @ldadd.each { |lib| ld.library lib }
 
-      makefile.add_target(obj, [src, localdep[src]].flatten, cc.rule)
+      makefile.add_target(obj, [@project.config_h, src, localdep[src]].flatten, cc.rule)
       makefile.clean(obj)
       objs.push obj
     end

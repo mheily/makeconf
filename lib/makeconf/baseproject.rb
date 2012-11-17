@@ -28,6 +28,7 @@ class BaseProject
     @license_file = nil
     @author = 'Unknown author'
     @config_h = 'config.h'
+    @config_h_rules = [] # Makefile rules to generate config.h
     @header = {}        # Hash of system header availablity
     @build = []         # List of items to build
     @distribute = []    # List of items to distribute
@@ -165,6 +166,15 @@ class BaseProject
 
     # Add custom targets
     @target.each { |t| makefile.add_target t }
+
+    # Add the config.h target
+    @config_h_rules.unshift \
+        '@echo "/* AUTOMATICALLY GENERATED -- DO NOT EDIT */" > config.h.tmp',
+        '@date > config.log'
+    @config_h_rules.push \
+        '@rm conftest.c conftest.o || true',
+        '@mv config.h.tmp ' + @config_h
+    makefile.add_target Target.new('config.h', [], @config_h_rules) 
 
     makefile
   end
@@ -337,26 +347,29 @@ class BaseProject
 
   # Generate the config.h header file
   def write_config_h
-    ofile = @config_h
-    buf = {}
+    File.unlink @config_h if File.exist? @config_h
 
-    @header.keys.sort.each { |k| buf["HAVE_#{k}".upcase] = @header[k] }
-    @decls.keys.sort.each { |x| buf["HAVE_DECL_#{x}".upcase] = @decls[x] }
-    @funcs.keys.sort.each { |x| buf["HAVE_#{x}".upcase] = @funcs[x] }
-
-    puts 'creating ' + ofile
-    f = File.open(ofile, 'w')
-    f.print "/* AUTOMATICALLY GENERATED -- DO NOT EDIT */\n"
-    buf.keys.sort.each do |k|
-      v = buf[k]
-      id = k.upcase.gsub(%r{[/.-]}, '_')
-      if v == true
-        f.printf "#define #{id} 1\n"
-      else
-        f.printf "#undef  #{id}\n" 
-      end
-    end
-    f.close
+# DEADWOOD 
+###    ofile = @config_h
+###    buf = {}
+###
+###    @header.keys.sort.each { |k| buf["HAVE_#{k}".upcase] = @header[k] }
+###    @decls.keys.sort.each { |x| buf["HAVE_DECL_#{x}".upcase] = @decls[x] }
+###    @funcs.keys.sort.each { |x| buf["HAVE_#{x}".upcase] = @funcs[x] }
+###
+###    puts 'creating ' + ofile
+###    f = File.open(ofile, 'w')
+###    f.print "/* AUTOMATICALLY GENERATED -- DO NOT EDIT */\n"
+###    buf.keys.sort.each do |k|
+###      v = buf[k]
+###      id = k.upcase.gsub(%r{[/.-]}, '_')
+###      if v == true
+###        f.printf "#define #{id} 1\n"
+###      else
+###        f.printf "#undef  #{id}\n" 
+###      end
+###    end
+###    f.close
   end
 
   # Add an additional Makefile target
@@ -383,4 +396,44 @@ class BaseProject
     return false
   end    
 
+  # Similar to AC_CHECK_HEADER
+  def ac_check_header(file, includes = '')
+    cpp_define = 'HAVE_' + file.upcase.gsub(/[\/.-]/, '_')
+
+    @config_h_rules.push \
+        "@printf 'checking for #{file}.. '",
+        "@echo '#include <#{file}>' > conftest.c",
+        "@cat -n conftest.c >> config.log",
+        "@echo \"+ $(CC) $(CFLAGS) -c -o /dev/null conftest.c\" >> config.log",
+        "@$(CC) $(CFLAGS) -c -o /dev/null conftest.c >/dev/null 2>&1 && ( echo 'yes' ; echo '#define #{cpp_define} 1' >> config.h.tmp ) || ( echo 'no' ; echo '/* #undef #{cpp_define} */ ' >> config.h.tmp )"
+  end
+
+  # Similar to AC_CHECK_DECL
+  def ac_check_decl(symbol, includes = '')
+    cpp_define = 'HAVE_DECL_' + symbol.upcase.gsub(%r[/.-], '_')
+
+    @config_h_rules.push \
+        "@printf 'checking if #{symbol} is defined.. '",
+        "@printf '#include <stdlib.h>\\n#include <stdio.h>\\n#include <string.h>\\n' > conftest.c",
+        "@echo 'int main() { (void) #{symbol}; }' >> conftest.c",
+        "@cat -n conftest.c >> config.log",
+        "@echo \"+ $(CC) $(CFLAGS) -c -o /dev/null conftest.c\" >> config.log",
+        "@( $(CC) $(CFLAGS) -c -o conftest.o conftest.c >>config.log 2>&1 && \\",
+        "  $(LD) -o /dev/null conftest.o ) && ( echo 'yes' ; echo '#define #{cpp_define} 1' >> config.h.tmp ) || ( echo 'no' ; echo '#define #{cpp_define} 0' >> config.h.tmp )"
+  end
+
+
+  # Similar to AC_CHECK_FUNCS
+  def ac_check_funcs(func)
+    cpp_define = 'HAVE_' + func.upcase.gsub(%r[/.-], '_')
+    @config_h_rules.push \
+        "@printf 'checking for #{func}.. '",
+        "@printf '#include <stdlib.h>\\n#include <stdio.h>\\n#include <string.h>\\n' > conftest.c",
+        "@echo 'void *#{func};' >> conftest.c",
+        "@echo 'int main() { void *p = &#{func}; }' >> conftest.c",
+        "@cat -n conftest.c >> config.log",
+        "@echo \"+ $(CC) $(CFLAGS) -c -o /dev/null conftest.c\" >> config.log",
+        "@( $(CC) $(CFLAGS) -c -o conftest.o conftest.c >>config.log 2>&1 && \\",
+        "  $(LD) -o /dev/null conftest.o ) && ( echo 'yes' ; echo '#define #{cpp_define} 1' >> config.h.tmp ) || ( echo 'no' ; echo '/* #undef #{cpp_define} */' >> config.h.tmp )"
+  end
 end
