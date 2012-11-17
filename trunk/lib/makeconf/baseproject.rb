@@ -36,6 +36,7 @@ class BaseProject
     @target = []        # List of additional Makefile targets
     @decls = {}         # List of declarations discovered via check_decl()
     @funcs = {}         # List of functions discovered via check_func()
+    @defs = {}          # Custom preprocessor macro definitions
     @packager = Packager.new(self)
     @cc = nil
 
@@ -188,16 +189,30 @@ class BaseProject
   end
 
   # Check if a system header file is available
-  def check_header(header)
-      printf "checking for #{header}... "
-      @header[header] = @cc.check_header(header)
-      puts @header[header] ? 'yes' : 'no'
+  def check_header(headers)
+      headers = [ headers ] if headers.kind_of? String
+      throw ArgumentError unless headers.kind_of? Array
+      rc = true
+
+      headers.each do |header|
+        printf "checking for #{header}... "
+        @header[header] = @cc.check_header(header)
+        if @header[header]
+          puts 'yes'
+        else
+          puts 'no'
+          rc = false
+        end
+      end
+
+      rc
   end
 
   # Check if a system header declares a macro or symbol
   def check_decl(decl, opt = { :include => 'stdlib.h' })
       decl = [ decl ] if decl.kind_of? String
       throw ArgumentError unless decl.kind_of? Array
+      rc = true
 
       decl.each do |x|
         next if @decls.has_key? x
@@ -208,8 +223,15 @@ class BaseProject
          "int main() { #{x}; }"
          ].join("\n")
         @decls[x] = @cc.test_compile(source)
-        puts @decls[x] ? 'yes' : 'no'
+        if @decls[x]
+          puts 'yes'
+        else
+          puts 'no'
+          rc = false
+        end
       end
+
+      rc
   end
 
   # Check if a function is available in the standard C library
@@ -217,14 +239,26 @@ class BaseProject
   def check_function(func, *arg)
       func = [ func ] if func.kind_of? String
       throw ArgumentError unless func.kind_of? Array
+      rc = true
 
-       @cc ||= CCompiler.new() #FIXME: stop this
       func.each do |x|
         next if @funcs.has_key? x
         printf "checking for #{x}... "
         @funcs[x] = @cc.test_link "void *#{x}();\nint main() { void *p;\np = &#{x}; }"
-        puts @funcs[x] ? 'yes' : 'no'
+        if @funcs[x] 
+          puts 'yes'
+        else
+          puts 'no'
+          rc = false
+        end
       end
+
+      rc
+  end
+
+  # Define a C preprocessor symbol 
+  def define(id,value)
+    @defs[id] = value
   end
 
   def add_binary(options)
@@ -364,6 +398,7 @@ class BaseProject
     @header.keys.sort.each { |k| buf["HAVE_#{k}".upcase] = @header[k] }
     @decls.keys.sort.each { |x| buf["HAVE_DECL_#{x}".upcase] = @decls[x] }
     @funcs.keys.sort.each { |x| buf["HAVE_#{x}".upcase] = @funcs[x] }
+    @defs.keys.sort.each { |x| buf[x] = @defs[x] }
 
     puts 'creating ' + ofile
     f = File.open(ofile, 'w')
@@ -374,7 +409,7 @@ class BaseProject
       if v == true
         f.printf "#define #{id} 1\n"
       else
-        f.printf "#undef  #{id}\n" 
+        f.printf "/* #undef  #{id} */\n" 
       end
     end
     f.close
