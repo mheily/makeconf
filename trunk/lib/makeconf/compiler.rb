@@ -69,7 +69,7 @@ class Compiler
 
   # Return the command formatted as a Makefile rule
   def rule
-    [ '$(CC)', '-c', flags, '$(CFLAGS)', @sources ].flatten.join(' ')
+    [ '$(CC)', '-DHAVE_CONFIG_H', flags, '$(CFLAGS)', '-c', @sources ].flatten.join(' ')
   end
 
   # Return the complete command line to compile an object
@@ -99,7 +99,7 @@ class Compiler
 # return [ @path, cflags, '-combine', ldflags, inputs, ldadd ].flatten.join(' ')
 #
     
-    cmd = [ @path, '-c', flags, @sources ].flatten.join(' ')
+    cmd = [ @path, '-DHAVE_CONFIG_H', flags, '-c', @sources ].flatten.join(' ')
 
     cmd += Platform.dev_null if @quiet
 
