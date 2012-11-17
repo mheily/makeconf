@@ -16,12 +16,12 @@
 
 Gem::Specification.new do |s|
   s.name        = 'makeconf'
-  s.version     = '0.1.0'
-  s.date        = '2011-12-30'
+  s.version     = '0.2.0'
+  s.date        = '2012-11-17'
   s.summary     = 'Generates configurable Makefiles'
   s.description = 'An alternative to GNU autoconf/automake/libtool/etc'
   s.authors     = ['Mark Heily']
   s.email       = 'mark@heily.com'
   s.files       = ['lib/makeconf.rb'].concat(Dir.glob('lib/makeconf/*.rb'))
-  s.homepage    = 'http://mark.heily.com/project/makeconf'
+  s.homepage    = 'http://sourceforge.net/p/makeconf'
 end
