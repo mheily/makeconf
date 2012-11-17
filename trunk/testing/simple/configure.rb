@@ -19,28 +19,27 @@ $VERBOSE = true
 
 require 'makeconf'
 
-mc = Makeconf.new :minimum_version => 0.1
-
-mc.project = Project.new \
+p = Project.new \
     :id => 'simple', 
     :version => 1.0
 
-mc.project.add Binary.new \
+p.add Binary.new \
     :id => 'hello', 
     :sources => %w{main.c}
 
-mc.project.ac_check_header 'stdio.h'
-mc.project.ac_check_header 'does-not-exist.h'
-mc.project.ac_check_decl 'exit'
-mc.project.ac_check_decl 'symbol_that_does_not_exist'
-mc.project.ac_check_funcs 'read'
-mc.project.ac_check_funcs 'epoll_create', :include => 'sys/epoll.h'
-mc.project.ac_check_funcs 'fgetln'
-mc.project.ac_check_funcs 'getline'
-mc.project.ac_check_funcs 'kqueue'
-mc.project.ac_check_funcs 'port_create'
+p.check_header 'stdio.h'
+p.check_header 'does-not-exist.h'
+p.check_decl 'exit'
+p.check_decl 'symbol_that_does_not_exist'
+p.check_function 'read'
+p.check_function 'epoll_create', :include => 'sys/epoll.h'
+p.check_function 'fgetln'
+p.check_function 'getline'
+p.check_function 'kqueue'
+p.check_function 'port_create'
 
-mc.configure
+mc = Makeconf.new :minimum_version => 0.1
+mc.configure(p)
 
 #check_symbol:
 #    fcntl.h: [ O_DOES_NOT_EXIST, O_RDWR ]

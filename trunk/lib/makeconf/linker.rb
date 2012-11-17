@@ -8,7 +8,7 @@ class Linker
   def initialize
     @flags = []
     @objects = []
-    @output = nil
+    @output = 'a.out'
     @shared_library = false
     @ldadd = []
     @quiet = false          # If true, output will be suppressed
