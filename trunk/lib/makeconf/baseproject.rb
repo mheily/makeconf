@@ -172,7 +172,7 @@ class BaseProject
         '@echo "/* AUTOMATICALLY GENERATED -- DO NOT EDIT */" > config.h.tmp',
         '@date > config.log'
     @config_h_rules.push \
-        '@rm conftest.c conftest.o || true',
+        '@rm -f conftest.c conftest.o',
         '@mv config.h.tmp ' + @config_h
     makefile.add_target Target.new('config.h', [], @config_h_rules) 
 
@@ -407,35 +407,39 @@ class BaseProject
         "@echo '#include <#{file}>' > conftest.c",
         "@cat -n conftest.c >> config.log",
         "@echo \"+ $(CC) $(CFLAGS) -c -o /dev/null conftest.c\" >> config.log",
-        "@$(CC) $(CFLAGS) -c -o /dev/null conftest.c >/dev/null 2>&1 && ( echo 'yes' ; echo '#define #{cpp_define} 1' >> config.h.tmp ) || ( echo 'no' ; echo '/* #undef #{cpp_define} */ ' >> config.h.tmp )"
+        "@$(CC) $(CFLAGS) -c -o /dev/null conftest.c >/dev/null 2>&1 && ( echo 'yes' ; echo '#define #{cpp_define} 1' >> config.h.tmp ) || ( echo 'no' ; echo '/* #undef #{cpp_define} */ ' >> config.h.tmp )",
+        "@rm -f conftest.c conftest.o 2>/dev/null"
   end
 
   # Similar to AC_CHECK_DECL
-  def ac_check_decl(symbol, includes = '')
+  def ac_check_decl(symbol, opt = {})
+    includes = opt[:include].nil? ? "" : "#include <#{opt[:include]}>"
     cpp_define = 'HAVE_DECL_' + symbol.upcase.gsub(%r[/.-], '_')
 
     @config_h_rules.push \
         "@printf 'checking if #{symbol} is defined.. '",
         "@printf '#include <stdlib.h>\\n#include <stdio.h>\\n#include <string.h>\\n' > conftest.c",
+        "@echo '#{includes}' >> conftest.c",
         "@echo 'int main() { (void) #{symbol}; }' >> conftest.c",
         "@cat -n conftest.c >> config.log",
         "@echo \"+ $(CC) $(CFLAGS) -c -o /dev/null conftest.c\" >> config.log",
         "@( $(CC) $(CFLAGS) -c -o conftest.o conftest.c >>config.log 2>&1 && \\",
-        "  $(LD) -o /dev/null conftest.o ) && ( echo 'yes' ; echo '#define #{cpp_define} 1' >> config.h.tmp ) || ( echo 'no' ; echo '#define #{cpp_define} 0' >> config.h.tmp )"
+        "  $(LD) -o /dev/null conftest.o ) && ( echo 'yes' ; echo '#define #{cpp_define} 1' >> config.h.tmp ) || ( echo 'no' ; echo '#define #{cpp_define} 0' >> config.h.tmp )",
+        "@rm -f conftest.c conftest.o 2>/dev/null"
   end
 
 
   # Similar to AC_CHECK_FUNCS
-  def ac_check_funcs(func)
+  def ac_check_funcs(func, opt = {})
     cpp_define = 'HAVE_' + func.upcase.gsub(%r[/.-], '_')
     @config_h_rules.push \
         "@printf 'checking for #{func}.. '",
-        "@printf '#include <stdlib.h>\\n#include <stdio.h>\\n#include <string.h>\\n' > conftest.c",
-        "@echo 'void *#{func};' >> conftest.c",
-        "@echo 'int main() { void *p = &#{func}; }' >> conftest.c",
+        "@echo 'void #{func}();' >> conftest.c",
+        "@echo 'int main() { void (*p)() = &#{func}; }' >> conftest.c",
         "@cat -n conftest.c >> config.log",
         "@echo \"+ $(CC) $(CFLAGS) -c -o /dev/null conftest.c\" >> config.log",
-        "@( $(CC) $(CFLAGS) -c -o conftest.o conftest.c >>config.log 2>&1 && \\",
-        "  $(LD) -o /dev/null conftest.o ) && ( echo 'yes' ; echo '#define #{cpp_define} 1' >> config.h.tmp ) || ( echo 'no' ; echo '/* #undef #{cpp_define} */' >> config.h.tmp )"
+        "@$(CC) $(CFLAGS) -c -o conftest.o conftest.c >>config.log 2>&1 || true",
+        "@$(LD) -o /dev/null conftest.o >>config.log 2>&1 && ( echo 'yes' ; echo '#define #{cpp_define} 1' >> config.h.tmp ) || ( echo 'no' ; echo '/* #undef #{cpp_define} */' >> config.h.tmp )",
+        "@rm -f conftest.c conftest.o 2>/dev/null"
   end
 end

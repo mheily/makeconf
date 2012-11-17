@@ -33,9 +33,12 @@ mc.project.ac_check_header 'stdio.h'
 mc.project.ac_check_header 'does-not-exist.h'
 mc.project.ac_check_decl 'exit'
 mc.project.ac_check_decl 'symbol_that_does_not_exist'
-mc.project.ac_check_funcs 'epoll_create'
+mc.project.ac_check_funcs 'read'
+mc.project.ac_check_funcs 'epoll_create', :include => 'sys/epoll.h'
 mc.project.ac_check_funcs 'fgetln'
 mc.project.ac_check_funcs 'getline'
+mc.project.ac_check_funcs 'kqueue'
+mc.project.ac_check_funcs 'port_create'
 
 mc.configure
 
