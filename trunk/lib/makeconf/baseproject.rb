@@ -403,35 +403,4 @@ class BaseProject
     end
     return false
   end    
-
-  # Similar to AC_CHECK_DECL
-  def ac_check_decl(symbol, opt = {})
-    includes = opt[:include].nil? ? "" : "#include <#{opt[:include]}>"
-    cpp_define = 'HAVE_DECL_' + symbol.upcase.gsub(%r[/.-], '_')
-
-    @config_h_rules.push \
-        "@printf 'checking if #{symbol} is defined.. '",
-        "@printf '#include <stdlib.h>\\n#include <stdio.h>\\n#include <string.h>\\n' > conftest.c",
-        "@echo '#{includes}' >> conftest.c",
-        "@echo 'int main() { (void) #{symbol}; }' >> conftest.c",
-        "@cat -n conftest.c >> config.log",
-        "@echo \"+ $(CC) $(CFLAGS) -c -o /dev/null conftest.c\" >> config.log",
-        "@( $(CC) $(CFLAGS) -c -o conftest.o conftest.c >>config.log 2>&1 && \\",
-        "  $(LD) -o /dev/null conftest.o ) && ( echo 'yes' ; echo '#define #{cpp_define} 1' >> config.h.tmp ) || ( echo 'no' ; echo '#define #{cpp_define} 0' >> config.h.tmp )",
-        "@rm -f conftest.c conftest.o 2>/dev/null"
-  end
-
-
-  # Similar to AC_CHECK_FUNCS
-  def ac_check_funcs(func, opt = {})
-    cpp_define = 'HAVE_' + func.upcase.gsub(%r[/.-], '_')
-    @config_h_rules.push \
-        "@printf 'checking for #{func}.. '",
-        "@printf 'void *#{func}();\\nint main() { void *p;\\np = &#{func}; exit(p > 1); }\\n' >> conftest.c",
-        "@cat -n conftest.c >> config.log",
-        "@echo \"+ $(CC) $(CFLAGS) -c -o /dev/null conftest.c\" >> config.log",
-        "@$(CC) $(CFLAGS) -c -o conftest.o conftest.c >>config.log 2>&1 || true",
-        "@$(LD) -o /dev/null conftest.o $(LDADD) >>config.log 2>&1 && ( echo 'yes' ; echo '#define #{cpp_define} 1' >> config.h.tmp ) || ( echo 'no' ; echo '/* #undef #{cpp_define} */' >> config.h.tmp )",
-        "@rm -f conftest.c conftest.o 2>/dev/null"
-  end
 end
