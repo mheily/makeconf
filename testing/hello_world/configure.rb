@@ -39,7 +39,18 @@ project.add(
     :cflags => '-Dabc=def',
     :sources => %w{main.c extra.c},
     :ldadd => '-lhello'
-  )
+  ),
+
+  Target.new('check', [], [
+	  'rm -rf testing-1.0 || true',
+	  'make clean all',
+	  'make dist',
+	  'tar zxf testing-1.0.tar.gz',
+	  'cd testing-1.0 && \\',
+	  './configure && \\',
+	  'make',
+	  ]
+	  )
 )
 
 project.check_header %w{ stdlib.h stdio.h string.h does-not-exist.h }
