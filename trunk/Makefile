@@ -13,7 +13,9 @@ makeconf-$(VERSION).gem: test
 	gem build makeconf.gemspec
 
 check:
-	rake test
+	#FIXME:rake test
+	cd testing/hello_world && ./configure && make check
+
 
 doc:
 	rm -rf doc
