@@ -14,7 +14,7 @@ makeconf-$(VERSION).gem: test
 
 check:
 	#FIXME:rake test
-	cd testing/hello_world && rm -f configure && ../../bin/makeconf && RUBYLIB=../../lib ./configure && make check
+	cd testing/hello_world && rm -f configure && ../../bin/makeconf && RUBYLIB=../../lib ./configure && make check && ./check-hello
 
 
 doc:
