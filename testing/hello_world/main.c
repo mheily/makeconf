@@ -14,6 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include <stdlib.h>
 #include <stdio.h>
 
 void where_am_i(void);
@@ -23,4 +24,5 @@ main(int argc, char **argv)
 {
     printf("Hello world!\n");
     where_am_i();
+    exit(0);
 }
