@@ -177,7 +177,7 @@ class BaseProject
         '@mv config.h.tmp ' + @config_h
     makefile.add_target Target.new('config.h', [], @config_h_rules) 
 
-    makefile.distribute 'Makefile'
+    makefile.distribute ['configure', 'configure.rb', 'Makefile']
 
     makefile
   end

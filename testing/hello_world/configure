@@ -1,5 +1,0 @@
-#!/bin/sh
-
-export CFLAGS
-
-RUBYLIB=../../lib ../../bin/configure.sh $*

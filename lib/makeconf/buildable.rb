@@ -179,6 +179,7 @@ class Buildable
       ld.flags = @ldflags
       @ldadd = [ @ldadd ] if @ldadd.kind_of?(String)
       @ldadd.each { |lib| ld.library lib }
+      makefile.distribute src
 
       makefile.add_target(obj, [@project.config_h, src, localdep[src]].flatten, cc.rule)
       makefile.clean(obj)
