@@ -47,7 +47,7 @@ project.add(
 	  'make dist',
 	  'tar zxf testing-1.0.tar.gz',
 	  'cd testing-1.0 && \\',
-	  './configure && \\',
+	  'RUBYLIB=../../../lib ./configure && \\',
 	  'make',
 	  ]
 	  )

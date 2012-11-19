@@ -22,6 +22,6 @@ Gem::Specification.new do |s|
   s.description = 'An alternative to GNU autoconf/automake/libtool/etc'
   s.authors     = ['Mark Heily']
   s.email       = 'mark@heily.com'
-  s.files       = ['lib/makeconf.rb'].concat(Dir.glob('lib/makeconf/*.rb'))
+  s.files       = ['bin/makeconf', 'lib/makeconf.rb'].concat(Dir.glob('lib/makeconf/*.rb'))
   s.homepage    = 'http://sourceforge.net/p/makeconf'
 end

@@ -25,7 +25,10 @@ class Target
       @deps.push(src.deps).uniq!
       @rules.push(src.rules).flatten!
       @dirs_to_create.push(src.dirs_to_create).flatten!.uniq!
-      @files_to_copy.merge!(src.files_to_copy)
+      src.files_to_copy.each do |k,v|
+        @files_to_copy[k] ||= []
+        @files_to_copy[k].concat(v).uniq!
+      end
   end
 
   # Ensure that a directory is created before any rules are evaluated
@@ -36,7 +39,7 @@ class Target
   # Copy a file to a directory. This is more efficient than calling cp(1)
   # for each file.
   def cp(src,dst)
-    @files_to_copy[dst] ||= []
+    @files_to_copy[dst] = [] unless @files_to_copy.has_key? dst
     @files_to_copy[dst].push(src)
   end
 

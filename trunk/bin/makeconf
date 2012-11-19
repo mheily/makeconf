@@ -15,17 +15,84 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
 
-require 'fileutils'
+#require 'fileutils'
+#
+#pkgdatadir = '/usr/local/share/makeconf'
+#
+#%w{configure makeconf.rb config.yaml}.each do |f|
+#  if File.exists?(f)
+#    puts "Skipping #{f}; file already exists."
+#  else
+#    puts 'Creating ' + f
+#    FileUtils.cp pkgdatadir + '/template/' + f, '.'
+#  end 
+#end
+#
+#puts 'Done.'
 
-pkgdatadir = '/usr/local/share/makeconf'
-
-%w{configure makeconf.rb config.yaml}.each do |f|
-  if File.exists?(f)
-    puts "Skipping #{f}; file already exists."
-  else
-    puts 'Creating ' + f
-    FileUtils.cp pkgdatadir + '/template/' + f, '.'
-  end 
+unless File.exists?('configure')
+  puts 'creating ./configure'
+  f = File.open('configure', 'w')
+  f.write DATA.readlines.join ""
+  f.close
+  File.chmod(0755, 'configure')
 end
 
-puts 'Done.'
+__END__
+#!/bin/sh
+#
+# Bootstrap configuration script for Makeconf
+#
+# Copyright (c) 2011 Mark Heily <mark@heily.com>
+#
+# Permission to use, copy, modify, and distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+# 
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+#
+
+die() {
+  printf "\n*** ERROR: $1 ***\n\n$2\n\n"
+  exit 1
+}
+
+if [ "$RUBY" != "" ] ; then
+  ruby=$RUBY
+else
+  ruby=`which ruby`
+fi
+
+printf 'checking for ruby.. '
+if [ ! -x "$ruby" ] ; then
+  echo 'no'
+  die 'Ruby was not found' 'Please install Ruby from http://www.ruby-lang.org/'
+fi
+
+if [ "$RUBYLIB" != "" ] ; then
+  echo "$ruby (RUBYLIB=$RUBYLIB)"  
+  export RUBYLIB
+else
+  echo $ruby
+fi
+
+printf 'checking for makeconf.. '
+ruby -e "require 'makeconf'" > /dev/null 2>&1
+if [ $? -ne 0 ] ; then
+  if [ -x ./makeconf ] ; then
+    echo 'yes (private copy)'
+	ruby="$ruby -Imakeconf"
+  else
+    echo 'no'
+    die 'Makeconf was not found' 'Please run "sudo gem install makeconf" or manually install Makeconf into ./makeconf'
+  fi
+fi
+echo 'yes'
+
+exec $ruby -rubygems ./configure.rb $*
+
