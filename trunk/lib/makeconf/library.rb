@@ -21,6 +21,7 @@ class SharedLibrary < Buildable
     @abi_major = 0
     @abi_minor = 0
     @output = id + Platform.shared_library_extension
+    @output = 'lib' + @output unless @output =~ /^lib/ or Platform.is_windows?
     @output_type = 'shared library'
 #FIXME: @cc.ld.flags.push('-export-dynamic') unless Platform.is_solaris?
   end
@@ -34,6 +35,7 @@ class StaticLibrary < Buildable
     id = options[:id]
     super(options)
     @output = id + Platform.static_library_extension
+    @output = 'lib' + @output unless @output =~ /^lib/ or Platform.is_windows?
     @output_type = 'static library'
 
 # FIXME: clashes with shared objects
