@@ -144,7 +144,7 @@ class Makeconf
     end
   end
 
-  def initialize(options)
+  def initialize(options = {})
     raise ArgumentError unless options.kind_of?(Hash)
     options.each do |k,v|
       case k
