@@ -120,9 +120,15 @@ class Makeconf::GUI
   end
 
   def license_page(display)
+    if @project.license_file.nil?
+      license = 'No license information'
+    else
+      license = File.read(@project.license_file)
+    end
+
     if display
       @mainTitle.set_value 'License Agreement'
-      @mainText.insert('end', File.read(@project.license_file))
+      @mainText.insert('end', license)
       @mainText.place('relx'=>0.0, 'rely' => 0.0)
     else
       TkPlace.forget(@mainText)
@@ -151,7 +157,7 @@ class Makeconf::GUI
       @mainText.place('relx'=>0.0, 'rely' => 0.0)
       Thread.new {
           @mainText.insert('end', "Configuring.. ")
-          Makeconf.configure_project @project 
+          Makeconf.configure_project(@project)
           @mainText.insert('end', "done\n")
 
           make = Platform.is_windows? ? 'nmake' : 'make'
