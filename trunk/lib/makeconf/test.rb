@@ -7,7 +7,9 @@ class Test < Binary
     @installable = false
     @distributable = false
 
-    @ldflags = [ '-rpath .' ]
+    unless Platform.is_windows?
+      @ldflags = [ '-rpath .' ]
+    end
 
     # Assume that unit tests should be debuggable
     @cflags.push('-g', '-O0') unless Platform.is_windows?
