@@ -30,7 +30,7 @@ class Compiler
     a = [ a ] if a.kind_of?(String)
     throw 'Array input required' unless a.kind_of?(Array)
     @sources = a
-    @ld.objects = a.map { |x| x.sub(/\.c$/, '.o') } #FIXME: hardcoded to C
+    @ld.objects = a.map { |x| x.sub(/\.c$/, Platform.object_extension) } #FIXME: hardcoded to C
   end
 
   def cflags
@@ -225,7 +225,7 @@ class Compiler
     # Run the compiler
     cc = self.clone
     cc.sources = f.path
-    cc.output = f.path.sub(/\.c$/, '.o')
+    cc.output = f.path.sub(/\.c$/, Platform.object_extension)
     cc.quiet = true
     rc = cc.compile
 
