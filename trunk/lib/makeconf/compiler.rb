@@ -106,18 +106,21 @@ class Compiler
   def flags
     tok = @flags
 
-   # KLUDGE: remove things that CL.EXE doesn't understand
-#    if @path.match(/cl.exe$/i)
-#      cflags += ' '
-#      cflags.gsub!(/ -Wall /, ' ') #  /Wall generates too much noise
-#      cflags.gsub!(/ -Werror /, ' ')  # Could use /WX here
-#      cflags.gsub!(/ -W /, ' ')
-#      cflags.gsub!(/ -Wno-.*? /, ' ')
-#      cflags.gsub!(/ -Wextra /, ' ')
-#      cflags.gsub!(/ -fpic /, ' ')
-#      cflags.gsub!(/ -std=.*? /, ' ')
-#      cflags.gsub!(/ -pedantic /, ' ')
-#    end
+    # KLUDGE: remove things that CL.EXE doesn't understand
+    if vendor == 'Microsoft'
+      tok = tok.flatten.map do |t|
+        t.gsub!(/^-Wall$/, ' ') #  /Wall generates too much noise
+        t.gsub!(/^-Werror$/, ' ')  # Could use /WX here
+        t.gsub!(/^-W$/, ' ')
+        t.gsub!(/^-Wno-.*?/, ' ')
+        t.gsub!(/^-Wextra$/, ' ')
+        t.gsub!(/^-fpic$/, ' ')
+        t.gsub!(/^-std=.*?$/, ' ')
+        t.gsub!(/^-pedantic$/, ' ')
+      end
+    end
+
+    tok.push '-I.'
 
     # Set the output path
     unless @output.nil?
