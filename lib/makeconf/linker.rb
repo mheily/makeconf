@@ -72,7 +72,7 @@ class Linker
     throw 'Output pathname is required' if @output.nil?
     if Platform.is_windows?
       tok.push "/OUT:\"#{@output}\""
-      tok.push '/DLL'
+      tok.push '/DLL' if @output =~ /\.dll/i
     else
       tok.push '-o', @output
     end
