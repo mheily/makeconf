@@ -57,8 +57,8 @@ class Compiler
 
   def makefile
     m = Makefile.new
-    m.define_variable('CC', ':=', @path)
-    m.define_variable('LD', ':=', @ld.path)
+    m.define_variable('CC', '=', @path)
+    m.define_variable('LD', '=', @ld.path)
     return m
   end
 
