@@ -71,7 +71,8 @@ class Linker
     # Set the output path
     throw 'Output pathname is required' if @output.nil?
     if Platform.is_windows?
-      tok.push "/OUT:\"#{@output}"
+      tok.push "/OUT:\"#{@output}\""
+      tok.push '/DLL'
     else
       tok.push '-o', @output
     end
@@ -88,7 +89,9 @@ class Linker
 
     # Assume that we want to link with shared libraries
     # built within this project
-    tok.push '-L', '.'
+    unless Platform.is_windows?
+      tok.push '-L', '.'
+    end
 
     @flags.each do |f|
        if f.kind_of?(Array)
