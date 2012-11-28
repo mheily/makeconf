@@ -103,7 +103,7 @@ class Platform
     if is_windows? && ! ENV['MSYSTEM']
       return "copy #{src} #{dst}"
     else
-      return "cp #{src} #{dst}"
+      return "cp -RL #{src} #{dst}"
     end
   end
 
