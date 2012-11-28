@@ -202,11 +202,6 @@ class Makeconf
     makefile.add_target('dist', [], [])
     makefile.add_dependency('distclean', 'clean')
     makefile.add_rule('distclean', Platform.rm('Makefile'))
-
-    # Prepare the destination tree for 'make install'
-    makefile.add_rule('install', Platform.is_windows? ?
-            'dir $(DESTDIR)' + Platform.dev_null :
-            '/usr/bin/test -e $(DESTDIR)')
   end
 
 end
