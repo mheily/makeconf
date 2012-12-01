@@ -113,6 +113,34 @@ class Installer
     return m
   end
 
+  # Return a list of files that will be installed
+  def package_manifest()
+    res = []
+    @items.each do |item|
+      sources = item[:sources]
+      sources = [ sources ] unless sources.kind_of?(Array)
+      sources.each do |src|
+        # TODO - want to split into multiple packages
+        #if pkg == :main
+        #  next unless item[:dest] =~ /(LIB|BIN)DIR/
+        #elsif pkg == :devel
+        #  next unless item[:dest] =~ /(INCLUDE|MAN)DIR/
+        #else
+        #  throw "bad pkg type"
+        #end
+        dst = expand_dir(item[:dest])
+        if item[:rename].nil?
+          dst += '/' + src
+        else
+          dst += '/' + item[:rename]
+        end
+        dst.gsub!(/^\/usr\/local\//, '/usr/')  # KLUDGE: only true when making an RPM or DEB
+        res.push dst
+      end
+    end
+    res.join "\n"
+  end
+
   private
 
   # Expand makefile variables related to installation directories

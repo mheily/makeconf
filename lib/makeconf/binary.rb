@@ -8,6 +8,15 @@ class Binary < Buildable
     @output_type = 'binary'
   end
 
+  def install(installer)
+    installer.install(
+        :dest => '$(BINDIR)',
+        :sources => @output,
+        :mode => '0755',
+    )
+  end
+
+
   def DEADWOOD_build
     binfile = @id + Platform.executable_extension
     cc = @compiler.clone

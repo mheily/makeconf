@@ -27,4 +27,7 @@ class Test < Binary
     return makefile
   end
 
+  def install(installer)
+    # Test programs do not get installed
+  end
 end

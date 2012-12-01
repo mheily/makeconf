@@ -17,9 +17,10 @@ class Packager
              'mkdir -p rpm/BUILD rpm/RPMS rpm/SOURCES rpm/SPECS rpm/SRPMS',
              'mkdir -p rpm/RPMS/i386 rpm/RPMS/x86_64',
 		     "cp #{@project.distfile} rpm/SOURCES",
-  		     'rpmbuild --define "_topdir ./rpm" -bs rpm.spec',
-  		     'rpmbuild --rebuild ./rpm/SRPMS/*.src.rpm',
-  	   	     'mv ./rpm/SRPMS/* ./rpm/RPMS/* .',
+  		     'rpmbuild --define "_topdir `pwd`/rpm" -bs rpm.spec',
+             'cp rpm.spec rpm/SPECS/rpm.spec',
+             'rpmbuild --define "_topdir `pwd`/rpm" -bb ./rpm/SPECS/rpm.spec',
+             'mv ./rpm/SRPMS/* ./rpm/RPMS/*/*.rpm .',
       		 'rm -rf rpm',
      		])
     @makefile.add_rule('clean', Platform.rm('*.rpm')) # FIXME: wildcard is bad
@@ -45,18 +46,9 @@ Source0:    %{name}-%version.tar.gz
 %description
 #{@project.description}
 
-%package devel
-Summary: Header files, libraries and development documentation for %{name}
-Group: Development/Libraries
-Requires: %{name} = %{version}-%{release}
-
-%description devel
-This package contains the header files, static libraries and development
-documentation for %{name}. If you like to develop programs using %{name},
-you will need to install %{name}-devel.
-
 %prep
-%setup -q -n #{@project.id}-#{@project.version}
+#%setup -q -n #{@project.id}-#{@project.version}
+%setup
 
 %build
 ./configure --prefix=/usr
@@ -74,14 +66,7 @@ make DESTDIR=%{buildroot} install
 %files
 %defattr(-,root,root)
 
-/usr/lib/*.so.*
-
-%files devel
-%defattr(-,root,root)
-
-/usr/lib/*.so
-/usr/include/*
-/usr/share/man/man3/*
+#{ @project.installer.package_manifest }
 
 %changelog
 * Thu Jan 01 2011 Some Person <nobody@nobody.invalid> - #{@project.version}-1
