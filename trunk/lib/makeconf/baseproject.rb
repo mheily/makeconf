@@ -32,7 +32,6 @@ class BaseProject
     @header = {}        # Hash of system header availablity
     @build = []         # List of items to build
     @distribute = []    # List of items to distribute
-    @install = []       # List of items to install
     @target = []        # List of additional Makefile targets
     @decls = {}         # List of declarations discovered via check_decl()
     @funcs = {}         # List of functions discovered via check_func()
@@ -186,9 +185,11 @@ class BaseProject
   end
 
   def finalize
+    @build.each do |x| 
+      x.finalize 
+      x.install @installer
+    end
     @packager.finalize
-    @build.each { |x| x.finalize }
-    @install.each { |x| @installer.install x }
   end
 
   # Check if a system header file is available
@@ -284,7 +285,6 @@ class BaseProject
   end
 
   # Add item(s) to build
-  # FIXME: this violates OOP encapsulation
   def build(*arg)
     arg.each do |x|
 
@@ -299,23 +299,7 @@ class BaseProject
         throw ArgumentError.new('Invalid argument') 
       end
 
-      if x.kind_of?(SharedLibrary) or x.kind_of?(StaticLibrary)
-        dest = '$(LIBDIR)'
-      else
-        dest = '$(BINDIR)'
-      end
-      sources = x.output
-      mode = '0755'
-
       @build.push x
-
-      next if x.kind_of?(Header) #ugly
-
-      @install.push({ 
-        :sources => sources,
-        :dest => dest,
-        :mode => mode,
-        }) if x.installable
     end
   end
 

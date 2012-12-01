@@ -13,20 +13,19 @@ class Header < Buildable
     super(options)
   end
 
-  def build
-    mk = Makefile.new
-
-    mk.distribute(@sources)
-
+  def install(installer)
     dest = '$(INCLUDEDIR)'
     dest += '/' + @namespace unless @namespace.nil?
 
-    @project.installer.install(
+    installer.install(
         :sources => @sources,
         :dest => dest,
-        :mode => '644' 
-     ) 
+        :mode => '644') 
+  end
 
+  def build
+    mk = Makefile.new
+    mk.distribute(@sources)
     return mk
   end
 

@@ -26,6 +26,15 @@ class SharedLibrary < Buildable
 #FIXME: @cc.ld.flags.push('-export-dynamic') unless Platform.is_solaris?
   end
 
+  def install(installer)
+    installer.install(
+        :dest => '$(LIBDIR)',
+        :rename => "#{@output}.#{@abi_major}.#{@abi_minor}",
+        :sources => @output,
+        :mode => '0644',
+    )
+  end
+
 end
 
 class StaticLibrary < Buildable
@@ -40,6 +49,10 @@ class StaticLibrary < Buildable
 
 # FIXME: clashes with shared objects
 #      src = d.sub(/-static#{Platform.object_extension}$/, '.c')
+  end
+
+  def install(installer)
+    # NOOP - No reason to install a static library
   end
 
 end

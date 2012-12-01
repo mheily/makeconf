@@ -26,6 +26,8 @@ project.add Library.new :id => 'hello',
       :cflags => '-Wall -Werror -g -O2 -std=c99 -D_XOPEN_SOURCE=600',
       :sources => 'library.c'
 
+project.add Header.new(:id => 'hello', :sources => 'hello.h')
+
 project.add(
   Binary.new(
     :id => 'hello', 

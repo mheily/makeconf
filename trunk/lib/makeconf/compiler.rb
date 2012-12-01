@@ -5,7 +5,7 @@ class Compiler
   require 'tempfile'
 
   attr_accessor :sysroot, :output
-  attr_reader :ld
+  attr_reader :ld, :vendor
 
   def initialize(language, extension)
     @language = language
@@ -17,6 +17,7 @@ class Compiler
     @output = nil
     @sysroot = nil
     @quiet = false          # If true, output will be suppressed
+    @vendor = 'Unknown'
 
     # TODO:
     # If true, all source files will be passed to the compiler at one time.
@@ -107,7 +108,7 @@ class Compiler
     tok = @flags
 
     # KLUDGE: remove things that CL.EXE doesn't understand
-    if vendor == 'Microsoft'
+    if @vendor == 'Microsoft'
       tok = tok.flatten.map do |t|
         t.gsub!(/^-Wall$/, ' ') #  /Wall generates too much noise
         t.gsub!(/^-Werror$/, ' ')  # Could use /WX here
@@ -125,7 +126,7 @@ class Compiler
     # Set the output path
     unless @output.nil?
       outfile = Platform.pathspec(@output)
-      if vendor == 'Microsoft'
+      if @vendor == 'Microsoft'
         tok.push '"-IC:\Program Files\Microsoft Visual Studio 10.0\VC\include"' # XXX-HARDCODED
         tok.push '/Fo' + outfile
         tok.push '/MD'
@@ -256,6 +257,17 @@ class Compiler
     cflags
   end
 
+  # Return the list of dependencies to pass to make(1)
+  def makedepends(source_file)
+    if @vendor == 'GNU'
+      tmp = `#{@path} -M #{source_file}`
+      tmp.sub!(/^.*\.o: /, '').gsub!(/\\\n/, ' ')
+      return tmp.split(/\s+/)
+    else
+      throw 'Not supported -- need to use a fallback method'
+    end
+  end
+
   private
 
   # Special initialization for MS Windows
@@ -310,14 +322,21 @@ class Compiler
     res
   end
 
-  # Return the name of the compiler vendor
-  def vendor
-    if @path.match(/cl.exe$/i)
-      'Microsoft'
+  # Set the full path to the compiler executable
+  def path=(p)
+    @path = p
+    @ld.path = p        # FIXME: not always true
+
+    # Try to detect the vendor
+    if Platform.is_windows? and @path.match(/cl.exe$/i)
+      @vendor = 'Microsoft'
+    elsif `#{@path} --version` =~ /Free Software Foundation/
+      @vendor = 'GNU'
     else
-      'Unknown'
+      @vendor = 'Unknown'
     end
   end
+
 end
 
 class CCompiler < Compiler
@@ -331,7 +350,7 @@ class CCompiler < Compiler
     @output_type = nil
     super('C', '.c')
     printf "checking for a C compiler.. "
-    @path = search(@search_list)
+    self.path = search(@search_list)
   end
 
   # Returns true if the compiler is MinGW

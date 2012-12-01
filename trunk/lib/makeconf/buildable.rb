@@ -136,6 +136,12 @@ class Buildable
   def finalize
   end
 
+  # Install the output file(s)
+  def install(installer)
+    # By default, this does nothing.
+    # Derived classes are expected to override this method.
+  end
+
   # Return a hash containing Makefile rules and targets
   # needed to build the object.
   #
@@ -181,7 +187,14 @@ class Buildable
       @ldadd.each { |lib| ld.library lib }
       makefile.distribute src
 
-      makefile.add_target(obj, [@project.config_h, src, localdep[src]].flatten, cc.rule)
+      # Generate the list of dependencies. 
+      # Distribute any header files that are local to the current project.
+      deps = cc.makedepends(src)
+      deps.each do |dep|
+        makefile.distribute dep unless dep =~ /^\//
+      end
+
+      makefile.add_target(obj, deps, cc.rule)
       makefile.clean(obj)
       objs.push obj
     end

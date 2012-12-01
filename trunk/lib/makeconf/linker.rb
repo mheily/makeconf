@@ -12,6 +12,7 @@ class Linker
     @shared_library = false
     @ldadd = []
     @quiet = false          # If true, output will be suppressed
+    @gcc_flags = true       # If true, options will be wraped in '-Wl,'
 
     # Determine the path to the linker executable
     @path = nil
@@ -29,6 +30,7 @@ class Linker
     if ENV['LD']
       @path = ENV['LD']
     end
+    self.path = @path       # KLUDGE
   end
 
   def clone
@@ -47,6 +49,15 @@ class Linker
     unless Platform.is_windows?
      @flags.push 'export-dynamic'
     end
+  end
+
+  # Set the full path to the linker executable
+  def path=(p)
+    @path = p
+    if `#{@path} --version` =~ /^GNU ld/
+      @gcc_flags = false
+    end
+    #TODO: support other linkers
   end
 
   # Override the normal search path for the dynamic linker
@@ -93,12 +104,16 @@ class Linker
       tok.push '-L', '.'
     end
 
-    @flags.each do |f|
-       if f.kind_of?(Array)
-         tok.push '-Wl,-' + f[0] + ',' + f[1]
-       else
-         tok.push '-Wl,-' + f
-       end
+    if @gcc_flags == true
+      @flags.each do |f|
+         if f.kind_of?(Array)
+           tok.push '-Wl,-' + f[0] + ',' + f[1]
+         else
+           tok.push '-Wl,-' + f
+         end
+      end
+    else
+      tok = @flags
     end
 
     return ' ' + tok.join(' ')

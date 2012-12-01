@@ -1,3 +1,5 @@
  * Android needs to copy gdbserver from the SDK/NDK to the device and
    run it from /data/local/tmp. 
 
+ * Compiler.makedepends() emits duplicate entries, or somehow they get added
+   to the Target
