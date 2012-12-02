@@ -33,10 +33,6 @@ class Linker
     self.path = @path       # KLUDGE
   end
 
-  def clone
-    Marshal.load(Marshal.dump(self))
-  end
-
   # Sets the ELF soname to the specified string
   def soname(s)
     unless Platform.is_windows?
@@ -176,7 +172,7 @@ class Linker
     else
       throw "Invalid value: #{lib.class}"
     end
-    @ldadd.concat tok
+    tok.each { |lib| @ldadd.push(lib) unless @ldadd.include?(lib) }
   end
 
 private

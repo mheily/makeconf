@@ -19,7 +19,7 @@ class Binary < Buildable
 
   def DEADWOOD_build
     binfile = @id + Platform.executable_extension
-    cc = @compiler.clone
+    cc = @compiler
     cc.is_library = false
     cc.sources = @sources
     cc.output = binfile
