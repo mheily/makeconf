@@ -23,6 +23,7 @@ class Makeconf
   require 'pp'
   require 'logger'
 
+  require 'makeconf/archiver'
   require 'makeconf/buildable'
   require 'makeconf/binary'
   require 'makeconf/compiler'
