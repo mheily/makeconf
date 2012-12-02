@@ -95,7 +95,7 @@ class Compiler
 # return [ @path, cflags, '-combine', ldflags, inputs, ldadd ].flatten.join(' ')
 #
     
-    cmd = [ @path, '-DHAVE_CONFIG_H', flags, '-c', @sources ].flatten.join(' ')
+    cmd = [ @path, '-DHAVE_CONFIG_H', '-I.', flags, '-c', @sources ].flatten.join(' ')
 
     cmd += Platform.dev_null if @quiet
 
@@ -103,6 +103,7 @@ class Compiler
 
     cmd
   end
+
 
   def flags
     tok = @flags
@@ -120,8 +121,6 @@ class Compiler
         t.gsub!(/^-pedantic$/, ' ')
       end
     end
-
-    tok.push '-I.'
 
     # Set the output path
     unless @output.nil?
@@ -149,8 +148,13 @@ class Compiler
   end
 
   def flags=(s)
-    @flags = s
-    @flags = @flags.split(' ') if @flags.kind_of?(String)
+    if s.kind_of?(String)
+      @flags = s.split(' ') # FIXME: need to handle quoted strings w/ spaces
+    elsif s.kind_of?(Array)
+      @flags = s
+    else
+      raise ArgumentError, "invalid flag type"
+    end
   end
 
   # Enable compiler and linker options to create a shared library
@@ -260,8 +264,13 @@ class Compiler
   # Return the list of dependencies to pass to make(1)
   def makedepends(source_file)
     if @vendor == 'GNU'
-      tmp = `#{@path} -M #{source_file}`
-      tmp.sub!(/^.*\.o: /, '').gsub!(/\\\n/, ' ')
+      cmd = "#{@path} #{includedirs()} -MM #{source_file}"
+      #warn "Generating dependencies for #{source_file}..\n + #{cmd}" 
+      tmp = `#{cmd}`
+      return [] if tmp.nil?
+      tmp.sub!(/^.*\.o: /, '')
+      return [] if tmp.nil?
+      tmp.gsub!(/\\\n/, ' ')
       return tmp.split(/\s+/)
     else
       throw 'Not supported -- need to use a fallback method'
@@ -269,6 +278,14 @@ class Compiler
   end
 
   private
+
+  # Return a string containing the include directories from
+  # CFLAGS (e.g. "-I. -Iinclude -Iblah"
+  def includedirs
+    res = []
+    @flags.each { |f| res.push f if f =~ /^-I/ }
+    res.join " "
+  end
 
   # Special initialization for MS Windows
   def windows_init
