@@ -131,19 +131,12 @@ class BaseProject
     # Run each buildable object's postconfigure() method
     @build.each { |x| x.postconfigure if x.respond_to? 'postconfigure' }
 
-    # Build a list of local headers
-    local_headers = []
-    @build.each do |x| 
-      local_headers.concat x.makedepends
-    end
-    local_headers.sort!.uniq!
-
     # Test for the existence of each referenced system header
-    sysdeps.each do |header|
-      printf "checking for #{header}... "
-      @header[header] = @cc.check_header(header)
-      puts @header[header] ? 'yes' : 'no'
-    end
+#sysdeps.each do |header|
+#      printf "checking for #{header}... "
+#      @header[header] = @cc.check_header(header)
+#      puts @header[header] ? 'yes' : 'no'
+#    end
 
 #    make_installable(@ast['data'], '$(PKGDATADIR)')
 #    make_installable(@ast['manpages'], '$(MANDIR)') #FIXME: Needs a subdir
@@ -381,6 +374,14 @@ class BaseProject
   def write_config_h
     ofile = @config_h
     buf = {}
+
+    # In order to do dependency generation, this file must exist
+    # So, to avoid a chicken-and-egg problem, we create a dummy
+    # config.h that is basically empty.
+    #
+#f = File.open(ofile, 'w')
+#    f.puts "/* Temporary, ignore this */"
+#    f.close
 
     @header.keys.sort.each { |k| buf["HAVE_#{k}".upcase] = @header[k] }
     @decls.keys.sort.each { |x| buf["HAVE_DECL_#{x}".upcase] = @decls[x] }

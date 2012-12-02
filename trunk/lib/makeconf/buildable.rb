@@ -3,7 +3,7 @@ class Buildable
 
   attr_accessor :id, :project,
         :buildable, :installable, :distributable,
-        :localdep, :sysdep, :enable,
+        :enable,
         :output, :output_type, :sources, :cflags, :ldadd, :rpath,
         :topdir
 
@@ -29,14 +29,8 @@ class Buildable
     @output = id
     @output_type = nil      # filled in by the derived class
 
-    # Local and system header dependencies for each @sources file
-    # These are filled in by Compiler.makedepends()
-    @localdep = {}
-    @sysdep = {}
-
     # Filled in by sources=()
     @sources = []
-    @source_code = {}
 
     # Parse options
 
@@ -101,11 +95,6 @@ class Buildable
 #@sources.each do |src|
 #      throw ArgumentError("#{src} does not exist") unless File.exist? src
 #    end
-
-#XXX-lame
-#    # Read all source code into a single array
-#    @source_code = {}
-#    @sources.each { |x| @source_code[x] = File.readlines(x) }
 
   end
 
@@ -239,38 +228,6 @@ class Buildable
       cc.sources = src
       #TODO: topdir
       cmd = cc.command + Platform.dev_null_stderr
-
-      # TODO: do @sysdep also
-      @localdep[src] = []
-      IO.popen(cmd).each do |x|
-        if x =~ /^# \d+ "([^\/<].*\.h)"/
-          @localdep[src].push $1
-        end
-      end
-      @localdep[src].sort!.uniq!
-      res.concat @localdep[src]
-
-      # Generate a list of system header dependencies
-      # FIXME: does a lot of duplicate work reading files in..
-      buf = []
-      @sysdep[src] = []
-      buf.concat File.readlines(src)
-      @localdep[src].each do |x|
-        if File.exist? x
-          buf.concat File.readlines(x)
-        end
-      end
-      buf.each do |x|
-        begin
-          if x =~ /^#\s*include\s+<(.*?)>/
-            @sysdep[src].push $1
-          end
-        rescue ArgumentError
-          # FIXME: should give more info about which file and line
-          warn "** WARNING: invalid multibyte sequence encountered in one of the source code files:"
-        end
-      end
-      @sysdep[src].sort!.uniq!
 
     end
     res
