@@ -138,7 +138,7 @@ class Compiler
       if Platform.is_windows?
         throw 'FIXME'
       else
-        tok.push '-fpic' unless is_mingw?
+        tok.push('-fPIC', '-DPIC') unless is_mingw?
       end
     end
 
