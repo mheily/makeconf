@@ -71,8 +71,8 @@ class BaseProject
          @license_file = val
        when 'library', 'libraries'
          val.each do |id, e|
-           build SharedLibrary.new(id, @cc.clone).parse(e)
-           build StaticLibrary.new(id, @cc.clone).parse(e)
+           build SharedLibrary.new(id, @cc).parse(e)
+           build StaticLibrary.new(id, @cc).parse(e)
          end
        when 'manpage'
           manpage(val)  

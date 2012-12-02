@@ -58,7 +58,7 @@ class Target
   # Return the string representation of the target
   def to_s
     res = "\n" + @objs + ':'
-    res += ' ' + @deps.join(' ') if @deps
+    res += ' ' + @deps.uniq.join(' ') if @deps
     res += "\n"
     @dirs_to_create.each do |dir|
        res += "\t" + Platform.mkdir(dir) + "\n"

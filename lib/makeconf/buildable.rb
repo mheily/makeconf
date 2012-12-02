@@ -46,7 +46,7 @@ class Buildable
       when :id
         @id = v
       when :cc
-        @cc = v.clone
+        @cc = v
       when :cflags
         v = v.split(' ') if v.kind_of?(String)
         @cflags = v
@@ -54,7 +54,8 @@ class Buildable
         v = v.split(' ') if v.kind_of?(String)
         @ldflags = v
       when :ldadd
-        @ldadd.push(v).flatten!
+        v = v.split(' ') if v.kind_of?(String)
+        @ldadd = v
       when :project
         @project = v
       when :buildable
@@ -156,7 +157,7 @@ class Buildable
     # Generate the targets and rules for each translation unit
     sources.each do |src|
       obj = src.sub(/.c$/, Platform.object_extension)
-      cc = @project.cc.clone
+      cc = @project.cc
       cc.shared_library = library? and library_type == :shared
       cc.flags = @cflags
       cc.output = obj
@@ -188,7 +189,7 @@ class Buildable
        ar.objects = objs
        makefile.add_target ar.to_make
     else
-      cc = @project.cc.clone
+      cc = @project.cc
       cc.shared_library = library? and library_type == :shared
       cc.flags = @cflags
       cc.sources = sources
@@ -218,13 +219,12 @@ class Buildable
     # Generate the targets and rules for each translation unit
     expand_sources(@sources).each do |src|
       next if src =~ /\.o$/
-      cc = @project.cc.clone
+      cc = @project.cc
       cc.flags = [ @cflags, '-E' ]
       cc.output = '-'
       cc.sources = src
       #TODO: topdir
       cmd = cc.command + Platform.dev_null_stderr
-
     end
     res
   end

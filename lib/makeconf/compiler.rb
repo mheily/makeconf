@@ -38,10 +38,6 @@ class Compiler
     @flags
   end
 
-  def clone
-    Marshal.load(Marshal.dump(self))
-  end
-
   # Return the intermediate object files for each source file
   def object_files(sources)
     res = []
@@ -80,7 +76,7 @@ class Compiler
 #    throw cflags
 
 #    topdir = h[:topdir] || ''
-#    ld = @ld.clone
+#    ld = @ld
 #    ldadd = h[:ldadd]
 #    ld.flags = h[:ldflags]
 #    ld.output = Platform.pathspec(h[:output])
@@ -228,7 +224,7 @@ class Compiler
     f.flush
 
     # Run the compiler
-    cc = self.clone
+    cc = self  # KLUDGE, testing
     cc.sources = f.path
     cc.output = f.path.sub(/\.c$/, Platform.object_extension)
     cc.quiet = true
