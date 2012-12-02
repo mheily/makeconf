@@ -48,9 +48,10 @@ class Buildable
       when :cc
         @cc = v.clone
       when :cflags
+        v = v.split(' ') if v.kind_of?(String)
         @cflags = v
-        @cflags = [ @cflags ] if @cflags.kind_of?(String)
       when :ldflags
+        v = v.split(' ') if v.kind_of?(String)
         @ldflags = v
       when :ldadd
         @ldadd.push(v).flatten!
