@@ -8,7 +8,7 @@ class BaseProject
   attr_accessor :id, :version, :summary, :description, 
         :author, :license, :license_file, :config_h
 
-  attr_reader :cc
+  attr_reader :cc, :ar
 
   # KLUDGE: remove these if possible                
   attr_accessor :makefile, :installer, :packager
@@ -37,6 +37,7 @@ class BaseProject
     @funcs = {}         # List of functions discovered via check_func()
     @defs = {}          # Custom preprocessor macro definitions
     @packager = Packager.new(self)
+    @ar = Archiver.new
     @cc = nil
 
     # Provided by the parent Makeconf object

@@ -5,14 +5,16 @@ class Archiver
   attr_accessor :output, :objects
   attr_reader :path
 
-  def initialize
+  def initialize(output = nil, objects = [])
     @flags = 'cru'      # GNU-specific; more portable is 'rcs'
-    @objects = []
-    @output = nil
+    @output = output
+    @objects = objects
     @path = nil
 
     if ENV['LD']
       self.path = ENV['LD']
+    else
+      self.path = 'ar'
     end
   end
 
@@ -26,14 +28,14 @@ class Archiver
   end
 
   def command
-    cmd = [ @path, flags, @output, @objects].flatten.join(' ')
+    cmd = [ @path, @flags, @output, @objects].flatten.join(' ')
     log.debug "Archiver command = `#{cmd}'"
     cmd
   end
 
   # Return the command formatted as a Makefile rule
   def to_make
-    Target.new(@output, @objects, command)
+    Target.new(@output, @objects, [command, "ranlib #{output}"])
   end
 
 private
