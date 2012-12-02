@@ -155,15 +155,7 @@ class Buildable
 
     # Generate the targets and rules for each translation unit
     sources.each do |src|
-      object_suffix = ''
-      if library? 
-        if library_type == :shared
-#DEADWOOD:cflags.push '-fpic'
-        else
-          object_suffix = '-static'
-        end
-      end
-      obj = src.sub(/.c$/, object_suffix + Platform.object_extension)
+      obj = src.sub(/.c$/, Platform.object_extension)
       cc = @project.cc.clone
       cc.shared_library = library? and library_type == :shared
       cc.flags = @cflags
@@ -191,7 +183,10 @@ class Buildable
 
     # Generate the targets and rules for the link stage
     if library? and library_type == :static
-       cmd = Platform.archiver(output, objs)
+       ar = @project.ar
+       ar.output = output
+       ar.objects = objs
+       makefile.add_target ar.to_make
     else
       cc = @project.cc.clone
       cc.shared_library = library? and library_type == :shared
@@ -202,8 +197,8 @@ class Buildable
       @ldadd.each { |lib| cc.ld.library lib }
       cc.ld.output = @output
       cmd = cc.ld.rule 
+      makefile.add_target(output, objs, cmd)
     end
-    makefile.add_target(output, objs, cmd)
     makefile.add_dependency('all', output)
     makefile.clean(output)
     makefile.distribute(sources) if distributable

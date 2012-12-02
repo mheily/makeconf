@@ -65,7 +65,7 @@ class Compiler
 
   # Return the command formatted as a Makefile rule
   def rule
-    [ '$(CC)', '-DHAVE_CONFIG_H', flags, '$(CFLAGS)', '-c', @sources ].flatten.join(' ')
+    [ '$(CC)', '-DHAVE_CONFIG_H', '-I.', flags, '$(CFLAGS)', '-c', @sources ].flatten.join(' ')
   end
 
   # Return the complete command line to compile an object
