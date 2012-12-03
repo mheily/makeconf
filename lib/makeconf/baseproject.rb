@@ -155,7 +155,9 @@ class BaseProject
     makefile.merge!(@packager.makefile)
     makefile.make_dist(@id, @version)
     @distribute.each { |f| @makefile.distribute f }
-    @build.each { |x| makefile.merge!(x.build) if x.enable }
+    @build.each do |x| 
+       makefile.merge!(x.build) if x.buildable == true
+    end
     makefile.merge! @installer.to_make
 
     # Add custom targets

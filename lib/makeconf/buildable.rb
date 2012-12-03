@@ -11,7 +11,6 @@ class Buildable
     raise ArgumentError unless options.kind_of?(Hash)
     default = {
         :id => options[:id],
-        :enable => true,
         :buildable => true,
         :distributable => true,
         :installable => true,
@@ -141,11 +140,9 @@ class Buildable
     objs = []
     sources = expand_sources(@sources)
 
-    # Don't do anything if we aren't going to be built
-    return makefile unless @buildable
-
     # Allow ndk-build to create the object, for Android
-    return makefile if SystemType.host =~ /-androideabi$/
+    # Should not be needed anymore
+    throw 'DEADWOOD' if SystemType.host =~ /-androideabi$/
 
     log.debug 'buildable = ' + self.pretty_inspect
 
@@ -156,6 +153,7 @@ class Buildable
 
     # Generate the targets and rules for each translation unit
     sources.each do |src|
+      next if @output_type == 'static library'  # HORRIBLE KLUDGE - to avoid generating object files for static libs
       obj = src.sub(/.c$/, Platform.object_extension)
       cc = @project.cc
       cc.shared_library = library? and library_type == :shared
