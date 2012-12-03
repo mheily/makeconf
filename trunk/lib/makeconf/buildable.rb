@@ -133,9 +133,9 @@ class Buildable
   end
 
   # Return a hash containing Makefile rules and targets
-  # needed to build the object.
+  # needed to compile the object.
   #
-  def build
+  def compile(cc)
     makefile = Makefile.new
     objs = []
     sources = expand_sources(@sources)
@@ -180,24 +180,24 @@ class Buildable
       objs.push obj
     end
 
-    # Generate the targets and rules for the link stage
-    if library? and library_type == :static
-       ar = @project.ar
-       ar.output = output
-       ar.objects = objs
-       makefile.add_target ar.to_make
-    else
-      cc = @project.cc
-      cc.shared_library = library? and library_type == :shared
-      cc.flags = @cflags
-      cc.sources = sources
-      cc.ld.flags = @ldflags
-      @ldadd = [ @ldadd ] if @ldadd.kind_of?(String)
-      @ldadd.each { |lib| cc.ld.library lib }
-      cc.ld.output = @output
-      cmd = cc.ld.rule 
-      makefile.add_target(output, objs, cmd)
-    end
+    makefile.distribute(sources) if distributable
+
+    return makefile
+  end
+
+  # Return a hash containing Makefile rules and targets
+  # needed to link the object.
+  #
+  def link(ld)
+    makefile = Makefile.new
+    ld.flags = @ldflags
+    @ldadd = [ @ldadd ] if @ldadd.kind_of?(String)
+    @ldadd.each { |lib| ld.library lib }
+    ld.objects = self.objects
+    ld.output = @output
+    cmd = ld.rule 
+    makefile.add_target(output, self.objects, cmd)
+
     makefile.add_dependency('all', output)
     makefile.clean(output)
     makefile.distribute(sources) if distributable

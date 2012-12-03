@@ -90,7 +90,7 @@ class Linker
         tok.push '/DLL'
       else
         tok.push '-shared'
-        tok.push '-fpic'        # TODO: sometimes -fPIC is needed
+        tok.push '-fPIC'
       end
     end
 

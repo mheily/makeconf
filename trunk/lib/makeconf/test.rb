@@ -7,17 +7,13 @@ class Test < Binary
     @installable = false
     @distributable = false
 
-    unless Platform.is_windows?
-      @ldflags = [ '-rpath .' ]
-    end
 
     # Assume that unit tests should be debuggable
     @cflags.push('-g', '-O0') unless Platform.is_windows?
   end
 
-
-  def build
-    makefile = super()
+  def compile(cc)
+    makefile = super(cc)
 
     unless SystemType.host =~ /-androideabi$/
       makefile.add_dependency('check', @id)
@@ -29,5 +25,14 @@ class Test < Binary
 
   def install(installer)
     # Test programs do not get installed
+  end
+
+  def link(ld)
+    unless Platform.is_windows?
+# FIXME: want to do this, but parent overrides ldflags entirely
+#ld.rpath = '.'
+    @ldflags.push ['rpath', '.']    # workaround
+    end
+    super(ld)
   end
 end
