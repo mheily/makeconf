@@ -147,7 +147,7 @@ class Compiler
     if s.kind_of?(String)
       @flags = s.split(' ') # FIXME: need to handle quoted strings w/ spaces
     elsif s.kind_of?(Array)
-      @flags = s
+      @flags = s.clone
     else
       raise ArgumentError, "invalid flag type"
     end

@@ -51,7 +51,7 @@ Source0:    %{name}-%version.tar.gz
 %setup
 
 %build
-./configure --prefix=/usr
+./configure --prefix=/usr --disable-static
 make
 
 %install

@@ -24,6 +24,7 @@ class Makefile
   end
 
   def merge!(src)
+    return if src.nil?
     throw 'invalid argument' unless src.is_a?(Makefile)
     @vars.merge!(src.vars)
     src.targets.each do |k,v|
