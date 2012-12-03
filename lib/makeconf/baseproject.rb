@@ -156,7 +156,15 @@ class BaseProject
     makefile.make_dist(@id, @version)
     @distribute.each { |f| @makefile.distribute f }
     @build.each do |x| 
-       makefile.merge!(x.build) if x.buildable == true
+       if x.buildable == true
+         # KLUDGE: would like a reset() function to reset
+         #         compiler/linker to default states
+         @cc.shared_library = false
+         @cc.ld.shared_library = false
+
+         makefile.merge!(x.compile(@cc))
+         makefile.merge!(x.link(@cc.ld))
+       end
     end
     makefile.merge! @installer.to_make
 
@@ -290,8 +298,7 @@ class BaseProject
           next
       end
 
-      unless x.respond_to?(:build)
-        pp x
+      unless x.respond_to?(:compile)
         throw ArgumentError.new('Invalid argument') 
       end
 

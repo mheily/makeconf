@@ -35,9 +35,17 @@ class SharedLibrary < Buildable
     )
   end
 
+  def link(ld)
+    ld.shared_library = true
+    super(ld)
+  end
+
 end
 
 class StaticLibrary < Buildable
+
+  # Controlled by the --enable-static command line argument
+  @@enable_static = 1
 
   def initialize(options)
     raise ArgumentError unless options.kind_of?(Hash)
@@ -46,6 +54,7 @@ class StaticLibrary < Buildable
     @output = id + Platform.static_library_extension
     @output = 'lib' + @output unless @output =~ /^lib/ or Platform.is_windows?
     @output_type = 'static library'
+    @buildable = @@enable_static
 
 # FIXME: clashes with shared objects
 #      src = d.sub(/-static#{Platform.object_extension}$/, '.c')
@@ -55,6 +64,22 @@ class StaticLibrary < Buildable
     # NOOP - No reason to install a static library
   end
 
+  def link(ld)
+    makefile = Makefile.new
+    ar = @project.ar
+    ar.output = self.output
+    ar.objects = self.objects
+    makefile.add_target ar.to_make
+
+    makefile.add_dependency('all', output)
+    makefile.clean(output)
+
+    return makefile
+  end
+
+  def StaticLibrary.disable_all
+    @@enable_static = 0
+  end
 end
 
 #

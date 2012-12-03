@@ -112,7 +112,7 @@ class Compiler
         t.gsub!(/^-W$/, ' ')
         t.gsub!(/^-Wno-.*?/, ' ')
         t.gsub!(/^-Wextra$/, ' ')
-        t.gsub!(/^-fpic$/, ' ')
+        t.gsub!(/^-fPIC$/, ' ')
         t.gsub!(/^-std=.*?$/, ' ')
         t.gsub!(/^-pedantic$/, ' ')
       end

@@ -86,13 +86,20 @@ class Makeconf
        end
 
        opts.separator ''
+       opts.separator 'Optional Features:'
+
+       opts.on_tail('--disable-static', 'Disable generation of static libraries') do
+         StaticLibrary.disable_all
+       end
+
+       opts.separator ''
        opts.separator 'Common options:'
 
        opts.on_tail('--disable-option-checking') {}     # NOOP
 
        opts.on_tail('-h', '--help', 'Show this message') do
          puts opts
-          exit
+         exit
        end
 
        opts.on_tail('-V', '--version', 'Display version information and exit') do
