@@ -4,10 +4,10 @@ class Project
  
   require 'makeconf/systemtype'
   require 'makeconf/baseproject'
-  require 'makeconf/androidproject'
 
   def self.new(options)
     if SystemType.host =~ /-androideabi$/
+       require 'makeconf/androidproject'
        object = AndroidProject.allocate
     else
        object = BaseProject.allocate

@@ -140,10 +140,6 @@ class Buildable
     objs = []
     sources = expand_sources(@sources)
 
-    # Allow ndk-build to create the object, for Android
-    # Should not be needed anymore
-    throw 'DEADWOOD' if SystemType.host =~ /-androideabi$/
-
     log.debug 'buildable = ' + self.pretty_inspect
 
     if sources.empty?
