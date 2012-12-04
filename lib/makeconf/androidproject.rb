@@ -58,7 +58,11 @@ class AndroidProject < BaseProject
   def ndk_toolchain_version=(version)
     @ndk_toolchain_version = version
 
-    ndk_cc = toolchain_binary('gcc')
+    if version =~ /^clang/
+      ndk_cc = toolchain_binary('clang')
+    else
+      ndk_cc = toolchain_binary('gcc')
+    end
 
     #FIXME -overwrites previous Compiler object
     @cc = CCompiler.new(
@@ -299,12 +303,19 @@ private
       throw 'Unknown build OS: ' + RbConfig::CONFIG['host_os']
     end
 
-    @ndk_path +
+    # Special case:
+    #   Clang does not follow the same conventions as GCC
+    #   This is hardcoded for NDK r8c
+    if file == 'clang'
+      return @ndk_path + '/toolchains/llvm-3.1/prebuilt/' + build_os + '/bin/clang'
+    else
+    return @ndk_path +
        '/toolchains/'+ @target_arch + '-linux-androideabi-' +
        @ndk_toolchain_version +
        '/prebuilt/' +
        build_os +
             '/bin/' + @target_arch + '-linux-androideabi-' + file
+    end
   end
 
 end
