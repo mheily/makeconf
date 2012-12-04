@@ -308,3 +308,21 @@ private
   end
 
 end
+
+#--------------------------------------------------------------------#
+#
+# Overrides of other classes
+
+class Buildable
+  def compile(cc)
+  end
+  def link(ld)
+  end
+end
+
+class Test
+  def compile(cc)
+  end
+  def link(ld)
+  end
+end

@@ -15,10 +15,8 @@ class Test < Binary
   def compile(cc)
     makefile = super(cc)
 
-    unless SystemType.host =~ /-androideabi$/
-      makefile.add_dependency('check', @id)
-      makefile.add_rule('check', './' + @id)
-    end
+    makefile.add_dependency('check', @id)
+    makefile.add_rule('check', './' + @id)
 
     return makefile
   end
