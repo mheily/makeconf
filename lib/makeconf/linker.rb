@@ -21,7 +21,7 @@ class Linker
     if Platform.is_windows?
       @path = 'LINK.EXE'
     else
-      @path = 'cc' #XXX-FIXME horrible
+      @path = 'ld' #XXX-FIXME horrible
     end
 
     if ENV['CC']
