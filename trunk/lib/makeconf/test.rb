@@ -26,11 +26,7 @@ class Test < Binary
   end
 
   def link(ld)
-    unless Platform.is_windows?
-# FIXME: want to do this, but parent overrides ldflags entirely
-#ld.rpath = '.'
-    @ldflags.push ['rpath', '.']    # workaround
-    end
+    ld.rpath = '.'
     super(ld)
   end
 end

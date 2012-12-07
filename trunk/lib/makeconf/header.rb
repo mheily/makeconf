@@ -23,10 +23,13 @@ class Header < Buildable
         :mode => '644') 
   end
 
-  def build
+  def compile(cc)
     mk = Makefile.new
     mk.distribute(@sources)
     return mk
+  end
+
+  def link(ld)
   end
 
   def makedepends
