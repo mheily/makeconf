@@ -345,6 +345,8 @@ class Compiler
       @vendor = 'Microsoft'
     elsif `#{@path} --version` =~ /Free Software Foundation/
       @vendor = 'GNU'
+    elsif `#{@path} --version` =~ /clang|llvm/i
+      @vendor = 'GNU'   # WORKAROUND -- flags are generally compatible
     else
       @vendor = 'Unknown'
     end
