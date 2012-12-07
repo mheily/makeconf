@@ -45,7 +45,7 @@ end
 class StaticLibrary < Buildable
 
   # Controlled by the --enable-static command line argument
-  @@enable_static = 1
+  @@enable_static = true
 
   def initialize(options)
     raise ArgumentError unless options.kind_of?(Hash)
@@ -78,7 +78,7 @@ class StaticLibrary < Buildable
   end
 
   def StaticLibrary.disable_all
-    @@enable_static = 0
+    @@enable_static = false
   end
 end
 

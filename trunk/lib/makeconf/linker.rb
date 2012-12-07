@@ -103,7 +103,6 @@ class Linker
       input.push ['-L', @rpath]
     end
 
-    pp input
     input.each do |f|
       if @gcc_flags == true
         if f.kind_of?(Array)
