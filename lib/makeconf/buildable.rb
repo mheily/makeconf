@@ -143,7 +143,7 @@ class Buildable
     log.debug 'buildable = ' + self.pretty_inspect
 
     if sources.empty?
-      pp self
+      puts "*** Error in #{self.id}: "
       raise 'One or more source files are required' if sources.empty?
     end
 
