@@ -259,8 +259,12 @@ class Compiler
 
   # Return the list of dependencies to pass to make(1)
   def makedepends(source_file)
+
     if @vendor == 'GNU'
+      saved = @output
+      @output = nil     # prevent "-o <output>" from being included
       cmd = "#{@path} -I. #{includedirs()} #{flags()} -MM #{source_file}"
+      @output = saved
       #warn "Generating dependencies for #{source_file}..\n + #{cmd}" 
       tmp = `#{cmd}`
       return [] if tmp.nil?
