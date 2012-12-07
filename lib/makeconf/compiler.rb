@@ -259,22 +259,24 @@ class Compiler
 
   # Return the list of dependencies to pass to make(1)
   def makedepends(source_file)
+    res = []
 
     if @vendor == 'GNU'
-      saved = @output
-      @output = nil     # prevent "-o <output>" from being included
-      cmd = "#{@path} -I. #{includedirs()} #{flags()} -MM #{source_file}"
-      @output = saved
+      flags = @flags.join ' '
+      cmd = "#{@path} -I. #{includedirs()} #{flags} -MM #{source_file}"
       #warn "Generating dependencies for #{source_file}..\n + #{cmd}" 
       tmp = `#{cmd}`
       return [] if tmp.nil?
       tmp.sub!(/^.*\.o: /, '')
       return [] if tmp.nil?
       tmp.gsub!(/\\\n/, ' ')
-      return tmp.split(/\s+/)
+      res = tmp.split(/\s+/)
     else
       throw 'Not supported -- need to use a fallback method'
     end
+
+    res.push 'Makefile'
+    res
   end
 
   private

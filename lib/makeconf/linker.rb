@@ -2,17 +2,19 @@
 #
 class Linker
 
-  attr_accessor :output, :objects, :quiet, :shared_library
+  attr_accessor :output, :objects, :quiet, :shared_library, :rpath
   attr_reader :path
 
   def initialize
     @flags = []
+    @user_flags = []
     @objects = []
     @output = 'a.out'
     @shared_library = false
     @ldadd = []
     @quiet = false          # If true, output will be suppressed
     @gcc_flags = true       # If true, options will be wraped in '-Wl,'
+    @rpath = nil            # Optional -rpath setting
 
     # Determine the path to the linker executable
     @path = nil
@@ -50,29 +52,16 @@ class Linker
   # Set the full path to the linker executable
   def path=(p)
     @path = p
-    if `#{@path} --version` =~ /^GNU ld/
-      @gcc_flags = false
-    end
+# FIXME: workaround for problem searching for clang 
+#    if `#{@path} --version` =~ /GNU ld/
+#      @gcc_flags = false
+#    end
     #TODO: support other linkers
-  end
-
-  # Override the normal search path for the dynamic linker
-  def rpath=(dir)
-    if Platform.is_solaris?
-      @flags.push ['R', dir]
-    elsif Platform.is_linux?
-      @flags.push ['-rpath', dir]
-    elsif Platform.is_windows?
-      # XXX-FIXME Windows does not support the rpath concept
-      return
-    else
-      throw 'Unsupported OS'
-    end
-    @flags.push ['-L', dir]
   end
 
   # Returns the linker flags suitable for passing to the compiler
   def flags
+     input = @flags.clone
      tok = []
 
     # Set the output path
@@ -100,16 +89,39 @@ class Linker
       tok.push '-L', '.'
     end
 
-    if @gcc_flags == true
-      @flags.each do |f|
-         if f.kind_of?(Array)
-           tok.push '-Wl,-' + f[0] + ',' + f[1]
-         else
-           tok.push '-Wl,-' + f
-         end
+    # Override the normal search path for the dynamic linker
+    unless @rpath.nil?
+      if Platform.is_solaris?
+        input.push ['R', @rpath]
+      elsif Platform.is_linux?
+        input.push ['-rpath', @rpath]
+      elsif Platform.is_windows?
+        # XXX-FIXME Windows does not support the rpath concept
+      else
+        throw 'Unsupported OS'
       end
-    else
-      tok = @flags
+      input.push ['-L', @rpath]
+    end
+
+    pp input
+    input.each do |f|
+      if @gcc_flags == true
+        if f.kind_of?(Array)
+          if f[0] == '-L'
+            tok.push f.join(' ')
+          else
+            tok.push '-Wl,' + f[0] + ',' + f[1]
+          end
+        else
+          tok.push '-Wl,' + f
+        end
+      else
+        if f.kind_of?(Array)
+          tok.push f.flatten.join(' ')
+        else
+          tok.push f
+        end
+      end
     end
 
     return ' ' + tok.join(' ')
