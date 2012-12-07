@@ -65,7 +65,7 @@ class ExternalProject < Buildable
     puts "*** Done"
   end
 
-  def build
+  def compile(cc)
      makefile = Makefile.new
      return makefile unless @buildable
      makefile.add_dependency('all', "#{@id}-build-stamp")
@@ -77,6 +77,9 @@ class ExternalProject < Buildable
      makefile.add_rule('check', [ "cd #{@id} && make check" ])
      makefile.add_rule('clean', Platform.rm("#{@id}-build-stamp"))
      makefile
+  end
+
+  def link(ld)
   end
 
 
