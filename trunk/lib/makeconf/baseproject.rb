@@ -67,6 +67,8 @@ class BaseProject
          @version = val.to_s
        when :cc
          @cc = val
+       when :config_h
+         @config_h = val
        when :license_file
          @license_file = val
        when 'library', 'libraries'
