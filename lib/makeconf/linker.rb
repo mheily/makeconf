@@ -129,7 +129,7 @@ class Linker
   def command
     # windows: 'link.exe /DLL /OUT:$@ ' + deps.join(' '))
     # linux: 'cc ' .... (see Compiler::)
-    cmd = [ @path, flags, @objects, @ldadd ].flatten.join(' ')
+    cmd = [ @path, flags, @objects, sorted_ldadd ].flatten.join(' ')
     cmd += Platform.dev_null if @quiet
     log.debug "Linker command = `#{cmd}'"
 
@@ -138,7 +138,7 @@ class Linker
 
   # Return the command formatted as a Makefile rule
   def rule
-     ['$(LD)', flags, '$(LDFLAGS)', @objects, @ldadd, '$(LDADD)'].flatten.join(' ')
+     ['$(LD)', flags, '$(LDFLAGS)', @objects, sorted_ldadd, '$(LDADD)'].flatten.join(' ')
   end
 
   # Execute the linker command
@@ -187,6 +187,22 @@ class Linker
   end
 
 private
+
+  # Ensure that static archives are listed before dynamic libraries
+  # so that unresolved symbols in the static archives can be provided
+  # by a dynamic library
+  #
+  def sorted_ldadd
+    res = []
+    @ldadd.each do |ent|
+      if ent =~ /\.a$/
+        res.unshift ent
+      else
+        res.push ent
+      end
+    end
+    res
+  end
 
   def log
     Makeconf.logger
