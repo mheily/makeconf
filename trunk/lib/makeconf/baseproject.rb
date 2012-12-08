@@ -178,7 +178,7 @@ class BaseProject
     @config_h_rules.push \
         '@rm -f conftest.c conftest.o',
         '@mv config.h.tmp ' + @config_h
-    makefile.add_target Target.new('config.h', [], @config_h_rules) 
+    makefile.add_target Target.new(@config_h, [], @config_h_rules) 
 
     makefile.distribute ['configure', 'configure.rb', 'Makefile']
 
@@ -384,14 +384,6 @@ class BaseProject
   def write_config_h
     ofile = @config_h
     buf = {}
-
-    # In order to do dependency generation, this file must exist
-    # So, to avoid a chicken-and-egg problem, we create a dummy
-    # config.h that is basically empty.
-    #
-#f = File.open(ofile, 'w')
-#    f.puts "/* Temporary, ignore this */"
-#    f.close
 
     @header.keys.sort.each { |k| buf["HAVE_#{k}".upcase] = @header[k] }
     @decls.keys.sort.each { |x| buf["HAVE_DECL_#{x}".upcase] = @decls[x] }
