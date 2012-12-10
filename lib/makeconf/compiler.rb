@@ -102,7 +102,7 @@ class Compiler
 
 
   def flags
-    tok = @flags
+    tok = @flags.clone
 
     # KLUDGE: remove things that CL.EXE doesn't understand
     if @vendor == 'Microsoft'
