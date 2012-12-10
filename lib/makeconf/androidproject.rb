@@ -69,6 +69,9 @@ class AndroidProject < BaseProject
             :search => ndk_cc
             ) 
     @cc.sysroot = ndk_sysroot
+    def @cc.test_compile(code, stage = :compile)
+      throw 'FIXME -- need to use ndk-build for this'
+    end
   end
 
   def preconfigure
