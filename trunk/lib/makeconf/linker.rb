@@ -3,7 +3,7 @@
 class Linker
 
   attr_accessor :output, :objects, :quiet, :shared_library, :rpath
-  attr_reader :path
+  attr_reader :path, :ldadd
 
   def initialize
     @flags = []
@@ -171,6 +171,13 @@ class Linker
     end
 
     ldflags
+  end
+
+  # Set ldadd directly
+  # See also: library()
+  def ldadd=(x)
+    x = x.split ' ' if x.kind_of? String
+    @ldadd = x
   end
 
   # Add one or more libraries to the list of files to link

@@ -219,8 +219,9 @@ class BaseProject
   end
 
   # Check if a system header declares a macro or symbol
-  def check_decl(decl, opt = { :include => 'stdlib.h' })
+  def check_decl(decl, *opt)
       decl = [ decl ] if decl.kind_of? String
+      opt = opt.nil? ? [ :include => 'stdlib.h' ] : opt[0]
       throw ArgumentError unless decl.kind_of? Array
       rc = true
 
@@ -229,7 +230,7 @@ class BaseProject
         printf "checking whether #{x} is declared... "
         source = [
          "#define _GNU_SOURCE",
-         "#include <#{opt[:include]}>",
+         "#include #{opt[:include]}", #XXX-support multiple includes
          "int main() { #{x}; }"
          ].join("\n")
         @decls[x] = @cc.test_compile(source)
@@ -246,10 +247,16 @@ class BaseProject
 
   # Check if a function is available in the standard C library
   # TODO: probably should add :ldadd when checking..
-  def check_function(func, *arg)
+  def check_function(func, arg = {})
       func = [ func ] if func.kind_of? String
       throw ArgumentError unless func.kind_of? Array
       rc = true
+
+      # Save the previous state of variables
+      old_ldadd = @cc.ld.ldadd
+
+      # Temporarily override some variables
+      @cc.ld.ldadd = arg[:ldadd] if arg.has_key?:ldadd
 
       func.each do |x|
         next if @funcs.has_key? x
@@ -263,11 +270,14 @@ class BaseProject
         end
       end
 
+      # Restore the previous state of variables
+      @cc.ld.ldadd = old_ldadd
+
       rc
   end
 
   # Define a C preprocessor symbol 
-  def define(id,value)
+  def define(id,value = 1)
     @defs[id] = value
   end
 
@@ -390,7 +400,6 @@ class BaseProject
     @header.keys.sort.each { |k| buf["HAVE_#{k}".upcase] = @header[k] }
     @decls.keys.sort.each { |x| buf["HAVE_DECL_#{x}".upcase] = @decls[x] }
     @funcs.keys.sort.each { |x| buf["HAVE_#{x}".upcase] = @funcs[x] }
-    @defs.keys.sort.each { |x| buf[x] = @defs[x] }
 
     puts 'creating ' + ofile
     f = File.open(ofile, 'w')
@@ -404,6 +413,9 @@ class BaseProject
         f.printf "/* #undef  #{id} */\n" 
       end
     end
+
+    @defs.keys.sort.each { |x| f.printf "#define #{x} #{@defs[x]}\n" }
+
     f.close
   end
 
