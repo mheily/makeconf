@@ -331,6 +331,13 @@ class Buildable
   end
 end
 
+class StaticLibrary
+  def compile(cc)
+  end
+  def link(ld)
+  end
+end
+
 class Test
   def compile(cc)
   end
