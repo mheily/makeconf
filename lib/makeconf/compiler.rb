@@ -227,7 +227,7 @@ class Compiler
     cc = self  # KLUDGE, testing
     cc.sources = f.path
     cc.output = f.path.sub(/\.c$/, Platform.object_extension)
-    cc.quiet = true
+    cc.quiet = ENV['MAKECONF_DEBUG'].nil?
     rc = cc.compile
 
     # (Optional) Run the linker
