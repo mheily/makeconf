@@ -2,7 +2,8 @@
 #
 class Linker
 
-  attr_accessor :output, :objects, :quiet, :shared_library, :rpath
+  attr_accessor :output, :objects, :quiet, :shared_library, :rpath, :platform_ldflags
+
   attr_reader :path, :ldadd
 
   def initialize
@@ -14,6 +15,7 @@ class Linker
     @ldadd = []
     @quiet = false          # If true, output will be suppressed
     @gcc_flags = true       # If true, options will be wraped in '-Wl,'
+    @platform_ldflags = []    # Similar to cc.platform_flags
     @rpath = nil            # Optional -rpath setting
 
     # Determine the path to the linker executable
@@ -123,13 +125,14 @@ class Linker
       end
     end
 
-    return ' ' + tok.join(' ')
+    res = ' ' + tok.join(' ')
+    return res
   end
 
   def command
     # windows: 'link.exe /DLL /OUT:$@ ' + deps.join(' '))
     # linux: 'cc ' .... (see Compiler::)
-    cmd = [ @path, flags, @objects, sorted_ldadd ].flatten.join(' ')
+    cmd = [ @path, @platform_ldflags, flags, @objects, sorted_ldadd ].flatten.join(' ')
     cmd += Platform.dev_null if @quiet and ENV['MAKECONF_DEBUG'].nil?
     log.debug "Linker command = `#{cmd}'"
 
@@ -202,6 +205,10 @@ private
   def sorted_ldadd
     res = []
     @ldadd.each do |ent|
+      # KLUDGE: Android does not have a separate pthread.so
+      if SystemType.host =~ /-androideabi$/
+        next if ent =~ /^-lpthread$/
+      end
       if ent =~ /\.a$/
         res.unshift ent
       else

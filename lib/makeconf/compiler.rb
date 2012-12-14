@@ -4,8 +4,8 @@ class Compiler
 
   require 'tempfile'
 
-  attr_accessor :sysroot, :output, :platform_cflags
-  attr_reader :ld, :vendor, :path
+  attr_accessor :sysroot, :output, :platform_cflags, :ld
+  attr_reader :vendor, :path
 
   def initialize(language, extension)
     @language = language
