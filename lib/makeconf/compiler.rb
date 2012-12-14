@@ -92,7 +92,7 @@ class Compiler
 # return [ @path, cflags, '-combine', ldflags, inputs, ldadd ].flatten.join(' ')
 #
     
-    cmd = [ @path, '-DHAVE_CONFIG_H', '-I.', flags, '-c', @sources ].flatten.join(' ')
+    cmd = [ @path, '-DHAVE_CONFIG_H', '-I.', @platform_cflags, flags, '-c', @sources ].flatten.join(' ')
 
     cmd += Platform.dev_null if @quiet
 
@@ -140,8 +140,6 @@ class Compiler
     end
 
     tok.push '--sysroot=' + @sysroot unless @sysroot.nil?
-
-    tok.concat @platform_cflags
 
     tok.join(' ')
   end
