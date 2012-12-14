@@ -70,6 +70,24 @@ class AndroidProject < BaseProject
             ) 
     @cc.sysroot = ndk_sysroot
     @cc.platform_cflags = cflags(cc.path)
+
+    # Clang uses an alternate linker
+    if version =~ /^clang/
+      ld = Linker.new
+      ld.path = @ndk_path + '/toolchains/llvm-3.1/prebuilt/linux-x86/bin/clang++'
+      ld.platform_ldflags = [ '-Wl,--gc-sections', 
+      '-Wl,-z,nocopyreloc',
+      "--sysroot=#{@ndk_path}/platforms/android-14/arch-arm",
+      # FIXME: might need to put in ldadd
+      "-gcc-toolchain #{@ndk_path}/toolchains/arm-linux-androideabi-4.6/prebuilt/linux-x86",
+      "-target armv7-none-linux-androideabi",
+      "-Wl,--fix-cortex-a8",
+      "-Wl,--no-undefined",
+      "-Wl,-z,noexecstack",
+      "-Wl,-z,relro",
+      "-Wl,-z,now" ]
+      @cc.ld = ld
+    end
   end
 
   def preconfigure
