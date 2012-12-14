@@ -4,8 +4,8 @@ class Compiler
 
   require 'tempfile'
 
-  attr_accessor :sysroot, :output
-  attr_reader :ld, :vendor
+  attr_accessor :sysroot, :output, :platform_cflags
+  attr_reader :ld, :vendor, :path
 
   def initialize(language, extension)
     @language = language
@@ -15,6 +15,7 @@ class Compiler
     @flags = []
     @sources = []     # List of input files
     @output = nil
+    @platform_cflags = []   # Cflags required by the SystemType
     @sysroot = nil
     @quiet = false          # If true, output will be suppressed
     @vendor = 'Unknown'
@@ -139,6 +140,8 @@ class Compiler
     end
 
     tok.push '--sysroot=' + @sysroot unless @sysroot.nil?
+
+    tok.concat @platform_cflags
 
     tok.join(' ')
   end
