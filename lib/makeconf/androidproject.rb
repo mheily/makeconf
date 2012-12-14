@@ -69,9 +69,7 @@ class AndroidProject < BaseProject
             :search => ndk_cc
             ) 
     @cc.sysroot = ndk_sysroot
-    def @cc.test_compile(code, stage = :compile)
-      throw 'FIXME -- need to use ndk-build for this'
-    end
+    @cc.platform_cflags = cflags(cc.path)
   end
 
   def preconfigure
@@ -163,6 +161,18 @@ class AndroidProject < BaseProject
   # Return the path to the Android NDK /usr/lib 
   def ndk_libdir
      ndk_sysroot + '/usr/lib/'
+  end
+
+  # Return additional cflags needed by the compiler
+  def cflags(cc_path)
+    res = []
+    if cc_path =~ /clang/
+      res.push '-gcc-toolchain', @ndk_path + '/toolchains/arm-linux-androideabi-4.6/prebuilt/linux-x86'
+      res.push '-isystem', @ndk_path + '/toolchains/llvm-3.1/prebuilt/linux-x86/lib/clang/3.1/include'
+      res.concat %w{ -ffunction-sections -funwind-tables -fstack-protector -D__ARM_ARCH_5__ -D__ARM_ARCH_5T__ -D__ARM_ARCH_5E__ -D__ARM_ARCH_5TE__ -target armv7-none-linux-androideabi -march=armv7-a -mfloat-abi=softfp -mfpu=vfpv3-d16 -mthumb -Os -fomit-frame-pointer -fno-strict-aliasing -I. -DANDROID -fblocks -D_GNU_SOURCE -D__BLOCKS__ -Wa,--noexecstack -O0 -g }
+      res.push "-I#{@ndk_path}/platforms/android-14/arch-arm/usr/include"
+    end
+    res
   end
 
 private
@@ -347,3 +357,4 @@ class Test
   def link(ld)
   end
 end
+
