@@ -130,7 +130,7 @@ class Linker
     # windows: 'link.exe /DLL /OUT:$@ ' + deps.join(' '))
     # linux: 'cc ' .... (see Compiler::)
     cmd = [ @path, flags, @objects, sorted_ldadd ].flatten.join(' ')
-    cmd += Platform.dev_null if @quiet
+    cmd += Platform.dev_null if @quiet and ENV['MAKECONF_DEBUG'].nil?
     log.debug "Linker command = `#{cmd}'"
 
     return cmd
