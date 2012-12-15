@@ -33,9 +33,15 @@ fi
 printf 'checking for makeconf.. '
 ruby -e "require 'makeconf'" > /dev/null 2>&1
 if [ $? -ne 0 ] ; then
-  echo 'no'
-  die 'Makeconf was not found' 'Please install Makeconf from https://rubygems.org/'
+  if [ -x ./makeconf ] ; then
+    echo 'yes (using local copy)'
+    ruby="$ruby -I./makeconf"
+  else
+    echo 'no'
+    die 'Makeconf was not found' 'Please install Makeconf from https://rubygems.org/'
+  fi
+else
+  echo 'yes'
 fi
-echo 'yes'
 
 exec $ruby ./configure.rb $*
