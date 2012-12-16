@@ -4,6 +4,7 @@
 class BaseProject
  
   require 'net/http'
+  require 'yaml'
 
   attr_accessor :id, :version, :summary, :description, 
         :author, :license, :license_file, :config_h
@@ -153,6 +154,7 @@ class BaseProject
     makefile.add_dependency('dist', distfile)
     makefile.distclean(distfile)
     makefile.distclean(@config_h)
+    makefile.distclean('config.yaml')
     makefile.merge!(@cc.makefile)
     makefile.merge!(@packager.makefile)
     makefile.make_dist(@id, @version)
@@ -417,6 +419,14 @@ class BaseProject
     @defs.keys.sort.each { |x| f.printf "#define #{x} #{@defs[x]}\n" }
 
     f.close
+  end
+
+  # Generate the config.yaml dump of the current project state
+  def write_config_yaml
+    puts 'creating config.yaml'
+    File.open('config.yaml', 'w') do |f|
+      YAML.dump(self, f)
+    end
   end
 
   # Add an additional Makefile target
