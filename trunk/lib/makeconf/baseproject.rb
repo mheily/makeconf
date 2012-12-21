@@ -187,7 +187,10 @@ class BaseProject
     makefile.distribute ['configure', 'configure.rb', 'Makefile']
 
     # Distribute the local copy of Makeconf, if present
-    makefile.distribute 'makeconf' if File.exist? 'makeconf'
+    if File.exist? 'makeconf'
+      makefile.distribute 'makeconf/makeconf.rb'
+      makefile.distribute 'makeconf/makeconf/*.rb'
+    end
 
     makefile
   end
