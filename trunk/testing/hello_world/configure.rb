@@ -1,4 +1,3 @@
-#!/usr/bin/env ruby
 #
 # Copyright (c) 2011 Mark Heily <mark@heily.com>
 #
@@ -17,51 +16,50 @@
 
 $VERBOSE = true
 
-require 'makeconf'
-
-project = Project.new :id => 'testing', 
-    :version => 1.0
-
-project.add Library.new :id => 'hello', 
-      :cflags => '-Wall -Werror -g -O2 -std=c99 -D_XOPEN_SOURCE=600',
-      :sources => 'library.c'
-
-project.add Header.new(:id => 'hello', :sources => 'hello.h')
+project = Project.new(
+  :id => 'testing', 
+  :version => 1.0
+)
 
 project.add(
+  Library.new(
+      :id => 'hello', 
+        :cflags => '-Wall -Werror -g -O2 -std=c99 -D_XOPEN_SOURCE=600',
+        :sources => 'library.c'
+      ),
+  
+  Header.new(:id => 'hello', :sources => 'hello.h'),
+  
   Binary.new(
-    :id => 'hello', 
-    :cflags => '-Dabc=def',
-    :sources => %w{main.c extra.c},
-    :ldadd => '-lhello'
-  ),
-
+      :id => 'hello', 
+      :cflags => '-Dabc=def',
+      :sources => %w{main.c extra.c},
+      :ldadd => '-lhello'
+      ),
+  
   Test.new(
-    :id => 'check-hello', 
-    :cflags => '-Dabc=def',
-    :sources => %w{main.c extra.c},
-    :ldadd => '-lhello'
-  ),
-
+      :id => 'check-hello', 
+      :cflags => '-Dabc=def',
+      :sources => %w{main.c extra.c},
+      :ldadd => '-lhello'
+      ),
+  
   Target.new('check', [], [
-	  'rm -rf testing-1.0 || true',
-	  'make clean all',
-	  'make dist',
-	  'tar zxf testing-1.0.tar.gz',
-	  'cd testing-1.0 && \\',
-	  'RUBYLIB=../../../lib ./configure && \\',
-	  'make',
-	  ]
-	  )
-)
+  	  'rm -rf testing-1.0 || true',
+  	  'make clean all',
+  	  'make dist',
+  	  'tar zxf testing-1.0.tar.gz',
+  	  'cd testing-1.0 && \\',
+  	  'RUBYLIB=../../../lib ./configure && \\',
+  	  'make',
+  	  ]
+      )
+  )
 
 project.check_header %w{ stdlib.h stdio.h string.h does-not-exist.h }
 project.check_decl %w{ O_DOES_NOT_EXIST O_RDWR}, :include => 'fcntl.h'
 project.check_function %w{ pthread_fakefunc pthread_exit}, :include => 'fcntl.h'
 project.check_header('openssl/newshiny.h') or project.define('USE_OPENSSL', '0')
-
-mc = Makeconf.new :minimum_version => 0.1
-mc.configure project
 
 #DEADWOOD
 #Makeconf.configure(
