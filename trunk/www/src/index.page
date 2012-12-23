@@ -1,8 +1,8 @@
 ---
-title: Empty index page
+title: Makeconf
 inMenu: true
-directoryName: New Website
+directoryName: Home
 ---
-h2. Empty index file
+h2. Makeconf
 
-Fill this file with your own data!!!
+Makeconf is a tool to generate a Makefile that is configurable by the end user.
