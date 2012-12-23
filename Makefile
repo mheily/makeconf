@@ -28,7 +28,7 @@ distclean clean:
 # Sync the project website
 sync-www:
 	cd www && webgen
-	rsync -av --delete www/out/ web.sourceforge.net:/home/project-web/makeconf/htdocs/
+	rsync -av --delete www/output/ web.sourceforge.net:/home/project-web/makeconf/htdocs/
 
 edit:
 	$(EDITOR) lib/*.rb lib/makeconf/*.rb
