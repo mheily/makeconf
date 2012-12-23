@@ -25,6 +25,11 @@ doc:
 distclean clean:
 	rm -f *.gem
 
+# View the project website
+view-www:
+	cd www && webgen
+	firefox www/output/index.html
+
 # Sync the project website
 sync-www:
 	cd www && webgen
