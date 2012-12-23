@@ -1,8 +1,8 @@
 #!/bin/sh
 #
-# Bootstrap script to run the Makeconf configuration script
+# Bootstrap configuration script for Makeconf
 #
-# Copyright (c) 2012 Mark Heily <mark@heily.com>
+# Copyright (c) 2011 Mark Heily <mark@heily.com>
 #
 # Permission to use, copy, modify, and distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -16,4 +16,42 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 #
 
-ruby -I../../lib ../../bin/configure $*
+die() {
+  printf "\n*** ERROR: $1 ***\n\n$2\n\n"
+  exit 1
+}
+
+if [ "$RUBY" != "" ] ; then
+  ruby=$RUBY
+else
+  ruby=`which ruby`
+fi
+
+printf 'checking for ruby.. '
+if [ ! -x "$ruby" ] ; then
+  echo 'no'
+  die 'Ruby was not found' 'Please install Ruby from http://www.ruby-lang.org/'
+fi
+
+if [ "$RUBYLIB" != "" ] ; then
+  echo "$ruby (RUBYLIB=$RUBYLIB)"  
+  export RUBYLIB
+else
+  echo $ruby
+fi
+
+printf 'checking for makeconf.. '
+ruby -e "require 'makeconf'" > /dev/null 2>&1
+if [ $? -ne 0 ] ; then
+  if [ -x ./makeconf ] ; then
+    echo 'yes (private copy)'
+	ruby="$ruby -Imakeconf"
+  else
+    echo 'no'
+    die 'Makeconf was not found' 'Please run "sudo gem install makeconf" or manually install Makeconf into ./makeconf'
+  fi
+fi
+echo 'yes'
+
+exec $ruby -rubygems ./configure.rb $*
+

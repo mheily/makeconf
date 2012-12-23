@@ -25,5 +25,10 @@ doc:
 distclean clean:
 	rm -f *.gem
 
+# Sync the project website
+sync-www:
+	cd www && webgen
+	rsync -av --delete www/out/ web.sourceforge.net:/home/project-web/makeconf/htdocs/
+
 edit:
 	$(EDITOR) lib/*.rb lib/makeconf/*.rb
