@@ -162,8 +162,6 @@ class Makeconf
         raise ArgumentError, "Unknown argument #{k}"
       end
     end
-
-    @project = Project.new :id => 'default'
   end
 
   # Check if the current version is equal to or greater than the minimum required version

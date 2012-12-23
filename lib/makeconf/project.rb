@@ -5,6 +5,9 @@ class Project
   require 'makeconf/systemtype'
   require 'makeconf/baseproject'
 
+  # When each project is created, it is added to this list
+  @@projects = []
+
   def self.new(options)
     if SystemType.host =~ /-androideabi$/
        require 'makeconf/androidproject'
@@ -12,8 +15,12 @@ class Project
     else
        object = BaseProject.allocate
     end
+    @@projects.push object
     object.send :initialize, options
     object
   end
 
+  def Project.all_projects
+    @@projects
+  end
 end
