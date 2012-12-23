@@ -1,6 +1,4 @@
-#!/bin/sh
-#
-# Bootstrap script to run the Makeconf configuration script
+#!/bin/env ruby
 #
 # Copyright (c) 2012 Mark Heily <mark@heily.com>
 #
@@ -16,4 +14,25 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 #
 
-exec configure $*
+require 'makeconf'
+
+mc = Makeconf.new
+
+begin
+  load 'configure.rb'
+rescue LoadError
+  puts "Unable to load configure.rb"
+  exit 1
+end
+  
+projects = Project.all_projects
+if projects.empty?
+  puts "At least one Project is required."
+  exit 1
+else
+  projects.each do |proj|
+    #puts "configuring #{proj.id}:"
+    mc.configure proj
+  end
+end
+
