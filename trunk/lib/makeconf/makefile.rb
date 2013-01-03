@@ -6,8 +6,7 @@ class Makefile
   def initialize
     @vars = {}
     @targets = {}
-    @compat = 'GNU'     # Use GNU make(1) syntax
-    @cond_vars = {}     # Variables that depend on a conditional
+    @cond_vars = []    # Variables that depend on a conditional
 
     %w[all check clean distclean install uninstall distdir].each do |x|
         add_target(x)
@@ -18,11 +17,12 @@ class Makefile
   def define_variable(lval,op,rval)
     throw "invalid arguments" if lval.nil? or op.nil? 
     throw "variable `#{lval}' is undefined" if rval.nil?
-    if rval.kind_of?(Hash)
-      throw 'TODO'
-    else
     @vars[lval] = [ op, rval ]
-    end
+  end
+
+  def define_conditional_variable(cvar)
+    throw "invalid argument" unless cvar.kind_of?(Makefile::Conditional)
+    @cond_vars.push(cvar)
   end
 
   def target(object)
@@ -33,6 +33,7 @@ class Makefile
     return if src.nil?
     throw 'invalid argument' unless src.is_a?(Makefile)
     @vars.merge!(src.vars)
+    @cond_vars.concat(src.cond_vars)
     src.targets.each do |k,v|
       if targets.has_key?(k)
          targets[k].merge!(v)
@@ -131,6 +132,7 @@ BUILD_TYPE=$(BUILD_CPU)-$(BUILD_VENDOR)-$(BUILD_KERNEL)-$(BUILD_SYSTEM)
 HOST_TYPE=$(HOST_CPU)-$(HOST_VENDOR)-$(HOST_KERNEL)-$(HOST_SYSTEM)
 
 __EOF__
+    @cond_vars.each { |x| res += x.to_make }
     res += "default: all\n"
     targets.each { |x,y| throw "#{x} is broken" unless y.is_a? Target }
     @targets.sort.each { |x,y| res += y.to_s }
@@ -146,5 +148,54 @@ __EOF__
 
   protected
 
-  attr_reader :vars, :targets
+  attr_reader :vars, :targets, :cond_vars
+end
+
+class Makefile::Conditional
+
+  attr_accessor :append
+  
+  def initialize(lval)
+    @lval = lval
+    @append = [ 'CFLAGS', 'LDFLAGS', 'LDADD' ].include?(lval)
+    @buf = []
+  end
+
+  def ifeq(condvar, conds)
+    check = conds.clone
+
+    if @append == true
+      op = '+= '
+    else
+      op = '='
+    end
+
+    default = nil
+    if check.has_key?(:default)
+      default = check[:default].clone
+      check.delete :default
+    end
+
+    keys = check.keys.sort
+    k0 = keys.shift
+    @buf.push "ifeq (#{condvar},#{k0})"
+    @buf.push "#{@lval}#{op}#{check[k0]}"
+    keys.each do |k|
+      @buf.push "else ifeq (#{condvar},#{k})"
+      @buf.push "#{@lval}#{op}#{check[k]}"
+    end
+    unless default.nil? and default != ''
+      @buf.push "else"
+      @buf.push "#{@lval}#{op}#{default}"
+    end
+    @buf.push "endif"
+    return self
+  end
+
+  def to_make
+    s = "# Compute the conditional variable $(#{@lval})\n"
+    @buf.each { |line| s += line + "\n" }
+    s += "\n"
+    s
+  end
 end
