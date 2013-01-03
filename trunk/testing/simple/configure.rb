@@ -23,9 +23,7 @@ p = Project.new \
     :id => 'simple', 
     :version => 1.0
 
-cpu_cflags = Makefile::Conditional.new('CFLAGS')
-cpu_cflags.ifeq('$(HOST_CPU)', { 'i686' => '-m32', 'x86_64' => '-m64', :default => 'ERROR-UNKNOWN-CPU' })
-p.add cpu_cflags
+p.add Makefile::Conditional.new('CFLAGS').ifeq('$(HOST_CPU)', { 'i686' => '-m32', 'x86_64' => '-m64', :default => 'ERROR-UNKNOWN-CPU' })
 
 cpu_ldflags = Makefile::Conditional.new('LDFLAGS')
 cpu_ldflags.ifeq('$(HOST_CPU)', { 'i686' => '-m32', 'x86_64' => '-m64', :default => 'ERROR-UNKNOWN-CPU' })
