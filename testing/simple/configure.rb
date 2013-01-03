@@ -30,14 +30,14 @@ p.add Binary.new \
 p.check_header 'stdio.h'
 p.check_header 'does-not-exist.h'
 p.check_decl 'pthread_create', :include => 'pthread.h'
-p.check_decl 'exit'
-p.check_decl 'symbol_that_does_not_exist'
-p.check_function 'read'
-p.check_function 'epoll_create', :include => 'sys/epoll.h'
-p.check_function 'fgetln'
-p.check_function 'getline'
-p.check_function 'kqueue'
-p.check_function 'port_create'
+#p.check_decl 'exit'
+#p.check_decl 'symbol_that_does_not_exist'
+#p.check_function 'read'
+#p.check_function 'epoll_create', :include => 'sys/epoll.h'
+#p.check_function 'fgetln'
+#p.check_function 'getline'
+#p.check_function 'kqueue'
+#p.check_function 'port_create'
 
 mc = Makeconf.new :minimum_version => 0.1
 mc.configure(p)

@@ -94,6 +94,7 @@ class Installer
 
     m = Makefile.new
     m.define_variable('INSTALL', '?=', @path) unless @path.nil?
+    @dir.keys.each { |d| m.define_variable(d.to_s.upcase, '=', @dir[d]) }
 
     # Add 'make install' rules
     @items.each do |i| 
@@ -144,7 +145,12 @@ class Installer
   private
 
   # Expand makefile variables related to installation directories
+  # This is only useful on Windows, which lacks the install(1) command
+  # and might (in the future) use something other than nmake to perform
+  # the installation.
+  #
   def expand_dir(s)
+    return s unless Platform.is_windows?
     buf = s
 
     throw 'FIXME -- handle $(PACKAGE)' if buf =~ /\$\(PACKAGE\)/

@@ -3,7 +3,7 @@ VERSION=0.1.0
 # Exclude these classes from the documentation
 RDOC_EXCLUDE=-x gui.rb -x wxapp
 
-.PHONY: gem check doc
+.PHONY: gem check doc www
 
 default: clean check gem
 
@@ -18,21 +18,21 @@ check:
 
 
 doc:
-	rm -rf doc
-	rdoc $(RDOC_EXCLUDE) --main=makeconf --title makeconf lib
 	chromium -new ./doc/index.html &
 
 distclean clean:
 	rm -f *.gem
 
 # View the project website
-view-www:
+www:
 	cd www && webgen
+	rdoc $(RDOC_EXCLUDE) -f ri -o www/output/api-reference --main=makeconf --title makeconf lib
 	firefox www/output/index.html
 
 # Sync the project website
 sync-www:
 	cd www && webgen
+	rm -rf www/api-reference
 	rsync -av --delete www/output/ web.sourceforge.net:/home/project-web/makeconf/htdocs/
 
 edit:
