@@ -6,6 +6,8 @@ class Makefile
   def initialize
     @vars = {}
     @targets = {}
+    @compat = 'GNU'     # Use GNU make(1) syntax
+    @cond_vars = {}     # Variables that depend on a conditional
 
     %w[all check clean distclean install uninstall distdir].each do |x|
         add_target(x)
@@ -16,7 +18,11 @@ class Makefile
   def define_variable(lval,op,rval)
     throw "invalid arguments" if lval.nil? or op.nil? 
     throw "variable `#{lval}' is undefined" if rval.nil?
+    if rval.kind_of?(Hash)
+      throw 'TODO'
+    else
     @vars[lval] = [ op, rval ]
+    end
   end
 
   def target(object)
@@ -108,6 +114,23 @@ class Makefile
     res = ''
     @vars.sort.each { |x,y| res += [x, y[0], y[1]].join(' ') + "\n" }
     res += "\n\n"
+    res += <<__EOF__
+#
+# Detect the canonical system type of the system we are building on
+# (build) and the system the package runs on (host)
+# 
+BUILD_CPU=$(shell uname -m)
+HOST_CPU=$(BUILD_CPU)
+BUILD_VENDOR=unknown
+HOST_VENDOR=$(BUILD_VENDOR)
+BUILD_KERNEL=$(shell uname | tr '[A-Z]' '[a-z]')
+HOST_KERNEL=$(BUILD_KERNEL)
+BUILD_SYSTEM=gnu
+HOST_SYSTEM=$(BUILD_SYSTEM)
+BUILD_TYPE=$(BUILD_CPU)-$(BUILD_VENDOR)-$(BUILD_KERNEL)-$(BUILD_SYSTEM)
+HOST_TYPE=$(HOST_CPU)-$(HOST_VENDOR)-$(HOST_KERNEL)-$(HOST_SYSTEM)
+
+__EOF__
     res += "default: all\n"
     targets.each { |x,y| throw "#{x} is broken" unless y.is_a? Target }
     @targets.sort.each { |x,y| res += y.to_s }

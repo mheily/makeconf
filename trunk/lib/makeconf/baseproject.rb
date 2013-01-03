@@ -177,6 +177,8 @@ class BaseProject
 
     # Add the config.h target
     @config_h_rules.unshift \
+        '@echo "checking build system type... $(BUILD_TYPE)"',
+        '@echo "checking host system type... $(HOST_TYPE)"',
         '@echo "/* AUTOMATICALLY GENERATED -- DO NOT EDIT */" > config.h.tmp',
         '@date > config.log'
     @config_h_rules.push \
