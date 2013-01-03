@@ -23,9 +23,21 @@ p = Project.new \
     :id => 'simple', 
     :version => 1.0
 
-p.add Binary.new \
+cpu_cflags = Makefile::Conditional.new('CFLAGS')
+cpu_cflags.ifeq('$(HOST_CPU)', { 'i686' => '-m32', 'x86_64' => '-m64', :default => 'ERROR-UNKNOWN-CPU' })
+p.add cpu_cflags
+
+cpu_ldflags = Makefile::Conditional.new('LDFLAGS')
+cpu_ldflags.ifeq('$(HOST_CPU)', { 'i686' => '-m32', 'x86_64' => '-m64', :default => 'ERROR-UNKNOWN-CPU' })
+p.add cpu_ldflags
+
+p.add(
+    Binary.new(
     :id => 'hello', 
+    :cflags => [ '-Dfoo=bar' ],
     :sources => %w{main.c}
+    )
+ )
 
 p.check_header 'stdio.h'
 p.check_header 'does-not-exist.h'

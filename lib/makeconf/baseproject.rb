@@ -37,6 +37,7 @@ class BaseProject
     @decls = {}         # List of declarations discovered via check_decl()
     @funcs = {}         # List of functions discovered via check_func()
     @defs = {}          # Custom preprocessor macro definitions
+    @condvars = []      # Conditional Makefile variables
     @packager = Packager.new(self)
     @ar = Archiver.new
     @cc = nil
@@ -158,7 +159,8 @@ class BaseProject
     makefile.merge!(@cc.makefile)
     makefile.merge!(@packager.makefile)
     makefile.make_dist(@id, @version)
-    @distribute.each { |f| @makefile.distribute f }
+    @condvars.each { |cv| makefile.define_conditional_variable(cv) }
+    @distribute.each { |f| makefile.distribute f }
     @build.each do |x| 
        if x.buildable == true
          # KLUDGE: would like a reset() function to reset
@@ -300,6 +302,8 @@ class BaseProject
         obj.buildable.each do |e|
            add(e)
         end
+      elsif obj.kind_of?(Makefile::Conditional)
+        @condvars.push(obj)
       else
         obj.project = self if obj.kind_of?(Buildable)
         build(obj)
