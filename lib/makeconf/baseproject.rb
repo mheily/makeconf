@@ -35,6 +35,7 @@ class BaseProject
     @distribute = []    # List of items to distribute
     @target = []        # List of additional Makefile targets
     @decls = {}         # List of declarations discovered via check_decl()
+    @decls_rules = []   # Makefile rules based on @decls
     @funcs = {}         # List of functions discovered via check_func()
     @defs = {}          # Custom preprocessor macro definitions
     @condvars = []      # Conditional Makefile variables
@@ -189,8 +190,10 @@ class BaseProject
         "@( echo '#include <#{header}>' | $(CC) $(CFLAGS) -E -x c - ) >/dev/null 2>&1 && " +
         "( echo '#define #{uc_var} 1' >> config.h.tmp ; echo 'yes' ) || (echo '/* #undef #{uc_var} */' >> config.h.tmp ; echo 'no' )"
     end
+    @config_h_rules.concat @decls_rules
     @config_h_rules.push \
         '@rm -f conftest.c conftest.o',
+        '@echo "creating config.h"',
         '@mv config.h.tmp ' + @config_h
     makefile.add_target Target.new(@config_h, [], @config_h_rules) 
 
@@ -245,16 +248,23 @@ class BaseProject
         printf "checking whether #{x} is declared... "
         source = [
          "#define _GNU_SOURCE",
-         "#include #{opt[:include]}", #XXX-support multiple includes
+         "#include <#{opt[:include]}>", #XXX-support multiple includes
          "int main() { #{x}; }"
-         ].join("\n")
-        @decls[x] = @cc.test_compile(source)
+         ]
+        @decls[x] = @cc.test_compile(source.join("\n"))
         if @decls[x]
           puts 'yes'
         else
           puts 'no'
           rc = false
         end
+
+      # KLUDGE: also doing it via the Makefile. We should stop doing the check during ./configure time
+      uc_var = 'HAVE_DECL_' + x.upcase
+      header_to_check = opt[:include] ? " in #{opt[:include]}" : ''
+      @decls_rules.push "@printf \"checking whether #{x} is declared#{header_to_check}... \" | tee -a config.log",
+"@( printf '#{source.join('\n')}' | $(CC) $(CFLAGS) -E -x c - ) >/dev/null 2>>config.log && " +
+        "( echo '#define #{uc_var} 1' >> config.h.tmp ; echo 'yes' ) || (echo '#define #{uc_var} 0' >> config.h.tmp ; echo 'no' )"
       end
 
       rc
