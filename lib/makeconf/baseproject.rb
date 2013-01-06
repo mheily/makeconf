@@ -183,6 +183,12 @@ class BaseProject
         '@echo "checking host system type... $(HOST_TYPE)"',
         '@echo "/* AUTOMATICALLY GENERATED -- DO NOT EDIT */" > config.h.tmp',
         '@date > config.log'
+    @header.keys.sort.each do |header|
+      uc_var = 'HAVE_' + header.upcase.gsub(/\.|\//, '_')
+      @config_h_rules.push "@printf \"checking for #{header}... \"",
+        "@( echo '#include <#{header}>' | $(CC) $(CFLAGS) -E -x c - ) >/dev/null 2>&1 && " +
+        "( echo '#define #{uc_var} 1' >> config.h.tmp ; echo 'yes' ) || (echo '/* #undef #{uc_var} */' >> config.h.tmp ; echo 'no' )"
+    end
     @config_h_rules.push \
         '@rm -f conftest.c conftest.o',
         '@mv config.h.tmp ' + @config_h
