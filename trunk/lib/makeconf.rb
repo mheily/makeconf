@@ -198,6 +198,7 @@ class Makeconf
     project.finalize 
     project.write_config_h
     project.write_config_yaml
+    project.write_configure
     makefile.merge! project.to_make
 
     puts 'creating Makefile'
