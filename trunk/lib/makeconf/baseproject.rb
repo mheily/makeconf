@@ -451,6 +451,7 @@ class BaseProject
   # Generate a configure script
   def write_configure
     puts 'creating configure'
+    File.unlink('configure') if File.exist?('configure')
     File.open('configure', 'w') do |f|
       f.puts '#!/bin/sh
 #
@@ -541,8 +542,22 @@ do
   fi
 done
 
+printf "checking for a usable make command... "
+make --version >/dev/null 2>&1
+if [ $? -eq 0 ] ; then make="make"
+else
+    gmake --version >/dev/null 2>&1
+    if [ $? -eq 0 ] ; then make="gmake"; fi
+fi
+if [ -n "$make" ] ; then
+    echo "yes"
+else
+    echo "not found"
+    err "Please install GNU Make and add it to your PATH as either make or gmake"
+fi
+
 rm -f config.h
-make config.h
+$make config.h
 '
     f.chmod(0555)
     f.close
