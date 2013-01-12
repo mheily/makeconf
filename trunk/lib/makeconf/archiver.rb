@@ -35,7 +35,9 @@ class Archiver
 
   # Return the command formatted as a Makefile rule
   def to_make
-    Target.new(@output, @objects, [command, "ranlib #{output}"])
+    Target.new(@output, @objects, [
+            Target::ConditionalRule.new([command, "ranlib #{output}"]).ifneq('$(DISABLE_STATIC)','1')
+            ])
   end
 
 private

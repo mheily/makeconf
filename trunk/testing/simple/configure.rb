@@ -34,6 +34,12 @@ p.add(
     :id => 'hello', 
     :cflags => [ '-Dfoo=bar' ],
     :sources => %w{main.c}
+    ),
+
+    Library.new(
+    :id => 'libhello', 
+    :cflags => [ '-Dbar=baz' ],
+    :sources => %w{library.c}
     )
  )
 
