@@ -12,7 +12,7 @@ class Binary < Buildable
     installer.install(
         :dest => '$(BINDIR)',
         :sources => @output,
-        :mode => '0755',
+        :mode => '0755'
     )
   end
 
