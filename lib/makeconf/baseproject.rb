@@ -525,7 +525,7 @@ do
   if [ `echo "$arg" | grep "^--"` = "$arg" ] ; then
      key=`echo $arg | sed "s/^--//; s/=.*//"`
      val=`echo $arg | sed "s/.*=//"`
-     uc_key=`echo "$key" | tr "a-z" "A-Z"`
+     uc_key=`echo "$key" | tr "a-z" "A-Z" | tr "-" "_"`
      echo key=$key -- val=$val
      case $key in
      "help")
@@ -535,6 +535,12 @@ do
      bindir|datadir|datarootdir|docdir|eprefix|includedir|infodir|libdir|libexecdir|localedir|localstatedir|mandir|pkgdatadir|pkgincludedir|pkglibdir|prefix|sbindir|sharedstatedir|sysconfdir)
        echo "$uc_key=$val" >> config.mk
        ;;
+     disable-static)
+       echo "$uc_key=1" >> config.mk
+       ;;
+     disable-option-checking)
+        # Not implemented, this behavior is the default (for now)
+        ;;
      *)
        echo "Warning: unrecognized option: $arg"
        ;;

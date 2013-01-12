@@ -131,6 +131,10 @@ HOST_SYSTEM=$(BUILD_SYSTEM)
 BUILD_TYPE=$(BUILD_CPU)-$(BUILD_VENDOR)-$(BUILD_KERNEL)-$(BUILD_SYSTEM)
 HOST_TYPE=$(HOST_CPU)-$(HOST_VENDOR)-$(HOST_KERNEL)-$(HOST_SYSTEM)
 
+# Allow variables to be overridden via a ./configure script that outputs config.mk
+# FIXME -- requires GNU Make
+-include config.mk
+
 __EOF__
     @cond_vars.each { |x| res += x.to_make }
     res += "default: all\n"

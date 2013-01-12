@@ -66,11 +66,50 @@ class Target
     @files_to_copy.each do |k,v|
        res += "\t" + Platform.cp(v, k) + "\n"
     end
-    @rules.each { |r| res += "\t" + r + "\n" }
+    @rules.each do |r| 
+      if r.kind_of?(String)
+        res += "\t" + r + "\n"
+      else
+        res += r.to_s
+      end
+    end
     res
   end
 
   protected
 
   attr_reader :dirs_to_create, :files_to_copy
+end
+
+# Uses a conditional like ifeq() to conditionally execute one or more rules
+# TODO: support BSD syntax like: .if $var = $cond
+#
+class Target::ConditionalRule
+
+  def initialize(rules)
+    @condition = nil
+    @rules = rules
+  end
+
+  def ifeq(var,match)
+    @condition = "ifeq (#{var},#{match})"
+    self
+  end
+
+  def ifneq(var,match)
+    @condition = "ifneq (#{var},#{match})"
+    self
+  end
+
+  def ifdef(var)
+    @condition = "ifdef (#{var})"
+    self
+  end
+
+  def to_s
+    rules = "#{@condition}\n"
+    @rules.each { |r| rules += "\t#{r}\n" }
+    rules += "endif\n"
+    rules
+  end
 end
