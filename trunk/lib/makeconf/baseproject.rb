@@ -197,13 +197,7 @@ class BaseProject
         '@mv config.h.tmp ' + @config_h
     makefile.add_target Target.new(@config_h, [], @config_h_rules) 
 
-    makefile.distribute ['configure', 'configure.rb', 'Makefile']
-
-    # Distribute the local copy of Makeconf, if present
-    if File.exist? 'makeconf'
-      makefile.distribute 'makeconf/makeconf.rb'
-      makefile.distribute 'makeconf/makeconf/*.rb'
-    end
+    makefile.distribute ['configure', 'configure.rb', 'GNUmakefile']
 
     makefile
   end
@@ -454,11 +448,10 @@ class BaseProject
     end
   end
 
-  # Generate a local configure.mc script, this will become ./configure
-  # in the distfile
+  # Generate a configure script
   def write_configure
-    puts 'creating configure.mc'
-    File.open('configure.mc', 'w') do |f|
+    puts 'creating configure'
+    File.open('configure', 'w') do |f|
       f.puts '#!/bin/sh
 #
 # Copyright (c) 2013 Mark Heily <mark@heily.com>
@@ -551,6 +544,7 @@ done
 rm -f config.h
 make config.h
 '
+    f.chmod(0555)
     f.close
     end
   end

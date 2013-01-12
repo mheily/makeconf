@@ -15,6 +15,9 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
 
+# NOTE: This line is only needed for Makeconf testing purposes
+$LOAD_PATH.unshift '../../lib'
+
 $VERBOSE = true
 
 require 'makeconf'
