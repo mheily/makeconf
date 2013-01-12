@@ -201,15 +201,15 @@ class Makeconf
     project.write_configure
     makefile.merge! project.to_make
 
-    puts 'creating Makefile'
-    makefile.write('Makefile')
+    puts 'creating GNUmakefile'
+    makefile.write('GNUmakefile')
   end
 
   # Add rules and targets used in the top-level Makefile
   def Makeconf.toplevel_init(makefile)
     makefile.add_target('dist', [], [])
     makefile.add_dependency('distclean', 'clean')
-    makefile.add_rule('distclean', Platform.rm('Makefile'))
+    makefile.add_rule('distclean', Platform.rm('GNUmakefile'))
   end
 
 end

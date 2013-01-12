@@ -276,7 +276,7 @@ class Compiler
       throw 'Not supported -- need to use a fallback method'
     end
 
-    res.push 'Makefile'
+    res.push 'GNUmakefile'
     res
   end
 
