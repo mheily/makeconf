@@ -31,7 +31,7 @@ class SharedLibrary < Buildable
         :dest => '$(LIBDIR)',
         :rename => "#{@output}.#{@abi_major}.#{@abi_minor}",
         :sources => @output,
-        :mode => '0644',
+        :mode => '0644'
     )
   end
 
