@@ -4,7 +4,6 @@ RELEASE CRITICAL
 Breaks RPM build:
 
   * pkgconfig file is not generated
-  * manpages are not installed
 
 OTHER
 -----
@@ -24,3 +23,4 @@ OTHER
  
  * The 'distdir' target should depend on everything that the tarball includes.
 
+ * Manpage aliases are not removed during 'uninstall' target
