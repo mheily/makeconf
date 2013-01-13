@@ -199,6 +199,9 @@ class BaseProject
 
     makefile.distribute ['configure', 'configure.rb', 'GNUmakefile']
 
+    # Distribute things that look like license files
+    makefile.distribute 'COPYING' if File.exists? 'COPYING'
+
     makefile
   end
 
