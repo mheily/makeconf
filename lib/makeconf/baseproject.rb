@@ -530,14 +530,26 @@ do
        usage
        exit 1
        ;;
-     bindir|datadir|datarootdir|docdir|eprefix|includedir|infodir|libdir|libexecdir|localedir|localstatedir|mandir|pkgdatadir|pkgincludedir|pkglibdir|prefix|sbindir|sharedstatedir|sysconfdir)
+     bindir|datadir|datarootdir|docdir|includedir|infodir|libdir|libexecdir|localedir|localstatedir|mandir|pkgdatadir|pkgincludedir|pkglibdir|prefix|sbindir|sharedstatedir|sysconfdir)
        echo "$uc_key=$val" >> config.mk
+       ;;
+     exec-prefix)
+       echo "EPREFIX=$val" >> config.mk
+       ;;
+     program-prefix)
+       if [ "$val" != "" ] ; then err "FIXME - not implemented" ; fi
        ;;
      disable-static)
        echo "$uc_key=1" >> config.mk
        ;;
+     build|host)
+       echo "$uc_key=$val" >> config.mk
+       ;;
      disable-option-checking)
         # Not implemented, this behavior is the default (for now)
+        ;;
+     disable-dependency-tracking)
+        # Not implemented, dependency tracking is done in Ruby (for now)
         ;;
      *)
        echo "Warning: unrecognized option: $arg"
