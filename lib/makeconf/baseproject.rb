@@ -543,6 +543,8 @@ do
        echo "$uc_key=1" >> config.mk
        ;;
      build|host)
+       # TODO: we should split this up, and override the other Makeconf
+       # variables like *_VENDOR, *_ARCH, *_CPU, *_KERNEL, *_SYSTEM 
        echo "$uc_key=$val" >> config.mk
        ;;
      disable-option-checking)
