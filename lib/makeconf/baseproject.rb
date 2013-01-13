@@ -552,9 +552,11 @@ do
     $cmd --version >/dev/null 2>&1
     if [ $? -eq 0 ] ; then cc="$cmd" ; break ; fi
 done
+if [ -n "$CC" ] ; then cc="$CC" ; fi
 if [ -n "$cc" ] ; then
     echo "$cc"
     echo "CC=$cc" >> config.mk
+    if [ -n "$CFLAGS" ] ; then echo "CFLAGS=$CFLAGS" >> config.mk ; fi
 else
     echo "not found"
     err "Please install a compiler and add it to your PATH"
