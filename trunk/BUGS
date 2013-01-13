@@ -9,3 +9,7 @@
  * Solaris linker uses '-R .' while GCC is '-Wl,--rpath,.' so this must be conditionalized in the Makefile.. perhaps with making 'MC_RPATH=-Wl,--rpath,' and for Solaris doing 'MC_RPATH="-R"' in config.mk. Then rpath is expressed as $(MC_RPATH)foo
 
  * Conditionalized sources must be expressed as a variable, such as libkqueue_SOURCES, rather than hardcoded. Then it can be conditionalized for different platforms.
+
+ * config.h is added to the distfile, it should not be.
+ 
+ * The 'distdir' target should depend on everything that the tarball includes.
