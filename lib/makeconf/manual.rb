@@ -5,22 +5,34 @@
 class Manual < Buildable
 
   def initialize(source, options = {})
-    @source = source
-    @format = 'man'
-
-    # Determine the manpage section
-    @section = @source.sub(/^.*\./, '')
-
     raise ArgumentError unless options.kind_of?(Hash)
+    @source = source
+
+    # Determine the manpage options
+    @man = {
+        :section => @source.sub(/^.*\./, ''),
+        :alias => options[:alias] || []
+    }
+    @man[:alias] = [ @man[:alias] ] unless @man[:alias].kind_of?(Array)
+
+    # KLUDGE - parent constructor will barf unless we delete our 
+    #       custom options
+    options.delete :alias
+
     super(options)
   end
 
   def install(installer)
-
+    outfile = '$(MANDIR)/man' + @man[:section]
     installer.install(
         :sources => @source,
-        :dest => '$(MANDIR)/man' + @section,
+        :dest => outfile,
         :mode => '644') 
+
+    @man[:alias].each do |a|
+      aliasfile = "\$(MANDIR)/man" + @man[:section] + '/' + a
+      installer.add_rule("ln -s #{@source} \$(DESTDIR)#{aliasfile}")
+    end
   end
 
   def compile(cc)
