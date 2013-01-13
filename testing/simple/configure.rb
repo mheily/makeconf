@@ -43,7 +43,9 @@ p.add(
     :id => 'libhello', 
     :cflags => [ '-Dbar=baz' ],
     :sources => %w{library.c}
-    )
+    ),
+
+    Manual.new('simple.1')
  )
 
 p.check_header 'stdio.h'

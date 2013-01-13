@@ -33,6 +33,7 @@ class Makeconf
   require 'makeconf/installer'
   require 'makeconf/library'
   require 'makeconf/linker'
+  require 'makeconf/manual'
   require 'makeconf/makefile'
   require 'makeconf/packager'
   require 'makeconf/platform'
