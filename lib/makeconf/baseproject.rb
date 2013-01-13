@@ -556,6 +556,7 @@ if [ -n "$CC" ] ; then cc="$CC" ; fi
 if [ -n "$cc" ] ; then
     echo "$cc"
     echo "CC=$cc" >> config.mk
+    if [ "$cc" != "cc" ] ; then echo "LD=$cc" >> config.mk ; fi
     if [ -n "$CFLAGS" ] ; then echo "CFLAGS=$CFLAGS" >> config.mk ; fi
 else
     echo "not found"
@@ -575,6 +576,12 @@ else
     echo "not found"
     err "Please install GNU Make and add it to your PATH as either make or gmake"
 fi
+
+# Allow additional variables from the environment to override the defaults
+#
+test -n "$LD" && echo "LD=$LD" >> config.mk
+test -n "$LDFLAGS" && echo "LDFLAGS=$LDFLAGS" >> config.mk
+# TODO: need to add Makefile support for: LIBS, CPP, CPPFLAGS
 
 rm -f config.h
 $make config.h
