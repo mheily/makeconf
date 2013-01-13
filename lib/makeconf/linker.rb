@@ -94,7 +94,7 @@ class Linker
     # Override the normal search path for the dynamic linker
     unless @rpath.nil?
       if Platform.is_solaris?
-        input.push ['R', @rpath]
+        input.push ['-R', @rpath]
       elsif Platform.is_linux?
         input.push ['-rpath', @rpath]
       elsif Platform.is_windows?
@@ -108,7 +108,7 @@ class Linker
     input.each do |f|
       if @gcc_flags == true
         if f.kind_of?(Array)
-          if f[0] == '-L'
+          if f[0] == '-L' or f[0] == '-R'
             tok.push f.join(' ')
           else
             tok.push '-Wl,' + f[0] + ',' + f[1]
@@ -165,14 +165,6 @@ class Linker
   # Try to determine a usable default set of linker flags
   def default_flags
     ldflags = []
-
-    # GCC on Solaris 10 produces 32-bit code by default, so add -m64
-    # when running in 64-bit mode.
-    if Platform.is_solaris? and Platform.word_size == 64
-       ldflags.push '-m64'
-       ldflags.push '-R/usr/sfw/lib/amd64' if Platform.is_x86?
-    end
-
     ldflags
   end
 
