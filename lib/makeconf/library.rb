@@ -27,12 +27,15 @@ class SharedLibrary < Buildable
   end
 
   def install(installer)
+    outfile = "#{@output}.#{@abi_major}.#{@abi_minor}"
     installer.install(
         :dest => '$(LIBDIR)',
-        :rename => "#{@output}.#{@abi_major}.#{@abi_minor}",
+        :rename => outfile,
         :sources => @output,
         :mode => '0644'
     )
+    installer.add_rule "rm -f \$(DESTDIR)\$(LIBDIR)/#{output}"
+    installer.add_rule "ln -s #{outfile} \$(DESTDIR)\$(LIBDIR)/#{output}"
   end
 
   def link(ld)

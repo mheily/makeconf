@@ -8,6 +8,7 @@ class Installer
     @items = []         # Items to be installed
     @project = nil
     @path = nil
+    @custom_rule = []       # Custom rules to run at the end
 
     # Set default installation paths
     @dir = {
@@ -111,6 +112,9 @@ class Installer
       m.add_rule('uninstall', uninstall_command(i)) 
     end
 
+    # Add any custom rules at the end
+    @custom_rule.each { |rule| m.add_rule('install', rule) }
+
     return m
   end
 
@@ -140,6 +144,11 @@ class Installer
       end
     end
     res.join "\n"
+  end
+
+  # Add a custom rule to run at the end of the `install' target.
+  def add_rule(rule)
+    @custom_rule.push rule
   end
 
   private
