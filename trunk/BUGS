@@ -3,3 +3,9 @@
 
  * Compiler.makedepends() emits duplicate entries, or somehow they get added
    to the Target
+
+ * Need to check for /usr/bin/install and add to config.mk (Solaris is different default)
+ 
+ * Solaris linker uses '-R .' while GCC is '-Wl,--rpath,.' so this must be conditionalized in the Makefile.. perhaps with making 'MC_RPATH=-Wl,--rpath,' and for Solaris doing 'MC_RPATH="-R"' in config.mk. Then rpath is expressed as $(MC_RPATH)foo
+
+ * Conditionalized sources must be expressed as a variable, such as libkqueue_SOURCES, rather than hardcoded. Then it can be conditionalized for different platforms.
