@@ -45,7 +45,7 @@ p.add(
     :sources => %w{library.c}
     ),
 
-    Manual.new('simple.1')
+    Manual.new('simple.1', :alias => 'other.1')
  )
 
 p.check_header 'stdio.h'
