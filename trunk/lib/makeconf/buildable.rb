@@ -132,6 +132,11 @@ class Buildable
     # Derived classes are expected to override this method.
   end
 
+  # Creates things from configure.rb, for example generating pkgconfig.pc.in
+  def project_hook(project)
+    # STUB
+  end
+
   # Return a hash containing Makefile rules and targets
   # needed to compile the object.
   #
