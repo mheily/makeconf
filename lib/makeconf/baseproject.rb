@@ -126,6 +126,9 @@ class BaseProject
 
     preconfigure if respond_to? 'preconfigure'
 
+    # Run each buildable object's project_hook() method
+    @build.each { |x| x.project_hook(self) }
+
     # Run each buildable object's preconfigure() method
     @build.each { |x| x.preconfigure if x.respond_to? 'preconfigure' }
 

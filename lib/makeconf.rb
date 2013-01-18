@@ -36,6 +36,7 @@ class Makeconf
   require 'makeconf/manual'
   require 'makeconf/makefile'
   require 'makeconf/packager'
+  require 'makeconf/pkgconfig'
   require 'makeconf/platform'
   require 'makeconf/project'
   require 'makeconf/systemtype'
