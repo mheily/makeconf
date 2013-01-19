@@ -25,7 +25,15 @@ class PkgConfig < Buildable
     super(options)
   end
 
+  def makefile_hook(makefile)
+    makefile.define_variable('PKGCONFIGDIR', '=', '$(LIBDIR)/pkgconfig')
+  end
+
   def install(installer)
+    installer.install(
+        :sources => @name + '.pc',
+        :dest => '$(PKGCONFIGDIR)',
+        :mode => '644') 
   end
 
   def project_hook(proj)
@@ -44,6 +52,7 @@ __EOF__
   end
 
   def compile(cc)
+    input = @name + '.pc.in'
     output = @name + '.pc'
     mk = Makefile.new
     mk.add_target(output, [ 'config.h' ], [
@@ -51,11 +60,10 @@ __EOF__
             '@printf "prefix=$(PREFIX)\nexec_prefix=$(EPREFIX)\nlibdir=$(LIBDIR)\nincludedir=$(INCLUDEDIR)\n" > ' + output,
             "@cat #{@name}.pc.in >> #{output}"
             ])
-    mk.distribute output
+    mk.distribute input
 
-#FIXME:mk.target('all').depends(output)
-
-#TODO
+    mk.add_dependency('all',output)
+    
     return mk
   end
 
