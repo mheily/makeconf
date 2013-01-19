@@ -36,6 +36,8 @@ class SharedLibrary < Buildable
     )
     installer.add_rule "rm -f \$(DESTDIR)\$(LIBDIR)/#{output}"
     installer.add_rule "ln -s #{outfile} \$(DESTDIR)\$(LIBDIR)/#{output}"
+    installer.add_rule "rm -f \$(DESTDIR)\$(LIBDIR)/#{output}.#{@abi_major}"
+    installer.add_rule "ln -s #{outfile} \$(DESTDIR)\$(LIBDIR)/#{output}.#{@abi_major}"
   end
 
   def link(ld)
