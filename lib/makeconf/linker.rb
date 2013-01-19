@@ -76,7 +76,7 @@ class Linker
       else
         tok.push '-shared'
         tok.push '-fPIC'
-        tok.push "-soname #{@soname}" unless @soname.nil?
+        input.push ['-soname', @soname] unless @soname.nil?
       end
     end
 
