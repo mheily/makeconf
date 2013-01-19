@@ -42,6 +42,7 @@ class SharedLibrary < Buildable
 
   def link(ld)
     ld.shared_library = true
+    ld.soname = "#{@output}.#{@abi_major}"
     super(ld)
   end
 

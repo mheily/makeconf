@@ -2,7 +2,7 @@
 #
 class Linker
 
-  attr_accessor :output, :objects, :quiet, :shared_library, :rpath, :platform_ldflags
+  attr_accessor :output, :objects, :quiet, :shared_library, :rpath, :platform_ldflags, :soname
 
   attr_reader :path, :ldadd
 
@@ -17,6 +17,7 @@ class Linker
     @gcc_flags = true       # If true, options will be wraped in '-Wl,'
     @platform_ldflags = []    # Similar to cc.platform_flags
     @rpath = nil            # Optional -rpath setting
+    @soname = nil           # Optional -soname value
 
     # Determine the path to the linker executable
     @path = nil
@@ -35,13 +36,6 @@ class Linker
       @path = ENV['LD']
     end
     self.path = @path       # KLUDGE
-  end
-
-  # Sets the ELF soname to the specified string
-  def soname(s)
-    unless Platform.is_windows?
-     @flags.push ['soname', s]
-    end
   end
 
   # Add all symbols to the dynamic symbol table (GNU ld only)
@@ -82,6 +76,7 @@ class Linker
       else
         tok.push '-shared'
         tok.push '-fPIC'
+        tok.push "-soname #{@soname}" unless @soname.nil?
       end
     end
 
