@@ -137,6 +137,11 @@ class Buildable
     # STUB
   end
 
+  # Last chance to put things into the Makefile
+  def makefile_hook(makefile)
+    # STUB
+  end
+
   # Return a hash containing Makefile rules and targets
   # needed to compile the object.
   #
