@@ -229,6 +229,8 @@ private
         buf.push 'include $(BUILD_SHARED_LIBRARY)'
       when 'Binary', 'Test'
         buf.push 'include $(BUILD_EXECUTABLE)'
+      when 'Manual', 'PkgConfig'
+        # NOOP: These are not used on Android
       else
         throw "Unsuported class #{obj.class}"
       end
