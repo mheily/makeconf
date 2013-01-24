@@ -587,12 +587,32 @@ else
 fi
 
 printf "checking for ar.. "
-for cmd in ${host_system_type}-ar ar gar
+for ar in ${host_system_type}-ar ar gar
 do
-    $cmd --version >/dev/null 2>&1
-    if [ $? -eq 0 ] ; then ar="$cmd" ; break ; fi
-    echo "AR=$cmd" >> config.mk
+    $ar --version >/dev/null 2>&1
+    if [ $? -eq 0 ] ; then ar="$ar" ; break ; fi
 done
+if [ -n "$ar" ] ; then
+  echo "$ar"
+  echo "AR=$ar" >> config.mk
+else
+    echo "not found"
+    err "Please install an archiver and add it to your PATH"
+fi
+
+printf "checking for ranlib.. "
+for ar in ${host_system_type}-ranlib ranlib
+do
+    $ar --version >/dev/null 2>&1
+    if [ $? -eq 0 ] ; then ar="$ar" ; break ; fi
+done
+if [ -n "$ranlib" ] ; then
+  echo "$ranlib"
+  echo "AR=$ranlib" >> config.mk
+else
+    echo "not found"
+    err "Please install ranlib and add it to your PATH"
+fi
 
 printf "checking for a usable make command... "
 for cmd in make gmake
