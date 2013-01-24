@@ -15,7 +15,7 @@ class Platform
 
   # Returns true or false depending on if the target is MS Windows
   def Platform.is_windows?
-    @@target_os =~ /mswin|mingw/
+    @@target_os =~ /mswin|mingw/ or Makeconf.host_os =~ /mswin|mingw/
   end
 
   # Returns true or false depending on if the target is Solaris

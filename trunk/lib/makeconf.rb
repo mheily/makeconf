@@ -64,6 +64,10 @@ class Makeconf
     @@logger
   end
 
+  def Makeconf.host_os
+    @@host
+  end
+
   def Makeconf.parse_options(args = ARGV)
     reject_unknown_options = true
 
