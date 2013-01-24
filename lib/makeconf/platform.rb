@@ -13,9 +13,13 @@ class Platform
   @@host_os = RbConfig::CONFIG['host_os']
   @@target_os = @@host_os
 
+  def Platform.target_os=(val)
+    @@target_os = val
+  end
+
   # Returns true or false depending on if the target is MS Windows
   def Platform.is_windows?
-    @@target_os =~ /mswin|mingw/ or Makeconf.host_os =~ /mswin|mingw/
+    @@target_os =~ /mswin|mingw/
   end
 
   # Returns true or false depending on if the target is Solaris
