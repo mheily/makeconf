@@ -601,14 +601,14 @@ else
 fi
 
 printf "checking for ranlib.. "
-for ar in ${host_system_type}-ranlib ranlib
+for ranlib in ${host_system_type}-ranlib ranlib
 do
     $ar --version >/dev/null 2>&1
-    if [ $? -eq 0 ] ; then ar="$ar" ; break ; fi
+    if [ $? -eq 0 ] ; then ranlib="$ranlib" ; break ; fi
 done
 if [ -n "$ranlib" ] ; then
   echo "$ranlib"
-  echo "AR=$ranlib" >> config.mk
+  echo "RANLIB=$ranlib" >> config.mk
 else
     echo "not found"
     err "Please install ranlib and add it to your PATH"
