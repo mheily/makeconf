@@ -64,10 +64,6 @@ class Makeconf
     @@logger
   end
 
-  def Makeconf.host_os
-    @@host
-  end
-
   def Makeconf.parse_options(args = ARGV)
     reject_unknown_options = true
 
@@ -86,6 +82,7 @@ class Makeconf
        end
        opts.on('--host HOST', 'cross-compile programs to run on a different system type') do |arg|
          @@host = arg
+         Platform.target_os = arg
        end
        opts.on('--target TARGET', 'build a compiler for cross-compiling') do |arg|
          @@target = arg
