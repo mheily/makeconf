@@ -28,7 +28,7 @@ class Archiver
   end
 
   def command
-    cmd = [ @path, @flags, @output, @objects].flatten.join(' ')
+    cmd = [ '$(AR)', @flags, @output, @objects].flatten.join(' ')
     log.debug "Archiver command = `#{cmd}'"
     cmd
   end
@@ -36,7 +36,7 @@ class Archiver
   # Return the command formatted as a Makefile rule
   def to_make
     Target.new(@output, @objects, [
-            Target::ConditionalRule.new([command, "ranlib #{output}"]).ifneq('$(DISABLE_STATIC)','1')
+            Target::ConditionalRule.new([command, "$(RANLIB) #{output}"]).ifneq('$(DISABLE_STATIC)','1')
             ])
   end
 
