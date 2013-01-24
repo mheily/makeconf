@@ -586,6 +586,14 @@ else
     err "Please install a compiler and add it to your PATH"
 fi
 
+printf "checking for ar.. "
+for cmd in ${host_system_type}-ar ar gar
+do
+    $cmd --version >/dev/null 2>&1
+    if [ $? -eq 0 ] ; then ar="$cmd" ; break ; fi
+    echo "AR=$cmd" >> config.mk
+done
+
 printf "checking for a usable make command... "
 for cmd in make gmake
 do
