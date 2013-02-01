@@ -7,7 +7,8 @@ class BaseProject
   require 'yaml'
 
   attr_accessor :id, :version, :summary, :description, 
-        :author, :license, :license_file, :config_h
+        :author, :license, :license_file, :config_h,
+        :custom_configure_script
 
   attr_reader :cc, :ar
 
