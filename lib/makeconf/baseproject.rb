@@ -29,6 +29,7 @@ class BaseProject
     @license_file = nil
     @author = 'Unknown author'
     @config_h = 'config.h'
+    @custom_configure_script = false # If true, ./configure will not be generated
     @config_h_rules = [] # Makefile rules to generate config.h
     @header = {}        # Hash of system header availablity
     @build = []         # List of items to build
@@ -457,6 +458,7 @@ class BaseProject
 
   # Generate a configure script
   def write_configure
+    return if @custom_configure_script == true
     puts 'creating configure'
     File.unlink('configure') if File.exist?('configure')
     File.open('configure', 'w') do |f|
