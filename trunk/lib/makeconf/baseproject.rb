@@ -589,8 +589,9 @@ done
 
 # Android-specific options
 if [ "`echo ${host_system_type} | grep androideabi`" != "" ] ; then
-    require_var ndk with-ndk
-    require_var sdk with-sdk
+    exec ./configure.rb $*
+#    require_var ndk with-ndk
+#    require_var sdk with-sdk
 fi
 
 printf "checking for a C compiler... "
