@@ -31,6 +31,7 @@ class Manual < Buildable
 
     @man[:alias].each do |a|
       aliasfile = "\$(MANDIR)/man" + @man[:section] + '/' + a
+      installer.add_rule "rm -f \$(DESTDIR)#{aliasfile}"
       installer.add_rule("ln -s #{@source} \$(DESTDIR)#{aliasfile}")
       # XXX-FIXME need to add uninstall rule
     end
