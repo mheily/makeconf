@@ -3,7 +3,7 @@
 class Archiver
 
   attr_accessor :output, :objects
-  attr_reader :path
+  attr_reader :path, :ranlib
 
   def initialize(output = nil, objects = [])
     @flags = 'cru'      # GNU-specific; more portable is 'rcs'
@@ -16,6 +16,12 @@ class Archiver
     else
       self.path = 'ar'
     end
+
+    if ENV['RANLIB']
+      @ranlib = ENV['RANLIB']
+    else
+      @ranlib = 'ranlib'
+    end
   end
 
   # Set the full path to the archiver executable
@@ -25,6 +31,13 @@ class Archiver
     #if `#{@path} --version` =~ /^GNU ar/
 #  @gcc_flags = false
 #    end
+  end
+
+  def makefile
+    m = Makefile.new
+    m.define_variable('AR', '=', @path)
+    m.define_variable('RANLIB', '=', @ranlib)
+    return m
   end
 
   def command
