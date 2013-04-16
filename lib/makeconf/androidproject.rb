@@ -74,7 +74,7 @@ class AndroidProject < BaseProject
     # Clang uses an alternate linker
     if version =~ /^clang/
       ld = Linker.new
-      ld.path = @ndk_path + '/toolchains/llvm-3.1/prebuilt/linux-x86/bin/clang++'
+      ld.path = @ndk_path + '/toolchains/llvm-3.2/prebuilt/linux-x86/bin/clang++'
       ld.platform_ldflags = [ '-Wl,--gc-sections', 
       '-Wl,-z,nocopyreloc',
       "--sysroot=#{@ndk_path}/platforms/android-14/arch-arm",
@@ -186,7 +186,7 @@ class AndroidProject < BaseProject
     res = []
     if cc_path =~ /clang/
       res.push '-gcc-toolchain', @ndk_path + '/toolchains/arm-linux-androideabi-4.6/prebuilt/linux-x86'
-      res.push '-isystem', @ndk_path + '/toolchains/llvm-3.1/prebuilt/linux-x86/lib/clang/3.1/include'
+      res.push '-isystem', @ndk_path + '/toolchains/llvm-3.2/prebuilt/linux-x86/lib/clang/3.2/include'
       res.push %w{ -ffunction-sections -funwind-tables -fstack-protector -D__ARM_ARCH_5__ -D__ARM_ARCH_5T__ -D__ARM_ARCH_5E__ -D__ARM_ARCH_5TE__ -target armv7-none-linux-androideabi -march=armv7-a -mfloat-abi=softfp -mfpu=vfpv3-d16 -mthumb -Os -fomit-frame-pointer -fno-strict-aliasing -I. -DANDROID -fblocks -D_GNU_SOURCE -D__BLOCKS__ -Wa,--noexecstack -O0 -g }
       res.push "-I#{@ndk_path}/platforms/android-14/arch-arm/usr/include"
     end
@@ -338,9 +338,9 @@ private
 
     # Special case:
     #   Clang does not follow the same conventions as GCC
-    #   This is hardcoded for NDK r8c
+    #   This is hardcoded for NDK r8e
     if file == 'clang'
-      return @ndk_path + '/toolchains/llvm-3.1/prebuilt/' + build_os + '/bin/clang'
+      return @ndk_path + '/toolchains/llvm-3.2/prebuilt/' + build_os + '/bin/clang'
     else
     return @ndk_path +
        '/toolchains/'+ @target_arch + '-linux-androideabi-' +
