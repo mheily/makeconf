@@ -162,6 +162,7 @@ class BaseProject
     makefile.distclean(distfile)
     makefile.distclean(@config_h)
     makefile.distclean('config.yaml')
+    makefile.merge!(@ar.makefile)
     makefile.merge!(@cc.makefile)
     makefile.merge!(@packager.makefile)
     makefile.make_dist(@id, @version)
