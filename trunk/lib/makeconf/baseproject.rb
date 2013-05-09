@@ -205,9 +205,7 @@ class BaseProject
     makefile.add_target Target.new(@config_h, [], @config_h_rules) 
 
     makefile.distribute ['configure', 'configure.rb', 'GNUmakefile']
-
-    # Distribute things that look like license files
-    makefile.distribute 'COPYING' if File.exists? 'COPYING'
+    makefile.distribute @license_file unless @license_file.nil?
 
     makefile
   end
