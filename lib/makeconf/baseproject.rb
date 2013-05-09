@@ -12,7 +12,6 @@ class BaseProject
 
   attr_reader :cc, :ar
 
-  # KLUDGE: remove these if possible                
   attr_accessor :makefile, :installer, :packager
 
   def log
@@ -159,6 +158,7 @@ class BaseProject
     makefile = Makefile.new
 
     makefile.add_dependency('dist', distfile)
+    makefile.add_dependency('distdir', @config_h)
     makefile.distclean(distfile)
     makefile.distclean(@config_h)
     makefile.distclean('config.yaml')
