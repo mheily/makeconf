@@ -1,5 +1,5 @@
-module Makeconf
-class Makeconf::GUI
+class Makeconf
+class GUI
 
   def initialize(project)
     require 'tk'
@@ -193,6 +193,7 @@ class Makeconf::GUI
   end
 
 end
+end
 
 __END__
 # UNUSED: might use for showing error messages if "require 'tk'" fails
@@ -243,5 +244,4 @@ class Makeconf::GUI::Minimal
     return (message_box(txt, title, 1) == 1) ? true : false
   end
 
-end
 end

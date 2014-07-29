@@ -1,4 +1,4 @@
-module Makeconf
+class Makeconf
 # Generates a pkgconfig '.pc' file
 
 class PkgConfig < Buildable

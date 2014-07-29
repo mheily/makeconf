@@ -1,4 +1,4 @@
-module Makeconf
+class Makeconf
 # An installer copies files from the current directory to an OS-wide location
 class Installer
 

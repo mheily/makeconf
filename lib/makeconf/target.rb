@@ -1,4 +1,4 @@
-module Makeconf
+class Makeconf
 # A target is a section in a Makefile
 class Target
 

@@ -1,4 +1,4 @@
-module Makeconf
+class Makeconf
 # A project contains all of the information about the build.
 #
 class Project
@@ -9,7 +9,7 @@ class Project
   # When each project is created, it is added to this list
   @@projects = []
 
-  def self.new(options)
+  def self.new(options = {})
     if SystemType.host =~ /-androideabi$/
        require 'makeconf/androidproject'
        object = AndroidProject.allocate

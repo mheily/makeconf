@@ -1,4 +1,4 @@
-module Makeconf
+class Makeconf
 # A Makefile is a collection of targets and rules used to build software.
 #
 class Makefile

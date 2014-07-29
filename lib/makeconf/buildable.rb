@@ -1,4 +1,4 @@
-module Makeconf
+class Makeconf
 # A buildable object like a library or executable
 class Buildable
 

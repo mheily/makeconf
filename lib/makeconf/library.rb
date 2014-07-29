@@ -1,4 +1,4 @@
-module Makeconf
+class Makeconf
 # A generic Library class that builds both shared and static
 
 class Library < Buildable

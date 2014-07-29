@@ -1,4 +1,4 @@
-module Makeconf
+class Makeconf
 class Makeconf::WxApp < Wx::App
 
   require 'rubygems'

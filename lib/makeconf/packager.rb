@@ -1,4 +1,4 @@
-module Makeconf
+class Makeconf
 # A packager produces a package in the preferred OS format (e.g. RPM, DEB)
 class Packager
 

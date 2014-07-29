@@ -1,4 +1,4 @@
-module Makeconf
+class Makeconf
 class AndroidProject < BaseProject
 
   attr_accessor :target_arch,

@@ -1,4 +1,4 @@
-module Makeconf
+class Makeconf
 # An executable binary file used for testing
 class Test < Binary
 

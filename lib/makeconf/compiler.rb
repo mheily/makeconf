@@ -1,4 +1,4 @@
-module Makeconf
+class Makeconf
 # Processes source code files to produce intermediate object files.
 #
 class Compiler

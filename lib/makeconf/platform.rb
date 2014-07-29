@@ -1,4 +1,4 @@
-module Makeconf
+class Makeconf
 #
 # Abstraction for platform-specific system commands and variables
 # This class only contains static methods.

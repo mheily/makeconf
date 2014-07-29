@@ -1,4 +1,4 @@
-module Makeconf
+class Makeconf
 # A project contains all of the information about the build.
 # This is the base class from which all other Project subclasses are built
 #

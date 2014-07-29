@@ -1,4 +1,4 @@
-module Makeconf
+class Makeconf
 # A linker combines multiple object files into a single executable or library file. 
 #
 class Linker

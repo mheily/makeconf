@@ -1,4 +1,4 @@
-module Makeconf
+class Makeconf
 # Detect the build system type and allow for cross-compilation
 #
 class SystemType

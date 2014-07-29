@@ -1,4 +1,4 @@
-module Makeconf
+class Makeconf
   # The archiver creates a static library from one or more object files
   #
   class Archiver
