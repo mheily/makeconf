@@ -1,3 +1,4 @@
+module Makeconf
 # A generic Library class that builds both shared and static
 
 class Library < Buildable
@@ -115,4 +116,5 @@ class UnionLibrary < Library
             :sources => sources
             )
   end
+end
 end

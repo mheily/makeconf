@@ -1,3 +1,4 @@
+module Makeconf
 # Processes source code files to produce intermediate object files.
 #
 class Compiler
@@ -386,4 +387,5 @@ private
     Makeconf.logger
   end
 
+end
 end

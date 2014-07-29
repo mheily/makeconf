@@ -1,3 +1,4 @@
+module Makeconf
 class AndroidProject < BaseProject
 
   attr_accessor :target_arch,
@@ -377,4 +378,4 @@ class Test
   def link(ld)
   end
 end
-
+end

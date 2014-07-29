@@ -1,3 +1,4 @@
+module Makeconf
 # A target is a section in a Makefile
 class Target
 
@@ -112,4 +113,5 @@ class Target::ConditionalRule
     rules += "endif\n"
     rules
   end
+end
 end

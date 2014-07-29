@@ -1,3 +1,4 @@
+module Makeconf
 # An external project is typically a third-party library dependency
 # that does not use makeconf for it's build system.
 #
@@ -108,4 +109,5 @@ private
   def log
       Makeconf.logger
   end
+end
 end

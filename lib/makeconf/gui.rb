@@ -1,3 +1,4 @@
+module Makeconf
 class Makeconf::GUI
 
   def initialize(project)
@@ -242,4 +243,5 @@ class Makeconf::GUI::Minimal
     return (message_box(txt, title, 1) == 1) ? true : false
   end
 
+end
 end

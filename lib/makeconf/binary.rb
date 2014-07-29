@@ -1,3 +1,4 @@
+module Makeconf
 # An executable binary file
 class Binary < Buildable
 
@@ -36,3 +37,4 @@ class Binary < Buildable
           
 end
 
+end

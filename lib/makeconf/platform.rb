@@ -1,3 +1,4 @@
+module Makeconf
 #
 # Abstraction for platform-specific system commands and variables
 # This class only contains static methods.
@@ -214,4 +215,5 @@ class Platform
   if is_windows?
     require 'win32ole'
   end
+end
 end

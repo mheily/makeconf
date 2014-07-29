@@ -1,3 +1,4 @@
+module Makeconf
 # A project contains all of the information about the build.
 # This is the base class from which all other Project subclasses are built
 #
@@ -689,4 +690,5 @@ $make config.h
     end
     return false
   end    
+end
 end

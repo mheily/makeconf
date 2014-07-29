@@ -1,3 +1,4 @@
+module Makeconf
 # A generic Header class that installs header files into $(PKGINCLUDEDIR)
 
 class Header < Buildable
@@ -36,4 +37,5 @@ class Header < Buildable
     []
   end
 
+end
 end

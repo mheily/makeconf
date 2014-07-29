@@ -1,3 +1,4 @@
+module Makeconf
 # A packager produces a package in the preferred OS format (e.g. RPM, DEB)
 class Packager
 
@@ -88,4 +89,5 @@ EOF
   f.close()
   @makefile.add_rule('distclean', Platform.rm('rpm.spec'))
   end
+end
 end

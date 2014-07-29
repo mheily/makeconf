@@ -1,3 +1,4 @@
+module Makeconf
 # Generates a pkgconfig '.pc' file
 
 class PkgConfig < Buildable
@@ -74,4 +75,5 @@ __EOF__
     []
   end
 
+end
 end

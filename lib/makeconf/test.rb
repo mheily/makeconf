@@ -1,3 +1,4 @@
+module Makeconf
 # An executable binary file used for testing
 class Test < Binary
 
@@ -29,4 +30,5 @@ class Test < Binary
     ld.rpath = '.'
     super(ld)
   end
+end
 end

@@ -1,3 +1,4 @@
+module Makeconf
 # A project contains all of the information about the build.
 #
 class Project
@@ -23,4 +24,5 @@ class Project
   def Project.all_projects
     @@projects
   end
+end
 end

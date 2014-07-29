@@ -1,3 +1,4 @@
+module Makeconf
 # Generates program manuals (man pages, etc.)
 # Currently it only handles troff/mdoc manpages, but in the future it could
 # generate multiple formats from a single source
@@ -50,4 +51,5 @@ class Manual < Buildable
     []
   end
 
+end
 end

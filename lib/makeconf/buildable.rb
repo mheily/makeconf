@@ -1,3 +1,4 @@
+module Makeconf
 # A buildable object like a library or executable
 class Buildable
 
@@ -238,4 +239,5 @@ class Buildable
   def log
     Makeconf.logger
   end
+end
 end

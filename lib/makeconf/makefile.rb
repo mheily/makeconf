@@ -1,3 +1,4 @@
+module Makeconf
 # A Makefile is a collection of targets and rules used to build software.
 #
 class Makefile
@@ -202,4 +203,5 @@ class Makefile::Conditional
     s += "\n"
     s
   end
+end
 end
