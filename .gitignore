@@ -1,0 +1,6 @@
+config.h
+config.log
+*.mk
+vars.sh
+Makefile
+*.swp
