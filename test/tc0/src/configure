@@ -15,23 +15,12 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
 
-. ../../config.sub
+. ../../../config.sub
+. ../vars.sh
 
-SUBDIRS=src
+sbin_PROGRAMS=testcase
 
-package 'testcase0' '0.1'
-getopt "--help" "echo TODO"
-
-check_header 'sys/limits.h'
-if [ $check_header_sys_limits_h -ne 1 ] ; then
-	echo "sys/limits not found"
-	exit 1
-fi
-
-check_header 'does/not/exist.h'
-if [ $check_header_sys_limits_h -eq 0 ] ; then
-	echo "bogus header found"
-	exit 1
-fi
+testcase_CFLAGS="-include ../config.h"
+testcase_SOURCES="main.c"
 
 write_makefile
