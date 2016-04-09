@@ -475,7 +475,7 @@ INSTALL ?= /usr/bin/install
 emit_distribution() {
 	if [ "$TOP_LEVEL" = "no" ] ; then return ; fi
 	
-	_distfiles=`echo "$DISTFILES" | tr ' ' '\n' | sort | uniq | tr '\n' ' '`
+	_distfiles=`echo "$DISTFILES" | sed 's/\\\//g' | tr ' ' '\n' | sort | uniq | tr '\n' ' '`
 	_mf_distribution="dist:
 	mkdir \$(PACKAGE_NAME)-\$(PACKAGE_VERSION)
 	for file in $_distfiles ; do \
