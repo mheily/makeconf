@@ -420,6 +420,7 @@ emit_programs() {
 
 		eval "sources=\$${_program}_SOURCES"
 		eval "cflags=\$${_program}_CFLAGS"
+		eval "cxxflags=\$${_program}_CXXFLAGS"
 		eval "ldflags=\$${_program}_LDFLAGS"
 		eval "ldadd=\$${_program}_LDADD"
 		eval "depends=\$${_program}_DEPENDS"
