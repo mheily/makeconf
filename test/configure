@@ -15,7 +15,7 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
 
-. ./config.sub
+. ../config.sub
 
 package 'relaunchd' '0.3.2'
 getopt "--help" "echo TODO"
@@ -64,8 +64,6 @@ else
 	make_define 'kqueue_DEPENDS' ''	
 fi
 
-SUBDIRS="src test"
-                 
 get_install_directory 'pkgconfdir' 'Package configuration' "${sysconfdir}/launchd"
 create_subdirectory 'pkgconfdir' 'agents' 'daemons'
 get_install_directory 'pkgdatadir' 'Package data' "${datadir}/launchd"

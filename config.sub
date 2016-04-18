@@ -63,6 +63,7 @@ err() {
 init_maketool() {
 	rm -f config.log
 	test -n "$CC" || CC="cc"
+	test -n "$CXX" || CC="c++"
 	printf "/* Automatically generated -- do not edit */\n\n" > config.h
 	printf "# Automatically generated -- do not edit\n\n" > config.mk
 	printf "# Automatically generated -- do not edit\n\n" > depends.mk
@@ -303,16 +304,31 @@ emit_compilation_units() {
 	
 	_all_mkdeps=""
 	for source in $sources ; do
-		_obj=`echo $source | sed 's/\.c\$/.o/' | sed 's/.*\///'`
+		_obj=`echo $source | sed 's/\.c\$/.o/; s/\.cpp\$/.o/;' | sed 's/.*\///'`
 		test -n "$_prefix" && _obj="${_prefix}${_obj}"
-		_mkdep_command="$CC $cflags $CFLAGS -MM -MT $_obj"
+		echo $source | egrep -q '\.cpp'
+		if [ $? -eq 0 ] ; then 
+                       _compiler="$CXX"
+			_compiler_mk="\$(CXX)"
+			compiler_mk="$_compiler_mk"
+			_flags="$cxxflags $CXXFLAGS"
+			_flags_mk="\$(CXXFLAGS)"
+		else
+			_compiler="$CC"
+			_compiler_mk="\$(CC)"
+			# Not needed because $(CC) is the default: compiler_mk="$_compiler_mk"
+			_flags="$cflags $CFLAGS"
+			_flags_mk="\$(CFLAGS)"
+		fi
+		_mkdep_command="$_compiler $_flags -MM -MT $_obj"
+
 		log_debug "checking dependencies of ${_obj}:\\n + ${_mkdep_command} ${source}"
 		_mkdeps=`${_mkdep_command} $source 2>>config.log`
 		test $? -eq 0 || err "Unable to generate dependencies for $source"
 		_all_mkdeps="$_all_mkdeps `echo $_mkdeps | head -1 | sed 's/.*: //'`"
 		_mf_dependencies="$_mf_dependencies
 $_mkdeps
-	\$(CC) -c $cflags \$(CFLAGS) -o \$@ $source
+	$_compiler_mk -c $_flags $_flags_mk -o \$@ $source
 "
 	done
 
@@ -355,7 +371,7 @@ emit_shared_library() {
 	_mf_clean_files="$_mf_clean_files ${_basic_libname}"
 	_mf_targets="$_mf_targets
 ${_basic_libname}: $_curdir_objs $depends
-	\$(CC) -shared -fvisibility=hidden -Wl,-soname,$soname -o \$@ \\
+	$compiler_mk -shared -fvisibility=hidden -Wl,-soname,$soname -o \$@ \\
 	    $ldflags \$(LDFLAGS) $_curdir_objs $ldadd \$(LDADD)
 
 "
@@ -370,9 +386,12 @@ emit_libraries() {
 		# common to all targets
 		eval "sources=\$${_library}_SOURCES"
 		eval "cflags=\$${_library}_CFLAGS"
+		eval "cxxflags=\$${_library}_CXXFLAGS"
 		eval "ldflags=\$${_library}_LDFLAGS"
 		eval "ldadd=\$${_library}_LDADD"
 		eval "depends=\$${_library}_DEPENDS"
+		eval "compiler=\$${_library}_COMPILER"
+		eval "compiler_mk=\"\\\$(CC)\""
 		# specific to libraries
 		eval "soname=\$${_library}_SONAME"
 		
@@ -404,17 +423,18 @@ emit_programs() {
 		eval "ldflags=\$${_program}_LDFLAGS"
 		eval "ldadd=\$${_program}_LDADD"
 		eval "depends=\$${_program}_DEPENDS"
-		_objs=`echo $sources | sort | sed 's/\.c/.o/g'`
+		_objs=`echo "$sources " | sort | sed 's/\.c /.o /g; s/\.cpp /.o /;'`	
 		_curdir_objs=`for x in $_objs ; do basename $x ; done | tr '\n' ' '`
+
+		emit_compilation_units
 
 		_mf_default_target="$_mf_default_target $_program"
 		_mf_clean_files="$_mf_clean_files $_program"
 		_mf_targets="$mf_targets
 $_program: $_curdir_objs $depends
-	\$(CC) -o \$@ $ldflags \$(LDFLAGS) $_curdir_objs $ldadd \$(LDADD)
+	$compiler_mk -o \$@ $ldflags \$(LDFLAGS) $_curdir_objs $ldadd \$(LDADD)
 
 "
-		emit_compilation_units
 	done
 }
 
