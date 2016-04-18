@@ -63,7 +63,7 @@ err() {
 init_maketool() {
 	rm -f config.log
 	test -n "$CC" || CC="cc"
-	test -n "$CXX" || CC="c++"
+	test -n "$CXX" || CXX="c++"
 	printf "/* Automatically generated -- do not edit */\n\n" > config.h
 	printf "# Automatically generated -- do not edit\n\n" > config.mk
 	printf "# Automatically generated -- do not edit\n\n" > depends.mk
