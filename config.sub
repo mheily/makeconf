@@ -424,6 +424,7 @@ emit_programs() {
 		eval "ldflags=\$${_program}_LDFLAGS"
 		eval "ldadd=\$${_program}_LDADD"
 		eval "depends=\$${_program}_DEPENDS"
+		eval "compiler_mk=\"\\\$(CC)\""
 		_objs=`echo "$sources " | sort | sed 's/\.c /.o /g; s/\.cpp /.o /;'`	
 		_curdir_objs=`for x in $_objs ; do basename $x ; done | tr '\n' ' '`
 
