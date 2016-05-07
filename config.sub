@@ -346,6 +346,11 @@ emit_compilation_units() {
 		fi
 		_mkdep_command="$_compiler $_flags -MM -MT $_obj"
 
+		# Add '-static' when building static libraries
+		if [ "$_prefix" = "static-" ] ; then
+			_flags="-static ${_flags}"
+		fi
+
 		log_debug "checking dependencies of ${_obj}:\\n + ${_mkdep_command} ${source}"
 		_mkdeps=`${_mkdep_command} $source 2>>config.log`
 		test $? -eq 0 || err "Unable to generate dependencies for $source"
@@ -384,7 +389,7 @@ emit_shared_library() {
 	install_DIRS="$install_DIRS ${libdir}"
 	_mf_install_rules="$_mf_install_rules
 	\$(INSTALL) -s -m 755 ${_basic_libname} \$\$DESTDIR\$(LIBDIR)/$soname
-	ln -s \$\$DESTDIR\$(LIBDIR)/$soname \$\$DESTDIR\$(LIBDIR)/${_basic_libname} 
+	ln -sf \$\$DESTDIR\$(LIBDIR)/$soname \$\$DESTDIR\$(LIBDIR)/${_basic_libname} 
 "
 
 	_mf_default_target="$_mf_default_target ${_basic_libname}"
@@ -554,12 +559,13 @@ emit_distclean() {
 emit_subdir_rules() {
 	if [ -z "$SUBDIRS" ] ; then return ; fi
 
-	_mf_default_target="$_mf_default_target
-	for dir in $SUBDIRS ; do cd \$\$dir && \$(MAKE) all && cd .. ; done
-"
+	_mf_default_target="${_mf_default_target}${lf}"
+	_mf_install_rules="${_mf_install_rules}${lf}" 
 
-	_mf_install_rules="$_mf_install_rules
-	for dir in $SUBDIRS ; do cd \$\$dir && \$(MAKE) install && cd .. ; done"
+	for _es_dir in $SUBDIRS ; do
+		_mf_default_target="${_mf_default_target}	\$(MAKE) -C $_es_dir all${lf}" 
+		_mf_install_rules="${_mf_install_rules}	\$(MAKE) -C $_es_dir install${lf}" 
+	done
 }
 
 emit_platform_tweaks() {
