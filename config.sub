@@ -343,7 +343,12 @@ emit_compilation_units() {
 	_all_mkdeps=""
 	_curdir_objs=""
 	for source in $sources ; do
-		_obj=`echo $source | sed 's/\.c\$/.o/; s/\.cpp\$/.o/;' | sed 's/.*\///'`
+		_obj=`echo $source | sed '
+			s/\.c$/.o/;
+			s/\.cc$/.o/;
+			s/\.cpp$/.o/;
+			s/\.cxx$/.o/;
+		' | sed 's/.*\///'`
 		test -n "$_prefix" && _obj="${_prefix}${_obj}"
 		_curdir_objs="${_curdir_objs} ${_obj}"
 		
@@ -363,6 +368,11 @@ emit_compilation_units() {
 			_flags_mk="\$(CFLAGS)"
 		fi
 		_mkdep_command="$_compiler $_flags -MM -MT $_obj"
+
+		if [ "$source" = "$_obj" ] ; then
+			echo "ERROR: Unable to determine file extension of output"
+			exit 1
+		fi
 
 		# Add '-static' when building static libraries
 		if [ "$_prefix" = "static-" ] ; then
@@ -481,7 +491,7 @@ emit_programs() {
 		eval "ldadd=\$${_program}_LDADD"
 		eval "depends=\$${_program}_DEPENDS"
 		eval "compiler_mk=\"\\\$(CC)\""
-		_objs=`echo "$sources " | sort | sed 's/\..* /.o /g; s/\.cpp /.o /g;'`	
+		_objs=`echo "$sources " | sort | sed 's/\..* /.o /g; s/\.(cc|cpp|cxx) /.o /g;'`	
 		_curdir_objs=`for x in $_objs ; do basename $x ; done | tr '\n' ' '`
 
 		emit_compilation_units
