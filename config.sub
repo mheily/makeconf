@@ -455,14 +455,27 @@ emit_libraries() {
 }
 
 # Add a single rule to install a single executable
-emit_install_rule() {
+emit_program_install_rule() {
+	_program=$1
+	_dest=$2
+	
+	eval "_flags=\$${_program}_INSTALLFLAGS"
+	if [ -z "${_flags}" ] ; then
+		_flags="-s -m 755"
+	fi
+	
+	_mf_install_rules="$_mf_install_rules${lftab}\$(INSTALL) ${_flags} ${_program} \$\$DESTDIR${_dest}${lf}"
+}
+
+# Determine if an install rule should be emitted for a compiled object
+emit_install_rules() {
 	_id=$1
 	_match=""
 
 	for _program in $bin_PROGRAMS ; do
 	if [ $_id = $_program ] ; then
 		install_DIRS="$install_DIRS ${bindir}"
-		_mf_install_rules="$_mf_install_rules${lftab}\$(INSTALL) -s -m 755 $_id \$\$DESTDIR\$(BINDIR)${lf}"
+		emit_program_install_rule $_program '$(BINDIR)'
 		return
 	fi
 	done
@@ -470,7 +483,7 @@ emit_install_rule() {
 	for _program in $sbin_PROGRAMS ; do
 	if [ $_id = $_program ] ; then
 		install_DIRS="$install_DIRS ${sbindir}"
-		_mf_install_rules="$_mf_install_rules${lftab}\$(INSTALL) -s -m 755 $_id \$\$DESTDIR\$(SBINDIR)${lf}"
+		emit_program_install_rule $_program '$(SBINDIR)'
 		return
 	fi
 	done
@@ -482,7 +495,7 @@ emit_programs() {
 
 	for _program in $bin_PROGRAMS $sbin_PROGRAMS $TESTS; do
 
-		emit_install_rule $_program
+		emit_install_rules $_program
 
 		eval "sources=\$${_program}_SOURCES"
 		eval "cflags=\$${_program}_CFLAGS"
